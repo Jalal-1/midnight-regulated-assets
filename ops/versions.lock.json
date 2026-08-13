@@ -1,0 +1,13 @@
+{
+  "_comment": "The pinned RC3 set. These move TOGETHER — bumping one alone is unsupported. Nulls are unfilled as of M0; fill from a known-good localnet before relying on this file.",
+  "compactc": null,
+  "compact-stdlib": null,
+  "midnight-node": null,
+  "midnight-indexer": null,
+  "proof-server": null,
+  "midnight-js": null,
+  "wallet-sdk": null,
+  "openzeppelin-compact": null,
+  "flags": ["--feature-zkir-v3"],
+  "notes": "Proof server is always local, including against remote nodes."
+}

@@ -20,7 +20,13 @@ The repo layout states that thesis directly: products live in `apps/`, the block
 
 ## Status
 
-Pre-M0. **This repo currently contains only `.gitignore` and this README** — the scaffold described below is the target layout, not what is on disk today. Treat every path in the next section as forthcoming unless it exists when you look.
+M0 in progress. **The directory structure below exists, but it is a skeleton** — the packages carry entrypoints documenting their responsibility, not implementations. Specifically, nothing here deploys yet:
+
+- `ops/versions.lock.json` — every version is `null`. Nothing is actually pinned.
+- `ops/localnet/docker-compose.yml` — image tags are `TODO` placeholders.
+- `ops/setup-toolchain.sh`, `ops/redeploy.sh` — deliberately `exit 1` rather than pretend to work.
+- `packages/network` — real resolver logic, but localnet ports are unverified and Stagenet endpoints are empty.
+- `apps/counter/contract/counter.compact` — plausible, unverified against the pinned compiler.
 
 | Milestone | Deliverable | State |
 |---|---|---|

@@ -1,0 +1,17 @@
+# Localnet: node + indexer + proof server.
+# Ports here are the source of truth for packages/network.
+# TODO(M0): pin every image tag from ops/versions.lock.json — no :latest.
+services:
+  node:
+    image: "TODO_NODE_IMAGE"
+    ports: ["9944:9944"]
+
+  indexer:
+    image: "TODO_INDEXER_IMAGE"
+    ports: ["8088:8088"]
+    depends_on: [node]
+
+  proof-server:
+    image: "TODO_PROOF_SERVER_IMAGE"
+    # Experimental proof server, --feature-zkir-v3. Always local.
+    ports: ["6300:6300"]

@@ -1,0 +1,15 @@
+// Toolchain proof. This contract exists to answer one question: does the
+// pinned stack compile, deploy, prove, and submit end to end?
+//
+// TODO(M0): verify the pragma against the pinned compactc in
+// ops/versions.lock.json before trusting this file.
+
+pragma language_version 0.14;
+
+import CompactStandardLibrary;
+
+export ledger round: Counter;
+
+export circuit increment(): [] {
+  round.increment(1);
+}

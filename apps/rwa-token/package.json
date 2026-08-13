@@ -1,0 +1,6 @@
+{
+  "name": "@mra/app-rwa-token",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module"
+}

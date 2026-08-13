@@ -1,0 +1,17 @@
+{
+  "name": "midnight-regulated-assets",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "localnet:up": "docker compose -f ops/localnet/docker-compose.yml up -d",
+    "localnet:down": "docker compose -f ops/localnet/docker-compose.yml down -v",
+    "redeploy": "./ops/redeploy.sh"
+  }
+}
