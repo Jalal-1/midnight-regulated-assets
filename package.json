@@ -11,17 +11,16 @@
     "node": ">=22"
   },
   "scripts": {
-    "build": "turbo run build",
-    "check": "turbo run check",
-    "test": "turbo run test",
+    "check": "tsc -b",
+    "check:clean": "tsc -b --clean && tsc -b",
     "localnet:up": "docker compose --env-file ops/localnet/env/rc3.env -f ops/localnet/compose.yml up -d --wait",
     "localnet:down": "docker compose -f ops/localnet/compose.yml down -v",
+    "toolchain": "./ops/setup-toolchain.sh",
     "redeploy": "./ops/redeploy.sh"
   },
   "devDependencies": {
     "@tsconfig/node24": "^24.0.4",
     "@types/node": "^24.0.0",
-    "turbo": "^2.9.16",
     "typescript": "^6.0.3",
     "vitest": "^4.1.7"
   },

@@ -70,6 +70,34 @@ export const networks = { localnet, stagenet } satisfies Record<string, NetworkC
 export type NetworkName = keyof typeof networks;
 
 /**
+ * CAUTION: there are TWO network-id concepts, and they are not interchangeable.
+ *
+ *   midnight-js   `NetworkId` = plain string, e.g. 'undeployed'
+ *   wallet-sdk    `NetworkId.NetworkId` = an enum, e.g. NetworkId.Undeployed
+ *
+ * Both must be set, from the same source of truth, or the wallet and the
+ * contract layer will disagree about which chain they are on. `networkId` above
+ * is the midnight-js string; map it to the wallet-sdk enum at the wallet
+ * boundary (see packages/wallet), never by parsing the string twice.
+ */
+
+/**
+ * Seeds pre-funded by the localnet genesis mint (`CFG_PRESET=dev`).
+ *
+ * Localnet only — these are public, well-known test keys. Never use them
+ * anywhere else, and never add a Stagenet seed to this file: use the faucet.
+ *
+ * Taken from midnight-js testkit's LocalTestEnvironment, which caps usage at 4
+ * wallets. Note the upstream order really does start at ...0002.
+ */
+export const LOCALNET_GENESIS_SEEDS = [
+  '0000000000000000000000000000000000000000000000000000000000000002',
+  '0000000000000000000000000000000000000000000000000000000000000001',
+  '0000000000000000000000000000000000000000000000000000000000000003',
+  '0000000000000000000000000000000000000000000000000000000000000004',
+] as const;
+
+/**
  * Resolve the active network. Defaults to localnet: this repo is localnet-first
  * by policy, so anything remote is opt-in via MRA_NETWORK=stagenet.
  *

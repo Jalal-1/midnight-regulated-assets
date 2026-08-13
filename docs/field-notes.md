@@ -135,3 +135,98 @@ for iterating on TypeScript output.
 Worth stating because the "design for minutes" constraint is easy to misapply:
 it is about **submitting and proving at runtime** (~40 s / ~70 s), not about the
 build. A slow edit-compile loop is a symptom of something wrong, not expected.
+
+---
+
+## 2026-08-13 · midnight-js 5.x + wallet-sdk 2.x · there are TWO NetworkId types
+
+**Symptom (anticipated, not yet hit).** Wallet and contract layers disagree about
+which chain they are on, with no single obvious wrong value to find.
+
+**Cause.** The two SDKs model network identity differently:
+
+| Package | Type | Localnet value |
+|---|---|---|
+| `@midnight-ntwrk/midnight-js-network-id` | `type NetworkId = string` | `'undeployed'` |
+| `@midnightntwrk/wallet-sdk` | `NetworkId.NetworkId` enum | `NetworkId.Undeployed` |
+
+Worse, midnight-js holds its value in **module-level global state**:
+`setNetworkId()` must be called before any wallet or contract operation, and
+`getNetworkId()` throws with "Network ID has not been configured" if it was not.
+So the failure mode is either a thrown error at an unrelated call site, or two
+layers silently pointing at different chains.
+
+Upstream's own testkit carries both side by side, which is the tell —
+`LocalTestConfiguration` sets `walletNetworkId` (enum) *and* `networkId`
+(string) from one constructor.
+
+**Fix.** `packages/network` owns the string, `packages/wallet` maps it to the
+enum at the boundary, and there is exactly one `setNetworkId()` call site. Never
+derive the two independently.
+
+---
+
+## 2026-08-13 · localnet · pre-funded genesis seeds
+
+`CFG_PRESET=dev` funds four well-known seeds via the genesis mint. Upstream's
+testkit caps a local environment at exactly these four:
+
+```
+0000000000000000000000000000000000000000000000000000000000000002
+0000000000000000000000000000000000000000000000000000000000000001
+0000000000000000000000000000000000000000000000000000000000000003
+0000000000000000000000000000000000000000000000000000000000000004
+```
+
+Exported as `LOCALNET_GENESIS_SEEDS` from `packages/network`. The upstream order
+genuinely starts at `…0002`; preserved rather than tidied in case anything
+depends on index order.
+
+These are public test keys — localnet only. On Stagenet, use the faucet; a seed
+with real funds must never enter this repo.
+
+Also independently confirms two earlier corrections: the testkit uses
+`/api/v4/graphql` and `networkId: 'undeployed'`.
+
+---
+
+## 2026-08-13 · Yarn 4 · root devDependencies are not on a workspace script's PATH
+
+**Symptom.** `yarn workspace @mra/network run check` fails with
+`command not found: tsc`, while `yarn tsc --version` at the root prints 6.0.3 and
+`node_modules/.bin/tsc` exists and runs.
+
+**Cause.** Yarn 4 is stricter than npm: a workspace script only gets binaries
+from that workspace's own dependencies. `typescript` declared once as a root
+devDependency is invisible to `packages/*/scripts`.
+
+**Fix.** Two options — duplicate `typescript`/`vitest` into every workspace (what
+upstream midnight-js does), or let the root drive it. We do the latter:
+`tsconfig.json` is a solution-style file referencing every workspace, and the
+root `check` script is just `tsc -b`. One dependency declaration, one command,
+whole-repo coverage.
+
+Two related traps while wiring this up:
+
+- **`tsc -b` fails hard on a workspace whose `include` matches no files**
+  (`TS18003`). `apps/tokenised-deposit` and `apps/rwa-token` are deliberately
+  absent from the root references until they have source.
+- **`"types": ["node"]` is required** in the shared tsconfig or `process` is
+  unresolved, even with `@types/node` installed and `@tsconfig/node24` extended.
+
+---
+
+## 2026-08-13 · Yarn 4 · build scripts are disabled, and it does not matter here
+
+`yarn install` warns that `classic-level` and `msgpackr-extract` "list build
+scripts, but all build scripts have been disabled" — `enableScripts` is `false`
+from this machine's global Yarn config, not from anything in this repo.
+
+`classic-level` is the native LevelDB binding behind
+`midnight-js-level-private-state-provider`, so this looks alarming. It is fine
+**on this platform**: the package ships prebuilds including `linux-x64`, and a
+round-trip open/put/get against a real LevelDB succeeds.
+
+It would break on a platform with no matching prebuild. If the private state
+provider fails to load on some other machine, set `enableScripts: true` in
+`.yarnrc.yml` before debugging anything else.

@@ -25,16 +25,19 @@ M0 in progress. **Target network: Stagenet** — a new chain with its own genesi
 The directory structure below exists, but it is a skeleton: packages carry entrypoints documenting their responsibility, not implementations. What is real and what is not:
 
 **Real and verified**
-- **The localnet boots.** `yarn localnet:up` exits 0 with node, indexer, and proof server all healthy on the pinned RC3 stack; the node produces blocks and all three endpoints answer. Evidence is in `docs/field-notes.md`.
-- `ops/versions.lock.json` + `ops/localnet/env/rc3.env` — the Stagenet RC3 stack, all three docker tags pulled and running.
-- `packages/network` — localnet endpoints verified live against the running stack; Stagenet endpoints taken from the delivery note.
-- `apps/counter/contract/counter.compact` — byte-identical to the upstream canonical example.
+- **The localnet boots.** `yarn localnet:up` exits 0 with node, indexer, and proof server healthy on the pinned RC3 stack; the node produces blocks and all three endpoints answer.
+- **The counter compiles.** `yarn redeploy` runs the pinned `compactc` with `--feature-zkir-v3` and emits TypeScript bindings, circuits, and proving keys in ~2 s.
+- **The pin set is coherent.** The installed compiler self-reports `ledger-9.1.0.0-rc.3` and runtime `0.18.0-rc.1`, both matching the delivery note.
+- **The repo typechecks.** `yarn check` is clean, and `yarn install` produces a committed lockfile.
+- `packages/network` — localnet endpoints verified live; Stagenet endpoints from the delivery note.
 
 **Not real yet**
-- `ops/setup-toolchain.sh`, `ops/redeploy.sh` — deliberately `exit 1` rather than pretend to work.
-- Every `packages/*` entrypoint is an empty `export {}` with a docblock.
-- No `yarn install` has been run, so there is no lockfile and the JS toolchain is unproven.
-- Nothing has been compiled, deployed, or proved — the Compact toolchain is not installed.
+- **Nothing has been deployed or proved on-chain.** `apps/counter/src/deploy.ts` resolves the network and sets the network ID, then stops: the midnight-js providers and wallet are not wired. That is the M1 boundary.
+- `ops/redeploy.sh` compiles, then exits 1 at the deploy stage rather than pretend.
+- Every `packages/*` entrypoint is still an empty `export {}` with a docblock.
+- `apps/tokenised-deposit` and `apps/rwa-token` are empty, and are deliberately excluded from the root `tsconfig.json` references until they have source.
+
+Every non-obvious thing that cost time on the way here is written up in **[docs/field-notes.md](docs/field-notes.md)** — eight entries so far, and it is the most useful file in the repo right now.
 
 Two values remain unconfirmed, both flagged in `versions.lock.json`: the Compact **language** version for compiler `0.33.0-rc.2`, and the **NetworkId string** Stagenet expects.
 
@@ -104,12 +107,19 @@ Prerequisites: Docker, Node ≥ 22, Yarn 4 (via Corepack), and the pinned Compac
 ```bash
 corepack enable
 yarn install
-./ops/setup-toolchain.sh    # installs the pinned toolchain   (M0: exits 1)
-yarn localnet:up            # node + indexer + proof server on the RC3 stack
-yarn redeploy               # compile, deploy, record addresses (M0: exits 1)
+yarn toolchain      # fetch the pinned compactc into .toolchain/ (idempotent)
+yarn localnet:up    # node + indexer + proof server on the RC3 stack
+yarn redeploy       # compile every apps/*/contract/*.compact
+yarn check          # typecheck the whole repo
 ```
 
-Start with `apps/counter`. If it does not deploy, nothing downstream will.
+Then the toolchain proof, as far as it currently goes:
+
+```bash
+node --experimental-strip-types apps/counter/src/deploy.ts
+```
+
+Start with `apps/counter`. If it does not compile and deploy, nothing downstream will.
 
 To point at Stagenet instead of localnet: `MRA_NETWORK=stagenet`. Fund an address from the [faucet](https://faucet.stagenet.shielded.tools) first — and note that a Stagenet reset wipes state, so expect to resync, refund, and redeploy.
 
