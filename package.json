@@ -16,11 +16,13 @@
     "localnet:up": "docker compose --env-file ops/localnet/env/rc3.env -f ops/localnet/compose.yml up -d --wait",
     "localnet:down": "docker compose -f ops/localnet/compose.yml down -v",
     "toolchain": "./ops/setup-toolchain.sh",
-    "redeploy": "./ops/redeploy.sh"
+    "redeploy": "./ops/redeploy.sh",
+    "ui": "yarn workspace @mra/app-counter ui"
   },
   "devDependencies": {
     "@tsconfig/node24": "^24.0.4",
     "@types/node": "^24.0.0",
+    "playwright": "^1.62.1",
     "typescript": "^6.0.3",
     "vitest": "^4.1.7"
   },
@@ -28,6 +30,7 @@
     "@midnight-ntwrk/platform-js": "3.0.0",
     "@midnightntwrk/ledger-v9": "1.0.0-rc.3",
     "@midnightntwrk/onchain-runtime-v4": "4.0.0-rc.3",
-    "@midnight-ntwrk/compact-runtime": "0.18.0-rc.1"
+    "@midnight-ntwrk/compact-runtime": "0.18.0-rc.1",
+    "bn.js": "5.2.5"
   }
 }

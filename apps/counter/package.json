@@ -15,6 +15,22 @@
     "@midnight-ntwrk/midnight-js-types": "5.0.0-beta.4",
     "@midnightntwrk/wallet-sdk": "2.0.0-beta.2",
     "@mra/network": "workspace:^",
-    "@mra/wallet": "workspace:^"
+    "@mra/wallet": "workspace:^",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
+    "@vitejs/plugin-react": "^6.0.5",
+    "browser-level": "^3.0.0",
+    "vite": "^8.2.1",
+    "vite-plugin-node-polyfills": "^0.28.0",
+    "vite-plugin-wasm": "^3.6.0"
+  },
+  "scripts": {
+    "ui": "vite",
+    "ui:build": "vite build",
+    "deploy": "node --experimental-strip-types src/deploy.ts"
   }
 }

@@ -35,3 +35,6 @@ npm-debug.log*
 
 # Pinned Compact toolchain, installed by ops/setup-toolchain.sh
 .toolchain/
+
+# Vite build output
+dist-web/

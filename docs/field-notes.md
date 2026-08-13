@@ -326,3 +326,86 @@ confidential-token transfer will not behave like this.
 Genesis seed `…0002` (index 0 in `LOCALNET_GENESIS_SEEDS`) is funded with
 250,000,000,000,000 unshielded, three shielded token types, and 5 DUST coins —
 ample for development.
+
+---
+
+## 2026-08-13 · browser + Vite · "Expected BN, actual 581" — a success reported as a failure
+
+**The best trap so far.** Deploying from the browser failed with:
+
+```
+Transaction submission error
+  ↳ Failed to parse result provided by node
+     ↳ ParseError: { readonly blockNumber: BN }
+        └─ ["blockNumber"] └─ Expected BN, actual 581
+```
+
+581 is the block number the transaction **was already included in**. The
+transaction succeeded; only parsing the node's success response failed. Retrying
+deploys again and burns another block.
+
+**Cause.** The wallet SDK's node-client validates RPC results with a schema that
+does an `instanceof BN` check. Vite's dependency pre-bundling gave
+`@polkadot/util` one copy of `bn.js` and the schema another, so a perfectly valid
+BN failed `instanceof`. The message reads as a type error because BN prints as its
+numeric value — it looks like a plain number, but it is a BN of the wrong class.
+
+**Fix.** Dedupe at the *bundler* level in `vite.config.ts`:
+
+```ts
+resolve: { dedupe: ['bn.js', '@polkadot/util', '@polkadot/api', '@polkadot/types'] },
+optimizeDeps: { include: ['bn.js'] },
+```
+
+A yarn-level `resolutions: { "bn.js": "5.2.5" }` is **not sufficient on its own**
+— we tried it first and the error was identical. npm had already hoisted a single
+copy; the duplication was created by the bundler. Clear `node_modules/.vite`
+after changing this or the stale pre-bundle keeps the old behaviour.
+
+Note also that the hoisted `bn.js` was 4.12.5, dragged in by
+`vite-plugin-node-polyfills` → `asn1.js`, while everything else wanted 5.x. The
+resolution is still worth keeping to avoid a genuine version split.
+
+**How to find this class of bug.** Effect rejects with a `FiberFailure` whose real
+`Cause` hangs off a **symbol**, invisible to both `error.cause` and
+`Object.getOwnPropertyNames`. Walk `Object.getOwnPropertySymbols(error)` to see
+it — `apps/counter/web/src/App.tsx` does this and it is the only reason this was
+diagnosable at all.
+
+---
+
+## 2026-08-13 · browser · the client-side stack works, with three swaps
+
+The counter deploys and increments **entirely in the browser** — no backend.
+Verified in headless Firefox via `apps/counter/web/e2e.mjs`:
+
+| Step | Browser | Node (for comparison) |
+|---|---|---|
+| Wallet build + sync | 1.8 s | 0.3 s |
+| Deploy (prove + submit) | 18.2 s | 18.5 s |
+| `increment()` | 18.6 s | 17.2 s |
+
+Proving happens against the local proof server from the page
+(`POST localhost:6300/prove` → 200), so nothing secret leaves the machine.
+
+What had to change from the Node path — everything else, including both wallet
+adapters, is shared:
+
+1. **`zkConfigProvider`** — `NodeZkConfigProvider` reads from disk. Use
+   `FetchZkConfigProvider` and serve the compiler's `managed/` directory over
+   HTTP. Its second argument is an **options object** (`{ fetchFunc }`), not a
+   fetch function; passing a bare `fetch` silently lands in `integrityOptions`.
+2. **`privateStateProvider`** — `classic-level` is a native binding. Inject
+   `browser-level` through the provider's `levelFactory` hook for IndexedDB.
+3. **Vite plugins** — `vite-plugin-wasm` (ledger-v9 is WASM) and
+   `vite-plugin-node-polyfills` (the SDK uses `Buffer` and `process`).
+   `vite-plugin-top-level-await` is *not* needed with `build.target: 'esnext'`,
+   and it additionally requires `rollup` to be installed.
+
+CORS is not a problem: all three services already send permissive headers, and
+the proof server echoes the page origin back.
+
+Bundle size is the real cost — **~14 MB uncompressed, ~5.9 MB gzipped**, almost
+entirely the two WASM blobs (ledger 10.3 MB, onchain runtime 1.4 MB). Any product
+UI needs to plan for that: lazy-load the wallet layer, and never block first paint
+on it.
