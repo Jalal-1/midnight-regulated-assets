@@ -20,9 +20,7 @@ The repo layout states that thesis directly: products live in `apps/`, the block
 
 ## Status
 
-M0 in progress. **Target network: Stagenet** — a new chain with its own genesis, on the Ledger RC3 compatible stack. Localnet mirrors that stack for development.
-
-The directory structure below exists, but it is a skeleton: packages carry entrypoints documenting their responsibility, not implementations. What is real and what is not:
+**M0 and M1 are done on localnet. M2 is next.** Target network is **Stagenet** — a new chain with its own genesis, on the Ledger RC3 compatible stack; localnet mirrors that stack for development.
 
 **Real and verified — the full loop works on localnet**
 
@@ -50,9 +48,9 @@ round after increment = 1
 - `packages/contracts`, `packages/ui`, and `packages/ledger-mock` are still empty `export {}` with docblocks.
 - `apps/tokenised-deposit` and `apps/rwa-token` are empty, and are excluded from the root `tsconfig.json` references until they have source.
 
-Every non-obvious thing that cost time on the way here is written up in **[docs/field-notes.md](docs/field-notes.md)** — eight entries so far, and it is the most useful file in the repo right now.
+Every non-obvious thing that cost time on the way here is written up in **[docs/field-notes.md](docs/field-notes.md)** — 14 entries so far, and it is the most useful file in the repo right now. The wallet-bridge entry alone will save a day.
 
-One value remains unconfirmed, flagged in `versions.lock.json`: the **NetworkId string** Stagenet expects. (The Compact language version resolved to `0.25.0` — the compiler reports it directly.)
+Both previously-unconfirmed values are now resolved: the Compact language version is **0.25.0** (the compiler reports it), and Stagenet's NetworkId is **`stagenet`**, taken from the wallet SDK's own `NetworkId.StageNet` enum value — still unverified against a live Stagenet sync.
 
 | Milestone | Deliverable | State |
 |---|---|---|
