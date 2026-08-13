@@ -205,7 +205,14 @@ export interface LogLine {
   readonly at: number;
 }
 
-export const LOG_SIDECAR_URL = 'http://127.0.0.1:8899/logs';
+/**
+ * Same-origin path, proxied by Vite to the sidecar on 127.0.0.1:8899.
+ *
+ * Deliberately not the sidecar's URL directly: Firefox refuses an EventSource
+ * from localhost:5173 to 127.0.0.1:8899 even with correct CORS headers. See the
+ * proxy in vite.config.ts.
+ */
+export const LOG_SIDECAR_URL = '/__logs';
 
 /**
  * Subscribe to container logs from the dev sidecar (`yarn logs`).

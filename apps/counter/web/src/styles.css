@@ -25,82 +25,140 @@
 }
 
 * { box-sizing: border-box; }
+
+/* Fixed view: the page itself never scrolls. Anything that can overflow gets its
+   own scroll container, and every flex/grid ancestor needs `min-height: 0` or the
+   inner scrollers will grow the page instead of scrolling. */
+html, body { height: 100%; overflow: hidden; }
 body {
   margin: 0;
   background: var(--bg);
   color: var(--fg);
-  font: 15px/1.55 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  font: 15px/1.5 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
 }
-main { max-width: 720px; margin: 0 auto; padding: 40px 20px 64px; }
-h1 { font-size: 26px; margin: 0 0 6px; letter-spacing: -0.01em; }
-.sub { margin: 0 0 28px; color: var(--muted); }
+
+main {
+  /* 100vh, not 100%: percentage height depends on ancestors resolving a definite
+     height, and when it silently fell back to auto, `main` grew past the viewport.
+     `overflow: hidden` then guarantees it clips rather than making `body`
+     scrollable — which matters because focusing a button inside an overflowing
+     body makes the browser scroll it, dragging the header off-screen. */
+  height: 100vh;
+  overflow: hidden;
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 20px 20px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-height: 0;
+}
+
+header { flex: none; }
+h1 { font-size: 21px; margin: 0 0 3px; letter-spacing: -0.01em; }
+.sub { margin: 0; color: var(--muted); font-size: 13px; }
 .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
-.small { font-size: 13px; }
+.small { font-size: 12px; }
 .muted { color: var(--muted); }
 
-.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
-.card {
-  display: flex; flex-direction: column; gap: 6px;
-  padding: 14px 16px; background: var(--card);
-  border: 1px solid var(--line); border-radius: 10px;
+.columns {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr);
+  gap: 18px;
 }
-.label { font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
-.value { font-size: 22px; font-variant-numeric: tabular-nums; }
-.value.small { font-size: 13px; word-break: break-all; }
+.col { min-height: 0; display: flex; flex-direction: column; gap: 12px; }
 
-.actions { display: flex; flex-wrap: wrap; gap: 10px; margin: 20px 0 24px; }
+/* One column when there is not room for two; the columns area scrolls then. */
+@media (max-width: 900px) {
+  .columns { grid-template-columns: minmax(0, 1fr); overflow-y: auto; }
+}
+
+.grid { flex: none; display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; }
+.card {
+  display: flex; flex-direction: column; gap: 4px;
+  padding: 10px 12px; background: var(--card);
+  border: 1px solid var(--line); border-radius: 9px;
+}
+.label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+.value { font-size: 19px; font-variant-numeric: tabular-nums; }
+.value.small { font-size: 12px; word-break: break-all; }
+
+.actions { flex: none; display: flex; flex-wrap: wrap; gap: 8px; }
 button {
-  padding: 9px 16px; font: inherit; font-weight: 500; color: #fff;
-  background: var(--accent); border: 0; border-radius: 8px; cursor: pointer;
+  padding: 8px 14px; font: inherit; font-size: 14px; font-weight: 500; color: #fff;
+  background: var(--accent); border: 0; border-radius: 7px; cursor: pointer;
 }
 button:disabled { opacity: 0.45; cursor: not-allowed; }
 
+/* The activity log is the one element that should absorb spare height. */
 .log {
-  border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px;
-  max-height: 320px; overflow-y: auto;
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px;
+  flex: 1;
+  min-height: 120px;
+  border: 1px solid var(--line); border-radius: 9px; padding: 10px 12px;
+  overflow-y: auto;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px;
 }
-.log p { display: flex; justify-content: space-between; gap: 16px; margin: 0 0 6px; }
+.log p { display: flex; justify-content: space-between; gap: 14px; margin: 0 0 5px; }
 .log p:last-of-type { margin-bottom: 0; }
 .log .ok { color: var(--ok); }
 .log .error { color: var(--err); white-space: pre-wrap; }
 .log .ms { color: var(--muted); font-variant-numeric: tabular-nums; flex: none; }
 
-footer { margin-top: 24px; }
+footer { flex: none; }
+footer p { margin: 0; font-size: 11px; }
 
-/* --- Infrastructure panel ------------------------------------------------- */
-.infra { margin-top: 32px; border-top: 1px solid var(--line); padding-top: 20px; }
-.infra h2 { font-size: 15px; margin: 0 0 14px; letter-spacing: 0.01em; }
+/* --- Infrastructure ------------------------------------------------------- */
+.infra { display: flex; flex-direction: column; gap: 10px; min-height: 0; flex: 1; }
+.infra-head { flex: none; display: flex; align-items: baseline; gap: 10px; }
+.infra h2 { font-size: 13px; margin: 0; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+.infra-head .small { margin-left: auto; }
 
-.infra-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
-.panel { border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; background: var(--card); }
-.panel-head { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
-.panel-head strong { font-size: 14px; }
+/* Panels stack and share the column; each can scroll internally when its drawer
+   is open, rather than pushing the page taller. */
+.infra-grid { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 10px; overflow-y: auto; }
+.panel {
+  flex: none;
+  border: 1px solid var(--line); border-radius: 9px; padding: 10px 12px; background: var(--card);
+}
+.panel-head { display: flex; align-items: center; gap: 8px; margin-bottom: 7px; }
+.panel-head strong { font-size: 13px; }
 .panel-head .small { margin-left: auto; }
 
 .dot { width: 8px; height: 8px; border-radius: 50%; flex: none; background: var(--muted); }
 .dot.up { background: var(--ok); }
 .dot.down { background: var(--err); }
 
-.row { display: flex; justify-content: space-between; gap: 12px; font-size: 13px; padding: 2px 0; }
+.row { display: flex; justify-content: space-between; gap: 12px; font-size: 12px; padding: 1px 0; }
 .row .k { color: var(--muted); }
 .row .v { font-variant-numeric: tabular-nums; text-align: right; }
 .busy { color: var(--accent); font-weight: 500; }
-.note { margin: 8px 0 0; font-size: 11px; line-height: 1.4; color: var(--muted); }
+.note { margin: 7px 0 0; font-size: 10.5px; line-height: 1.35; color: var(--muted); }
 
-.logs-head { display: flex; align-items: center; gap: 10px; margin: 16px 0 8px; }
-button.link {
-  background: none; border: 0; padding: 0; color: var(--fg);
-  font: inherit; font-size: 13px; cursor: pointer;
+/* --- Per-component log drawer -------------------------------------------- */
+.drawer { margin-top: 8px; border-top: 1px solid var(--line); padding-top: 6px; }
+.drawer-toggle {
+  display: flex; align-items: center; gap: 6px; width: 100%;
+  background: none; border: 0; padding: 2px 0; cursor: pointer;
+  color: var(--muted); font: inherit; font-size: 11px;
+  text-transform: uppercase; letter-spacing: 0.05em;
 }
-.logs {
-  border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px;
-  max-height: 260px; overflow-y: auto;
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px;
+.drawer-toggle:hover { color: var(--fg); }
+.caret { font-size: 9px; }
+.drawer-count { margin-left: auto; font-variant-numeric: tabular-nums; text-transform: none; letter-spacing: 0; }
+
+.drawer-body {
+  margin-top: 6px;
+  max-height: 150px;
+  overflow-y: auto;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  line-height: 1.4;
 }
-.logs p { display: flex; gap: 10px; margin: 0 0 3px; }
-.logs .src { flex: none; white-space: pre; color: var(--muted); }
-.logs .src.node { color: #60a5fa; }
-.logs .src.indexer { color: #a78bfa; }
-.logs .src.proof { color: #f59e0b; }
-.logs .txt { word-break: break-word; }
+.drawer-body p { margin: 0 0 2px; word-break: break-word; }
+/* Colour by component, matching the dot vocabulary rather than rainbow text. */
+.drawer-body.node p { color: #60a5fa; }
+.drawer-body.indexer p { color: #a78bfa; }
+.drawer-body.proof p { color: #f59e0b; }
+.drawer-body p.muted { color: var(--muted); }

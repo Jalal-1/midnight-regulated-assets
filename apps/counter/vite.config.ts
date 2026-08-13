@@ -35,7 +35,33 @@ export default defineConfig({
    * Deduping collapses them to one class so `instanceof` holds.
    */
   resolve: { dedupe: ['bn.js', '@polkadot/util', '@polkadot/api', '@polkadot/types'] },
-  server: { port: 5173, strictPort: true, fs: { allow: ['..', '../..', '../../..'] } },
+  server: {
+    port: 5173,
+    strictPort: true,
+    fs: { allow: ['..', '../..', '../../..'] },
+    /**
+     * Proxy the dev log sidecar so the page reads it same-origin.
+     *
+     * The sidecar does send correct CORS headers, but Firefox still refuses an
+     * EventSource from http://localhost:5173 to http://127.0.0.1:8899 ("CORS
+     * request did not succeed", status null). Proxying sidesteps browser policy
+     * on cross-origin local requests entirely, and means the sidecar needs no
+     * CORS configuration at all.
+     */
+    proxy: {
+      '/__logs': {
+        target: 'http://127.0.0.1:8899',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/__logs/, '/logs'),
+        // SSE must not be buffered.
+        configure: (proxy) => {
+          proxy.on('proxyRes', (proxyRes) => {
+            proxyRes.headers['cache-control'] = 'no-cache';
+          });
+        },
+      },
+    },
+  },
   optimizeDeps: { exclude: ['@midnightntwrk/ledger-v9'], include: ['bn.js'] },
   build: { target: 'esnext', outDir: '../dist-web', emptyOutDir: true },
 });

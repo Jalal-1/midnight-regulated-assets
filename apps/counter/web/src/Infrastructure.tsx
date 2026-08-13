@@ -4,6 +4,11 @@
  * The point is to make the stack legible: which pieces exist, whether they are
  * healthy, how far behind the indexer is, and what the proof server is doing
  * while you wait ~18 s for a transaction.
+ *
+ * Each component owns its own log drawer, fed by the dev sidecar. Logs are
+ * per-component rather than one merged stream because the interesting question is
+ * always about one piece — "what is the prover doing", not "what is everything
+ * doing at once".
  */
 
 import { useEffect, useRef, useState } from 'react';
@@ -12,15 +17,17 @@ import {
   observeProving,
   probeAll,
   streamLogs,
+  type Health,
   type InfraStatus,
   type LogLine,
   type ProvingObserver,
 } from './infra.ts';
 
 const POLL_MS = 2000;
-const MAX_LOG_LINES = 200;
+/** Per source, so one chatty component cannot evict another's history. */
+const MAX_LINES_PER_SOURCE = 150;
 
-function Dot({ health }: { health: 'up' | 'down' | 'unknown' }) {
+function Dot({ health }: { health: Health }) {
   return <span className={`dot ${health}`} aria-label={health} />;
 }
 
@@ -33,13 +40,53 @@ function Row({ label, value }: { label: string; value: React.ReactNode }) {
   );
 }
 
+/** Collapsible log tail for one component. */
+function LogDrawer({
+  source,
+  lines,
+  connected,
+}: {
+  source: string;
+  lines: readonly LogLine[];
+  connected: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const body = useRef<HTMLDivElement>(null);
+
+  // scrollTop, not scrollIntoView — see the note in App.tsx.
+  useEffect(() => {
+    const box = body.current;
+    if (open && box) box.scrollTop = box.scrollHeight;
+  }, [lines, open]);
+
+  return (
+    <div className="drawer">
+      <button className="drawer-toggle" onClick={() => setOpen((v) => !v)} aria-expanded={open}>
+        <span className="caret">{open ? '▾' : '▸'}</span> logs
+        <span className="drawer-count">
+          {connected ? lines.length : 'sidecar off'}
+        </span>
+      </button>
+      {open && (
+        <div className={`drawer-body ${source}`} ref={body}>
+          {lines.length === 0 ? (
+            <p className="muted">{connected ? 'waiting for output…' : 'run `yarn logs`'}</p>
+          ) : (
+            lines.map((line, i) => <p key={i}>{line.text}</p>)
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function Infrastructure() {
   const [status, setStatus] = useState<InfraStatus | null>(null);
-  const [logs, setLogs] = useState<readonly LogLine[]>([]);
+  // Grouped by source rather than one flat list: each drawer wants only its own
+  // lines, and trimming per source stops a chatty component evicting another's.
+  const [logs, setLogs] = useState<Record<string, readonly LogLine[]>>({});
   const [logsConnected, setLogsConnected] = useState(false);
-  const [showLogs, setShowLogs] = useState(true);
   const observer = useRef<ProvingObserver | null>(null);
-  const logEnd = useRef<HTMLDivElement>(null);
 
   // Patch fetch once, before any proving happens.
   if (observer.current === null) observer.current = observeProving();
@@ -59,23 +106,24 @@ export default function Infrastructure() {
   }, []);
 
   useEffect(() => {
-    return streamLogs(
-      (line) => setLogs((prev) => [...prev, line].slice(-MAX_LOG_LINES)),
-      setLogsConnected,
-    );
+    return streamLogs((line) => {
+      setLogs((prev) => ({
+        ...prev,
+        [line.source]: [...(prev[line.source] ?? []), line].slice(-MAX_LINES_PER_SOURCE),
+      }));
+    }, setLogsConnected);
   }, []);
 
-  useEffect(() => {
-    if (showLogs) logEnd.current?.scrollIntoView({ block: 'nearest' });
-  }, [logs, showLogs]);
-
-  const node = status?.node;
-  const indexer = status?.indexer;
-  const proof = status?.proof;
+  const { node, indexer, proof } = status ?? {};
 
   return (
     <section className="infra">
-      <h2>Infrastructure</h2>
+      <div className="infra-head">
+        <h2>Infrastructure</h2>
+        <span className="muted small">
+          {logsConnected ? 'logs streaming' : 'logs off — `yarn logs`'}
+        </span>
+      </div>
 
       <div className="infra-grid">
         <div className="panel">
@@ -86,10 +134,7 @@ export default function Infrastructure() {
           </div>
           <Row label="chain" value={node?.chain ?? '—'} />
           <Row label="best" value={node?.best !== undefined ? `#${node.best}` : '—'} />
-          <Row
-            label="finalized"
-            value={node?.finalized !== undefined ? `#${node.finalized}` : '—'}
-          />
+          <Row label="finalized" value={node?.finalized !== undefined ? `#${node.finalized}` : '—'} />
           <Row label="peers" value={node?.peers ?? '—'} />
           <Row
             label="mempool"
@@ -103,6 +148,7 @@ export default function Infrastructure() {
               )
             }
           />
+          <LogDrawer source="node" lines={logs.node ?? []} connected={logsConnected} />
         </div>
 
         <div className="panel">
@@ -124,7 +170,8 @@ export default function Infrastructure() {
               )
             }
           />
-          <Row label="reads" value="contract state, events" />
+          <Row label="reads" value="state, events" />
+          <LogDrawer source="indexer" lines={logs.indexer ?? []} connected={logsConnected} />
         </div>
 
         <div className="panel">
@@ -144,42 +191,15 @@ export default function Infrastructure() {
               proof?.lastProofMs !== undefined ? `${(proof.lastProofMs / 1000).toFixed(2)}s` : '—'
             }
           />
-          {/* Two things worth saying out loud: this panel is thinner than the
-              others because the proof server exposes no metrics, not because we
-              skipped it; and proving is NOT what makes a transaction slow here. */}
+          {/* Proving is NOT what makes a transaction slow here, and the panel
+              should not let anyone assume otherwise. */}
           <p className="note">
-            No metrics endpoint — observed from this page&apos;s own requests. Note that proving
-            takes well under a second: the ~18&nbsp;s per transaction is almost all waiting for
-            block inclusion, not proof generation.
+            No metrics endpoint — observed from this page. Proving is sub-second; the ~18&nbsp;s per
+            transaction is block inclusion.
           </p>
+          <LogDrawer source="proof" lines={logs.proof ?? []} connected={logsConnected} />
         </div>
       </div>
-
-      <div className="logs-head">
-        <button className="link" onClick={() => setShowLogs((v) => !v)}>
-          {showLogs ? '▾' : '▸'} Container logs
-        </button>
-        <span className="muted small">
-          {logsConnected ? `${logs.length} lines` : 'sidecar not running — `yarn logs`'}
-        </span>
-      </div>
-
-      {showLogs && (
-        <div className="logs">
-          {logs.length === 0 && (
-            <p className="muted">
-              {logsConnected ? 'waiting for output…' : 'Start the sidecar with `yarn logs`.'}
-            </p>
-          )}
-          {logs.map((line, i) => (
-            <p key={i}>
-              <span className={`src ${line.source}`}>{line.source.padEnd(7)}</span>
-              <span className="txt">{line.text}</span>
-            </p>
-          ))}
-          <div ref={logEnd} />
-        </div>
-      )}
     </section>
   );
 }

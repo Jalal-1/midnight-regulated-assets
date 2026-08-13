@@ -465,3 +465,67 @@ Two things to handle when piping container logs into a browser:
 - **Truncate.** Its DEBUG output dumps the entire proving preimage as hex —
   thousands of characters of witness-derived data per request. That both swamps
   the panel and is not something to render in a UI or capture in a screenshot.
+
+---
+
+## 2026-08-13 · browser UI · making a page genuinely non-scrolling is fiddlier than it looks
+
+Three separate things had to be true, and each failed in a way that looked like
+something else.
+
+**1. `height: 100%` is not a viewport constraint.** Percentage height only
+resolves against an ancestor with a definite height. When that chain broke,
+`main` silently grew to 1155 px inside an 820 px viewport — `getBoundingClientRect`
+reported the larger box, so the element really was oversized rather than
+overflowing. `height: 100vh` plus `overflow: hidden` on the outermost element
+removes the dependency entirely.
+
+**2. `overflow: hidden` stops the *user* scrolling, not the *browser*.** Two
+mechanisms scroll a hidden-overflow element programmatically:
+
+- `scrollIntoView()` scrolls **ancestors**, not just the target's own scroll box.
+  Auto-scrolling a log tail this way dragged the whole page up and left the header
+  off-screen with no way to get it back. Set `container.scrollTop =
+  container.scrollHeight` instead — that touches only the container.
+- **Focusing** an element inside an overflowing container makes the browser scroll
+  it into view. Clicking a button low in the page was enough. This one only
+  disappears once nothing overflows, i.e. after fix 1.
+
+**3. Every flex/grid ancestor of a scroll container needs `min-height: 0`.**
+Otherwise the inner scroller's content sets a minimum size and the container grows
+instead of scrolling.
+
+Worth asserting rather than eyeballing, since all three fail *visually* in the
+same way. `apps/counter/web/e2e.mjs` now checks, in a real browser:
+
+```
+drawers: 3 · header visible: yes · page scrolls: no
+  (scrollHeight 820 vs innerHeight 820, body overflow-y hidden)
+```
+
+Also: screenshot a fixed layout with `fullPage: false`. `fullPage: true` on an
+`overflow: hidden` page produces a misleading capture — it rendered a tall image
+with the header cropped and empty space below, which read as a layout bug when the
+layout was fine.
+
+---
+
+## 2026-08-13 · Firefox · EventSource to 127.0.0.1 fails from a localhost page despite correct CORS
+
+**Symptom.** The page cannot read the log sidecar:
+
+```
+Cross-Origin Request Blocked: … at http://127.0.0.1:8899/logs
+(Reason: CORS request did not succeed). Status code: (null)
+```
+
+**Not a header problem.** `curl -H 'Origin: http://localhost:5173'` against the
+same endpoint returns `Access-Control-Allow-Origin: http://localhost:5173` and
+streams fine. "Status code: (null)" means the request failed below HTTP, so no
+amount of header tuning fixes it — Firefox is refusing the cross-origin local
+request itself.
+
+**Fix.** Do not make it cross-origin. A Vite dev proxy maps `/__logs` →
+`http://127.0.0.1:8899/logs`, so the page uses a same-origin path and CORS never
+enters the picture. The sidecar then needs no CORS configuration at all (its
+headers are kept only so `curl` and other clients still work).
