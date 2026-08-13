@@ -409,3 +409,59 @@ Bundle size is the real cost — **~14 MB uncompressed, ~5.9 MB gzipped**, almos
 entirely the two WASM blobs (ledger 10.3 MB, onchain runtime 1.4 MB). Any product
 UI needs to plan for that: lazy-load the wallet layer, and never block first paint
 on it.
+
+---
+
+## 2026-08-13 · localnet · proving is fast; block inclusion is what costs ~18 s
+
+Measured once the infrastructure panel could observe the proof server directly.
+For the counter contract:
+
+| | Time |
+|---|---|
+| `POST /prove` (proof server's own log) | **0.03 – 0.38 s** |
+| Full deploy or `increment()` | **~18 s** |
+
+So proof generation is well under a second, and essentially all of the ~18 s is
+waiting for the transaction to be included in a block. Localnet produces a block
+roughly every 6 s, and submission waits for `InBlock`.
+
+This reframes the standing "~40 s submit / ~70 s per proved call, design for
+minutes" guidance: for a trivial circuit the cost is **chain latency, not ZK**.
+Do not conclude that proving is cheap in general — the counter has one tiny
+circuit, and a confidential-token transfer will shift the balance. But do measure
+the two separately before optimising, because they are optimised by completely
+different means, and the intuition "ZK is the slow part" is wrong here.
+
+The UI labels this row `last /prove` rather than `last proof` for exactly this
+reason.
+
+**Watch out** when instrumenting this client-side: patching `fetch` to time proof
+server calls will also catch the panel's own `GET /version` health polls, which
+complete in ~0.00006 s and will happily overwrite the real figure every couple of
+seconds. Filter to `POST`.
+
+---
+
+## 2026-08-13 · observability · what each component will actually tell you
+
+Building a live view of the stack, the three components differ enormously.
+
+| Component | Available |
+|---|---|
+| **Node** (9944) | Rich. `system_health` (peers, isSyncing), `system_version`, `chain_getHeader`, `chain_getFinalizedHead`, and `author_pendingExtrinsics` — the mempool, so you can watch a transaction wait. Plus ws subscriptions (`chain_subscribeNewHead`). |
+| **Indexer** (8088) | Rich. GraphQL with subscriptions: `blocks`, `contractActions`, `contractEvents`, `shieldedTransactions`, `unshieldedTransactions`, `zswapLedgerEvents`. `{ block { height } }` gives its indexed height — compare with the node's for **lag**, which is what actually explains "why hasn't my state updated yet". |
+| **Proof server** (6300) | Almost nothing. `/`, `/version`, `/health`, `/ready` all 200; **`/metrics` and `/status` 404**. No activity introspection at all. |
+
+Because of that last row, `ops/log-sidecar` exists: a dev-only SSE service that
+tails `docker logs -f` for all three so the page can show the proof server's
+`--verbose` output. It binds to 127.0.0.1 only, and container names come from a
+fixed allowlist so nothing from a request reaches `spawn`.
+
+Two things to handle when piping container logs into a browser:
+
+- **Strip ANSI.** The proof server logs through actix with colour on, which
+  arrives as escape sequences and renders as `[2m…[0m [32m INFO[0m`.
+- **Truncate.** Its DEBUG output dumps the entire proving preimage as hex —
+  thousands of characters of witness-derived data per request. That both swamps
+  the panel and is not something to render in a UI or capture in a screenshot.

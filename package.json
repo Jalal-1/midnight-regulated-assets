@@ -17,7 +17,8 @@
     "localnet:down": "docker compose -f ops/localnet/compose.yml down -v",
     "toolchain": "./ops/setup-toolchain.sh",
     "redeploy": "./ops/redeploy.sh",
-    "ui": "yarn workspace @mra/app-counter ui"
+    "ui": "yarn workspace @mra/app-counter ui",
+    "logs": "node ops/log-sidecar/server.mjs"
   },
   "devDependencies": {
     "@tsconfig/node24": "^24.0.4",

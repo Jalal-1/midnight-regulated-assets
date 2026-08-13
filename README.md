@@ -130,6 +130,14 @@ yarn redeploy       # compile every apps/*/contract/*.compact
 yarn check          # typecheck the whole repo
 ```
 
+Then the browser UI, which shows the contract *and* a live view of the node,
+indexer, and proof server:
+
+```bash
+yarn ui             # http://localhost:5173
+yarn logs           # optional: streams container logs into the page (dev only)
+```
+
 Then the toolchain proof, as far as it currently goes:
 
 ```bash

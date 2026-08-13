@@ -12,6 +12,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { connect, deploy, increment, readRound, type Session } from './counter.ts';
+import Infrastructure from './Infrastructure.tsx';
 
 type Status = 'idle' | 'connecting' | 'ready' | 'working' | 'error';
 
@@ -218,6 +219,8 @@ export default function App() {
         {busy && <p className="muted">working — proving takes ~20s, do not reload</p>}
         <div ref={logEnd} />
       </section>
+
+      <Infrastructure />
 
       <footer>
         <p className="muted small">
