@@ -29,12 +29,122 @@ export interface NetworkConfig {
   nodeWs: string;
   indexer: string;
   indexerWs: string;
-  /** Always local, even against a remote node. */
+  /** Proof server base URL — convenience alias for `proofServerConfig.url`. */
   proofServer: string;
+  /**
+   * Full proving configuration, including auth headers and timeout. Providers
+   * need this, not just the URL. See {@link resolveProofServer}.
+   */
+  proofServerConfig: ProofServerConfig;
 }
 
-const PROOF_SERVER = 'http://localhost:6300';
+/** A network's fixed endpoints. Proving is resolved separately, at call time. */
+type NetworkEndpoints = Omit<NetworkConfig, 'proofServer' | 'proofServerConfig'>;
+
+/**
+ * How proofs get generated.
+ *
+ * `local` — the default, and the privacy-preserving case: the proof server runs
+ * on the same machine, so witness data never leaves it.
+ *
+ * `hosted` — a third-party prover, e.g. running in a confidential space (TEE).
+ * Witness data DOES leave the machine, so this is only acceptable where the
+ * provider's attestation is part of your trust model. Requires an API key.
+ */
+export type ProofServerKind = 'local' | 'hosted';
+
+export interface ProofServerConfig {
+  readonly kind: ProofServerKind;
+  readonly url: string;
+  /**
+   * Headers to send with every proving request, already assembled — pass
+   * straight to `httpClientProofProvider`'s config. Empty for `local`.
+   */
+  readonly headers: Readonly<Record<string, string>>;
+  /** Per-request timeout in ms. Hosted provers need more headroom than local. */
+  readonly timeoutMs: number;
+}
+
+const LOCAL_PROOF_SERVER = 'http://localhost:6300';
 const INDEXER_API_VERSION = 'v4';
+
+/** Local proving is fast and predictable; a hosted one adds network and queueing. */
+const LOCAL_TIMEOUT_MS = 300_000;
+const HOSTED_TIMEOUT_MS = 600_000;
+
+const env = (key: string): string | undefined => {
+  const value = process.env[key];
+  return value === undefined || value === '' ? undefined : value;
+};
+
+/**
+ * Resolve where proving happens, from the environment.
+ *
+ * | Variable | Meaning |
+ * |---|---|
+ * | `MRA_PROOF_SERVER_URL` | Hosted prover base URL. Absent ⇒ local. |
+ * | `MRA_PROOF_SERVER_API_KEY` | Required when the URL is set. |
+ * | `MRA_PROOF_SERVER_AUTH_HEADER` | Header name. Default `Authorization`. |
+ * | `MRA_PROOF_SERVER_AUTH_SCHEME` | Prefix for the value. Default `Bearer`. Set empty for a bare key. |
+ * | `MRA_PROOF_SERVER_TIMEOUT_MS` | Override the request timeout. |
+ *
+ * Two guardrails, both deliberate:
+ *
+ * 1. **A hosted prover must be `https`.** Sending an API key — and witness data
+ *    — over plaintext is not a warning-level mistake, so it throws. `localhost`
+ *    is exempt, for testing a prover running locally.
+ * 2. **The API key is mandatory when a hosted URL is set.** Silently falling
+ *    back to unauthenticated requests would surface as a confusing 401 mid-proof.
+ *
+ * Never log the result of this function directly — use {@link describeProofServer}.
+ */
+export function resolveProofServer(): ProofServerConfig {
+  const url = env('MRA_PROOF_SERVER_URL');
+
+  if (url === undefined) {
+    return {
+      kind: 'local',
+      url: LOCAL_PROOF_SERVER,
+      headers: {},
+      timeoutMs: Number(env('MRA_PROOF_SERVER_TIMEOUT_MS') ?? LOCAL_TIMEOUT_MS),
+    };
+  }
+
+  const parsed = new URL(url);
+  const isLoopback = parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1';
+  if (parsed.protocol !== 'https:' && !isLoopback) {
+    throw new Error(
+      `A hosted proof server must use https (got ${parsed.protocol}//${parsed.hostname}). ` +
+        `Proving sends witness data and an API key; neither may cross a plaintext connection.`,
+    );
+  }
+
+  const apiKey = env('MRA_PROOF_SERVER_API_KEY');
+  if (apiKey === undefined) {
+    throw new Error(
+      'MRA_PROOF_SERVER_URL is set but MRA_PROOF_SERVER_API_KEY is not. ' +
+        'A hosted proof server requires a key; unset the URL to prove locally instead.',
+    );
+  }
+
+  const header = env('MRA_PROOF_SERVER_AUTH_HEADER') ?? 'Authorization';
+  // Deliberately allows an empty scheme, for providers wanting a bare key.
+  const scheme = process.env.MRA_PROOF_SERVER_AUTH_SCHEME ?? 'Bearer';
+
+  return {
+    kind: 'hosted',
+    url,
+    headers: { [header]: scheme ? `${scheme} ${apiKey}` : apiKey },
+    timeoutMs: Number(env('MRA_PROOF_SERVER_TIMEOUT_MS') ?? HOSTED_TIMEOUT_MS),
+  };
+}
+
+/** Log-safe description. Never renders the API key. */
+export function describeProofServer(config: ProofServerConfig): string {
+  if (config.kind === 'local') return `local (${config.url})`;
+  const names = Object.keys(config.headers).join(', ');
+  return `hosted (${config.url}) authenticated via ${names || 'no headers'} [key redacted]`;
+}
 
 const indexerPaths = (host: string) => ({
   indexer: `http://${host}/api/${INDEXER_API_VERSION}/graphql`,
@@ -42,12 +152,11 @@ const indexerPaths = (host: string) => ({
 });
 
 /** Localnet. Ports must match ops/localnet/compose.yml. */
-const localnet: NetworkConfig = {
+const localnet: NetworkEndpoints = {
   networkId: 'undeployed',
   node: 'http://localhost:9944',
   nodeWs: 'ws://localhost:9944',
   ...indexerPaths('localhost:8088'),
-  proofServer: PROOF_SERVER,
 };
 
 /**
@@ -59,7 +168,7 @@ const localnet: NetworkConfig = {
  *
  * Faucet: https://faucet.stagenet.shielded.tools
  */
-const stagenet: NetworkConfig = {
+const stagenet: NetworkEndpoints = {
   // 'stagenet' is the wallet SDK's own NetworkId.StageNet value, so it is the
   // string both SDKs should agree on. Still unverified against a live sync.
   networkId: process.env.MRA_NETWORK_ID ?? 'stagenet',
@@ -67,11 +176,9 @@ const stagenet: NetworkConfig = {
   nodeWs: 'wss://rpc.stagenet.shielded.tools',
   indexer: `https://indexer.stagenet.shielded.tools/api/${INDEXER_API_VERSION}/graphql`,
   indexerWs: `wss://indexer.stagenet.shielded.tools/api/${INDEXER_API_VERSION}/graphql/ws`,
-  // Local even here: proofs are generated client-side and never leave the machine.
-  proofServer: PROOF_SERVER,
 };
 
-export const networks = { localnet, stagenet } satisfies Record<string, NetworkConfig>;
+export const networks = { localnet, stagenet } satisfies Record<string, NetworkEndpoints>;
 
 export type NetworkName = keyof typeof networks;
 
@@ -107,16 +214,21 @@ export const LOCALNET_GENESIS_SEEDS = [
  * Resolve the active network. Defaults to localnet: this repo is localnet-first
  * by policy, so anything remote is opt-in via MRA_NETWORK=stagenet.
  *
+ * Proving configuration is resolved here rather than baked into the network
+ * constants, so a bad proof-server setup fails when someone asks for a network —
+ * not at import time, in whatever module happened to load first.
+ *
  * Remember: midnight-js keeps the network ID in module-level global state, so
  * `setNetworkId(getNetwork().networkId)` must run before ANY wallet or contract
  * operation, or the SDK throws. See packages/wallet.
  *
- * @throws if the network name is unknown.
+ * @throws if the network name is unknown, or the proof-server config is invalid.
  */
 export function getNetwork(name: string = process.env.MRA_NETWORK ?? 'localnet'): NetworkConfig {
-  const config = networks[name as NetworkName];
-  if (!config) {
+  const endpoints = networks[name as NetworkName];
+  if (!endpoints) {
     throw new Error(`Unknown network "${name}". Known: ${Object.keys(networks).join(', ')}`);
   }
-  return config;
+  const proofServerConfig = resolveProofServer();
+  return { ...endpoints, proofServer: proofServerConfig.url, proofServerConfig };
 }

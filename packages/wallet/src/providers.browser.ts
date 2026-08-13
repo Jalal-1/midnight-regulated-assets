@@ -14,8 +14,11 @@
  *                        provider's `levelFactory` hook.
  *
  * Everything else — including proving — genuinely runs client-side. The proof
- * server stays local: it is reached from the page at localhost:6300, and it sends
- * permissive CORS headers, so no proxy is required.
+ * server defaults to local: reached from the page at localhost:6300, which works
+ * without a proxy because it sends permissive CORS headers.
+ *
+ * A hosted (TEE) prover can be used instead via the `proofServer` option — but
+ * read its docs first: a browser cannot hold an API key secret.
  */
 
 import { BrowserLevel } from 'browser-level';
@@ -28,7 +31,7 @@ import {
   ShieldedCoinPublicKey,
   ShieldedEncryptionPublicKey,
 } from '@midnightntwrk/wallet-sdk-address-format';
-import type { NetworkConfig } from '@mra/network';
+import type { NetworkConfig, ProofServerConfig } from '@mra/network';
 
 import type { MidnightWallet } from './index.ts';
 
@@ -46,6 +49,21 @@ export interface BrowserProviderOptions {
   readonly privateStateStoreName: string;
   readonly accountId: string;
   readonly privateStatePassword: string;
+  /**
+   * Override the proving target — the only supported way to use a hosted prover
+   * from a browser.
+   *
+   * `resolveProofServer()` reads `process.env`, which does not exist in a page, so
+   * `network.proofServerConfig` is always `local` here. That default is
+   * deliberate and safe.
+   *
+   * **Do not bake an API key into the bundle.** Anything in the page is readable
+   * by anyone who loads it, so a build-time key is a published key. To use a
+   * hosted prover, fetch a short-lived, per-session token from your own backend at
+   * runtime and pass it here — or proxy proving through your backend and point
+   * this at the proxy.
+   */
+  readonly proofServer?: ProofServerConfig;
 }
 
 /** See `providers.ts` for why each adapter looks the way it does. */
@@ -56,6 +74,8 @@ export async function createBrowserProviders<
 >(options: BrowserProviderOptions): Promise<MidnightProviders<PCK, PSI, PS>> {
   const { network, zkConfigBaseUrl, privateStateStoreName, accountId, privateStatePassword } =
     options;
+  // Explicit override wins; otherwise whatever the network resolved (local, in a page).
+  const proofServer = options.proofServer ?? network.proofServerConfig;
   const { wallet, shieldedSecretKeys, dustSecretKey } = options.wallet;
 
   const state = await wallet.waitForSyncedState();
@@ -92,7 +112,12 @@ export async function createBrowserProviders<
   return {
     publicDataProvider: indexerPublicDataProvider(network.indexer, network.indexerWs),
     zkConfigProvider,
-    proofProvider: httpClientProofProvider(network.proofServer, zkConfigProvider),
+    // Auth headers and timeout come from the resolved proof-server config, so a
+    // hosted (TEE) prover works here with no change to callers. Never log these.
+    proofProvider: httpClientProofProvider(proofServer.url, zkConfigProvider, {
+      headers: proofServer.headers,
+      timeout: proofServer.timeoutMs,
+    }),
     privateStateProvider: levelPrivateStateProvider({
       privateStateStoreName,
       accountId,

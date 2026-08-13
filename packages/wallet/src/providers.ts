@@ -118,7 +118,12 @@ export async function createProviders<
   return {
     publicDataProvider: indexerPublicDataProvider(network.indexer, network.indexerWs),
     zkConfigProvider,
-    proofProvider: httpClientProofProvider(network.proofServer, zkConfigProvider),
+    // Auth headers and timeout come from the resolved proof-server config, so a
+    // hosted (TEE) prover works here with no change to callers. Never log these.
+    proofProvider: httpClientProofProvider(network.proofServer, zkConfigProvider, {
+      headers: network.proofServerConfig.headers,
+      timeout: network.proofServerConfig.timeoutMs,
+    }),
     privateStateProvider: levelPrivateStateProvider({
       privateStateStoreName,
       accountId,

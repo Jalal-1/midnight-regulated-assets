@@ -150,7 +150,7 @@ These are not style preferences — they are properties of the current stack.
 - **Endpoints only in `packages/network`.** A hardcoded URL anywhere else is a bug.
 - **The pinned RC3 set moves together.** Do not upgrade one component alone. See `ops/versions.lock.json`.
 - **`--feature-zkir-v3` is a *compiler* flag**, and contracts built with it only verify against the `_experimental` proof-server build. Mixing the plain build with zkir-v3 contracts fails at proving time, not at compile time.
-- **Proof server is always local**, including against Stagenet.
+- **Proof server is local by default**, including against Stagenet, so witness data never leaves the machine. A third-party hosted prover (TEE / confidential space) is configurable — see `docs/build.md`. **Placeholder: not wired to a real provider yet.**
 - **Design for minutes, not seconds.** ~40 s to submit, ~70 s per proved call. Any UI that assumes sub-second feedback is wrong.
 - **No Lace on 2.x** → wallets are programmatic, via the Wallet SDK directly.
 - **DUST-aware setup** is required before anything submits.
