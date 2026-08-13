@@ -1,0 +1,28 @@
+# Local planning docs — not part of the repo
+/claude.md
+
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+build/
+*.tsbuildinfo
+
+# Compact / ZK build artifacts
+managed/
+*.zkir
+
+# Environment & secrets
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+npm-debug.log*
+
+# Editor / OS
+.DS_Store
+.idea/
+*.swp
