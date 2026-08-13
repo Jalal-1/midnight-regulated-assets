@@ -26,3 +26,12 @@ npm-debug.log*
 .DS_Store
 .idea/
 *.swp
+
+# Yarn (node-modules linker; cache is in-project)
+.yarn/*
+!.yarn/patches
+!.yarn/releases
+.pnp.*
+
+# Pinned Compact toolchain, installed by ops/setup-toolchain.sh
+.toolchain/

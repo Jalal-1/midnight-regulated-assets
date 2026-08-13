@@ -87,3 +87,51 @@ Note the proof server reports its version as plain `9.0.0-rc.5` even though the
 image tag is `9.0.0-rc.5_experimental` — the `/version` string cannot tell you
 whether you are on the experimental build, so it is no help in confirming
 zkir-v3 support. Trust the tag, not the endpoint.
+
+---
+
+## 2026-08-13 · compactc 0.33.0-rc.2 · the compiler self-reports its expected stack
+
+Not a bug — a verification tool worth knowing about. The compiler will tell you
+exactly what it expects, which is the cheapest way to check a pin set is coherent:
+
+```
+compactc --version           0.33.0
+compactc --language-version  0.25.0
+compactc --ledger-version    ledger-9.1.0.0-rc.3
+compactc --runtime-version   0.18.0-rc.1
+```
+
+The ledger and runtime it names match the Stagenet delivery note exactly, which
+is the best evidence available that this RC3 set really does move together.
+Re-run all four after any toolchain bump.
+
+Two gotchas:
+
+- **`--version` prints `0.33.0`, not `0.33.0-rc.2`.** Same trap as the docker
+  tags: the artifact identifier and the self-reported version are different
+  strings. You cannot confirm you are on the RC from `--version` alone.
+- **Language version is 0.25.0, not 0.23.0.** OZ compact-contracts declare
+  `pragma language_version >= 0.23.0`, so they are satisfied — but do not read
+  the OZ pragma as a statement of the current language version.
+
+---
+
+## 2026-08-13 · compactc · compiling is fast; it is proving that is slow
+
+`compactc --feature-zkir-v3 counter.compact managed/` completes in **~2 s**
+including proving-key generation, producing 120 KB of output:
+
+```
+contract/index.{js,d.ts,js.map}     TypeScript bindings
+zkir/increment.{zkir,bzkir}         circuits
+keys/increment.{prover,verifier}    proving + verifying keys
+compiler/contract-{info,manifest}.json
+```
+
+`--skip-zk` takes 0.3 s and omits `keys/` and `.bzkir`, which is the right mode
+for iterating on TypeScript output.
+
+Worth stating because the "design for minutes" constraint is easy to misapply:
+it is about **submitting and proving at runtime** (~40 s / ~70 s), not about the
+build. A slow edit-compile loop is a symptom of something wrong, not expected.
