@@ -22,6 +22,16 @@
     "walletSdk": "2.0.0-beta.2"
   },
 
+  "libraries": {
+    "_comment": "Not part of the Stagenet delivery note — these are our chosen dependencies.",
+    "openzeppelinCompactContracts": "0.3.0-alpha.2",
+    "openzeppelinNotes": [
+      "Released 2026-08-11. Modules declare `pragma language_version >= 0.23.0`, so the pinned compiler must satisfy that.",
+      "Moving fast in the areas we depend on: alpha.2 removed SignerManager, dropped isInit guards in Signer, and fixed UnshieldedTreasury deposits. Re-read the multisig diff before pinning custody.",
+      "archive/ShieldedToken is confirmed still archived on main as of 2026-08-13 — 'DO NOT USE IN PRODUCTION'."
+    ]
+  },
+
   "flags": ["--feature-zkir-v3"],
 
   "notes": {

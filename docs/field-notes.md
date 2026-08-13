@@ -53,14 +53,37 @@ node and indexer, whose healthchecks do work, so ordering still holds.
 
 ---
 
-## 2026-08-13 · indexer API path · silent 404 instead of a useful error
+## 2026-08-13 · indexer 4.4.x · a wrong API version redirects to a nonsense path
 
-**Symptom.** Queries to `/api/v1/graphql` 404 with nothing explaining why.
+**Symptom.** Queries to `/api/v1/graphql` do not 404. They return
+`308 Permanent Redirect` to **`/api/v4/v1/graphql`** — the server prefixes the
+current version onto the path you asked for. `/api/v9/graphql` behaves the same.
+A client that follows redirects then fails against a path that never existed, so
+the error you debug is two steps removed from the actual mistake.
 
-**Cause.** The indexer's GraphQL path is version-scoped and moves with the image
-(`v3` on the 4.3.x preview line, `v4` on Stagenet). It is easy to copy a path
-from the wrong repo's tests.
+**Cause.** The GraphQL path is version-scoped and moves with the image (`v3` on
+the 4.3.x preview line, `v4` here). Copying a path out of the wrong repo's tests
+is easy, and the redirect hides it.
 
-**Fix.** `packages/network` derives the path from a single
-`INDEXER_API_VERSION` constant rather than hardcoding it per network.
-Stagenet is `/api/v4/graphql`.
+**Fix.** `packages/network` derives the path from a single `INDEXER_API_VERSION`
+constant instead of hardcoding it per network. Verified on localnet:
+`POST /api/v4/graphql` → `200 {"data":{"__typename":"Query"}}`.
+
+---
+
+## 2026-08-13 · full RC3 stack · localnet boots clean
+
+Recorded as the known-good baseline. `docker compose up -d --wait` exits 0 with
+all three services healthy, on the pins in `ops/localnet/env/rc3.env`:
+
+| Check | Result |
+|---|---|
+| `GET :9944/health` | `200` · `{"peers":0,"isSyncing":false,"shouldHavePeers":false}` |
+| `GET :6300/version` | `200` · `9.0.0-rc.5` |
+| `POST :8088/api/v4/graphql` | `200` · `{"data":{"__typename":"Query"}}` |
+| Block production | advancing (block 7 → 8 over ~8 s) |
+
+Note the proof server reports its version as plain `9.0.0-rc.5` even though the
+image tag is `9.0.0-rc.5_experimental` — the `/version` string cannot tell you
+whether you are on the experimental build, so it is no help in confirming
+zkir-v3 support. Trust the tag, not the endpoint.

@@ -25,15 +25,16 @@ M0 in progress. **Target network: Stagenet** — a new chain with its own genesi
 The directory structure below exists, but it is a skeleton: packages carry entrypoints documenting their responsibility, not implementations. What is real and what is not:
 
 **Real and verified**
-- `ops/versions.lock.json` + `ops/localnet/env/rc3.env` — the Stagenet RC3 stack, all three docker tags confirmed present on Docker Hub.
-- `ops/localnet/compose.yml` — validates and resolves images; carries the workarounds each image needs (see `docs/field-notes.md`).
-- `packages/network` — Stagenet and localnet endpoints, both verified.
+- **The localnet boots.** `yarn localnet:up` exits 0 with node, indexer, and proof server all healthy on the pinned RC3 stack; the node produces blocks and all three endpoints answer. Evidence is in `docs/field-notes.md`.
+- `ops/versions.lock.json` + `ops/localnet/env/rc3.env` — the Stagenet RC3 stack, all three docker tags pulled and running.
+- `packages/network` — localnet endpoints verified live against the running stack; Stagenet endpoints taken from the delivery note.
 - `apps/counter/contract/counter.compact` — byte-identical to the upstream canonical example.
 
 **Not real yet**
 - `ops/setup-toolchain.sh`, `ops/redeploy.sh` — deliberately `exit 1` rather than pretend to work.
 - Every `packages/*` entrypoint is an empty `export {}` with a docblock.
-- Nothing has been compiled, deployed, or proved. The localnet has not been booted.
+- No `yarn install` has been run, so there is no lockfile and the JS toolchain is unproven.
+- Nothing has been compiled, deployed, or proved — the Compact toolchain is not installed.
 
 Two values remain unconfirmed, both flagged in `versions.lock.json`: the Compact **language** version for compiler `0.33.0-rc.2`, and the **NetworkId string** Stagenet expects.
 
