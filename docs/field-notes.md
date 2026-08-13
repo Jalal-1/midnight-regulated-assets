@@ -230,3 +230,99 @@ round-trip open/put/get against a real LevelDB succeeds.
 It would break on a platform with no matching prebuild. If the private state
 provider fails to load on some other machine, set `enableScripts: true` in
 `.yarnrc.yml` before debugging anything else.
+
+---
+
+## 2026-08-13 · midnight-js 5.x + wallet-sdk 2.x · the wallet bridge, in four traps
+
+Deploying needs a `WalletProvider` and a `MidnightProvider`. The wallet SDK
+implements **neither**, and the mismatches are not obvious. All four below cost
+real time; the adapter lives in `packages/wallet/src/providers.ts`.
+
+**1. Public keys must be bech32m strings, not objects.**
+`WalletProvider.getCoinPublicKey()` must return a string. The wallet SDK gives
+you a `ShieldedCoinPublicKey` object whose `toString()` is `"[object Object]"`.
+Pass it raw and deploy dies far from the cause:
+
+```
+TypeError: bech32.decode input: string expected
+  at parseCoinPublicKeyToHex (midnight-js-utils)
+  at createUnprovenDeployTx (midnight-js-contracts)
+```
+
+The fix is each class's **static** `codec`:
+
+```ts
+ShieldedCoinPublicKey.codec.encode(networkId, cpk).asString()
+// -> mn_shield-cpk_undeployed1tth9g6jf8he6…
+```
+
+`MidnightBech32m.encode(networkId, item)` looks the codec up on the *instance*
+(`item[Bech32mSymbol]`), and these two classes only carry it statically, so that
+route throws `Cannot read properties of undefined (reading 'encode')`. That error
+looks like a duplicate-package/symbol-identity problem — it is not. Check for
+duplicates once, then stop chasing it.
+
+**2. `balanceTx` is one call in midnight-js and two in the wallet SDK.**
+midnight-js expects `balanceTx(tx, ttl?) -> FinalizedTransaction`. The SDK splits
+it: `balanceUnboundTransaction(...)` returns a *recipe* (base plus optional
+balancing transaction), and `finalizeRecipe(recipe)` produces the finalized
+transaction. Do both, in that order.
+
+**3. The proof provider needs the ZK config provider.**
+`httpClientProofProvider(url, zkConfigProvider, config?)` — not `(url)`. It
+resolves proving keys by location while proving, so build the ZK config provider
+first and pass it in.
+
+**4. Private state encryption is mandatory, and the password policy is enforced.**
+`levelPrivateStateProvider` requires `accountId` **and**
+`privateStoragePasswordProvider`. There is no plaintext mode. The password must
+be 16+ characters, contain at least 3 of upper/lower/digit/special, and have no
+more than 3 identical characters in a row. `accountId` scopes stored state per
+wallet, so two wallets on one machine do not read each other's state.
+
+---
+
+## 2026-08-13 · midnight-js 5.x · contracts are described in the Effect idiom
+
+`deployContract` does not take the generated contract. It takes a
+`CompiledContract`, built with a tag, the generated **constructor** (not an
+instance), and combinators:
+
+```ts
+const compiledContract = CompiledContract.make('counter', Contract).pipe(
+  CompiledContract.withVacantWitnesses,              // counter declares none
+  CompiledContract.withCompiledFileAssets(ZK_PATH),  // the managed/ directory
+);
+```
+
+Passing `new Contract({})` fails with *"missing the following properties …:
+tag, pipe"*, which is the tell. Import `CompiledContract` from
+`@midnight-ntwrk/midnight-js-protocol/compact-js`.
+
+Bonus: once built, the circuit ids are inferred, so
+`createProviders<'increment'>(…)` type-checks against the real contract.
+
+---
+
+## 2026-08-13 · localnet · end-to-end timings are much faster than budgeted
+
+First full success on the pinned RC3 stack, counter contract:
+
+| Step | Time |
+|---|---|
+| Wallet sync (localnet, genesis seed) | 0.3 s |
+| Deploy — prove + submit | **18.5 s** |
+| `increment()` — prove + submit | **17.2 s** |
+
+Round went `0` → `1`, read back from the indexer both times.
+
+The standing guidance of ~40 s to submit and ~70 s per proved call is therefore
+**conservative for a trivial circuit on localnet**. Do not design for 18 s: the
+counter has one tiny circuit and localnet has no competing traffic. But do treat
+40/70 as a budget rather than a measurement, and re-measure per contract — a
+confidential-token transfer will not behave like this.
+
+Genesis seed `…0002` (index 0 in `LOCALNET_GENESIS_SEEDS`) is funded with
+250,000,000,000,000 unshielded, three shielded token types, and 5 DUST coins —
+ample for development.

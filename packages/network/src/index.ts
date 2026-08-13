@@ -23,7 +23,10 @@ export interface NetworkConfig {
    * APP__APPLICATION__NETWORK_ID or sync silently returns nothing.
    */
   networkId: string;
+  /** Node JSON-RPC over HTTP. */
   node: string;
+  /** Node over WebSocket. The wallet SDK's `relayURL` needs this, not the HTTP one. */
+  nodeWs: string;
   indexer: string;
   indexerWs: string;
   /** Always local, even against a remote node. */
@@ -42,6 +45,7 @@ const indexerPaths = (host: string) => ({
 const localnet: NetworkConfig = {
   networkId: 'undeployed',
   node: 'http://localhost:9944',
+  nodeWs: 'ws://localhost:9944',
   ...indexerPaths('localhost:8088'),
   proofServer: PROOF_SERVER,
 };
@@ -56,9 +60,11 @@ const localnet: NetworkConfig = {
  * Faucet: https://faucet.stagenet.shielded.tools
  */
 const stagenet: NetworkConfig = {
-  // Not documented in the delivery note. Override until confirmed.
-  networkId: process.env.MRA_NETWORK_ID ?? 'undeployed',
-  node: 'wss://rpc.stagenet.shielded.tools',
+  // 'stagenet' is the wallet SDK's own NetworkId.StageNet value, so it is the
+  // string both SDKs should agree on. Still unverified against a live sync.
+  networkId: process.env.MRA_NETWORK_ID ?? 'stagenet',
+  node: 'https://rpc.stagenet.shielded.tools',
+  nodeWs: 'wss://rpc.stagenet.shielded.tools',
   indexer: `https://indexer.stagenet.shielded.tools/api/${INDEXER_API_VERSION}/graphql`,
   indexerWs: `wss://indexer.stagenet.shielded.tools/api/${INDEXER_API_VERSION}/graphql/ws`,
   // Local even here: proofs are generated client-side and never leave the machine.

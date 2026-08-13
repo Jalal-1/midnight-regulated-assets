@@ -11,8 +11,10 @@
     "@midnight-ntwrk/midnight-js-level-private-state-provider": "5.0.0-beta.4",
     "@midnight-ntwrk/midnight-js-network-id": "5.0.0-beta.4",
     "@midnight-ntwrk/midnight-js-node-zk-config-provider": "5.0.0-beta.4",
+    "@midnight-ntwrk/midnight-js-protocol": "5.0.0-beta.4",
     "@midnight-ntwrk/midnight-js-types": "5.0.0-beta.4",
     "@midnightntwrk/wallet-sdk": "2.0.0-beta.2",
-    "@mra/network": "workspace:^"
+    "@mra/network": "workspace:^",
+    "@mra/wallet": "workspace:^"
   }
 }

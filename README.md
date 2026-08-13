@@ -24,18 +24,31 @@ M0 in progress. **Target network: Stagenet** — a new chain with its own genesi
 
 The directory structure below exists, but it is a skeleton: packages carry entrypoints documenting their responsibility, not implementations. What is real and what is not:
 
-**Real and verified**
-- **The localnet boots.** `yarn localnet:up` exits 0 with node, indexer, and proof server healthy on the pinned RC3 stack; the node produces blocks and all three endpoints answer.
-- **The counter compiles.** `yarn redeploy` runs the pinned `compactc` with `--feature-zkir-v3` and emits TypeScript bindings, circuits, and proving keys in ~2 s.
-- **The pin set is coherent.** The installed compiler self-reports `ledger-9.1.0.0-rc.3` and runtime `0.18.0-rc.1`, both matching the delivery note.
-- **The repo typechecks.** `yarn check` is clean, and `yarn install` produces a committed lockfile.
-- `packages/network` — localnet endpoints verified live; Stagenet endpoints from the delivery note.
+**Real and verified — the full loop works on localnet**
+
+The counter compiles, deploys, proves, submits, and can be called, with state read
+back from the indexer each time:
+
+```
+deployed in 18.5s   address a5932c58…
+initial round = 0
+increment() in 17.2s   tx 00fb5a21… @ block 394
+round after increment = 1
+```
+
+- **Localnet boots.** `yarn localnet:up` exits 0 with node, indexer, and proof server healthy on the pinned RC3 stack.
+- **Compilation.** `yarn redeploy` runs the pinned `compactc` with `--feature-zkir-v3`, emitting bindings, circuits, and proving keys in ~2 s.
+- **Wallet.** `packages/wallet` builds a programmatic wallet from a seed, derives the Zswap/NightExternal/Dust roles, and syncs. The genesis seed is funded.
+- **Providers.** `packages/wallet/src/providers.ts` assembles all six midnight-js providers, including the two adapters the wallet SDK does not implement.
+- **The pin set is coherent.** The compiler self-reports `ledger-9.1.0.0-rc.3` and runtime `0.18.0-rc.1`, both matching the delivery note.
+- **`yarn check` is clean** and the lockfile is committed.
 
 **Not real yet**
-- **Nothing has been deployed or proved on-chain.** `apps/counter/src/deploy.ts` resolves the network and sets the network ID, then stops: the midnight-js providers and wallet are not wired. That is the M1 boundary.
-- `ops/redeploy.sh` compiles, then exits 1 at the deploy stage rather than pretend.
-- Every `packages/*` entrypoint is still an empty `export {}` with a docblock.
-- `apps/tokenised-deposit` and `apps/rwa-token` are empty, and are deliberately excluded from the root `tsconfig.json` references until they have source.
+- **Nothing has run against Stagenet.** Everything above is localnet. The Stagenet endpoints are configured but untested, and the deploy script is deliberately localnet-only because it uses well-known genesis seeds.
+- No UI. Interaction is a script, not an interface.
+- `ops/redeploy.sh` compiles but does not deploy — deployment currently lives in `apps/counter/src/deploy.ts`.
+- `packages/contracts`, `packages/ui`, and `packages/ledger-mock` are still empty `export {}` with docblocks.
+- `apps/tokenised-deposit` and `apps/rwa-token` are empty, and are excluded from the root `tsconfig.json` references until they have source.
 
 Every non-obvious thing that cost time on the way here is written up in **[docs/field-notes.md](docs/field-notes.md)** — eight entries so far, and it is the most useful file in the repo right now.
 
@@ -43,8 +56,8 @@ One value remains unconfirmed, flagged in `versions.lock.json`: the **NetworkId 
 
 | Milestone | Deliverable | State |
 |---|---|---|
-| **M0** | Scaffold, pinned RC3 stack, localnet compose, redeploy runbook | in progress |
-| **M1** | Counter + thin wallet wrapper on localnet; field notes | not started |
+| **M0** | Scaffold, pinned RC3 stack, localnet compose, redeploy runbook | **done** |
+| **M1** | Counter + thin wallet wrapper on localnet; field notes | **done (localnet)** |
 | **M2** | Deposit design options: native + public contract token, multi-party view | not started |
 | **M3** | Design options: account-based CFT — deposit design page complete | not started |
 | **M4** | Deposit lifecycle: issue, transfer, audit, redeem | not started |
