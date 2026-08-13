@@ -39,17 +39,23 @@ The directory structure below exists, but it is a skeleton: packages carry entry
 
 Every non-obvious thing that cost time on the way here is written up in **[docs/field-notes.md](docs/field-notes.md)** — eight entries so far, and it is the most useful file in the repo right now.
 
-Two values remain unconfirmed, both flagged in `versions.lock.json`: the Compact **language** version for compiler `0.33.0-rc.2`, and the **NetworkId string** Stagenet expects.
+One value remains unconfirmed, flagged in `versions.lock.json`: the **NetworkId string** Stagenet expects. (The Compact language version resolved to `0.25.0` — the compiler reports it directly.)
 
 | Milestone | Deliverable | State |
 |---|---|---|
 | **M0** | Scaffold, pinned RC3 stack, localnet compose, redeploy runbook | in progress |
 | **M1** | Counter + thin wallet wrapper on localnet; field notes | not started |
 | **M2** | Deposit design options: native + public contract token, multi-party view | not started |
-| **M3** | Design options: shielded UTXO candidate | not started |
-| **M4** | Design options: account-based CFT + note-based preview | not started |
-| **M5** | Deposit lifecycle: issue, transfer, audit, redeem | not started |
-| **M6** | RWA token product + hosted site complete | not started |
+| **M3** | Design options: account-based CFT — deposit design page complete | not started |
+| **M4** | Deposit lifecycle: issue, transfer, audit, redeem | not started |
+| **M5** | RWA token product + site complete | not started |
+| **M6** | Shielded UTXO design option — built last, see below | not started |
+
+**Two deviations from plan v6, both deliberate:**
+
+**Shielded UTXO moved to last (was M3).** It is built, not skipped — but it is not custody-compatible yet, so it cannot satisfy the requirements checklist and nothing else should wait on it. Building it last means the deposit page ships complete with the composition that *does* work, and the shielded UTXO option lands as a documented, demonstrated limitation rather than a blocker. Upstream supports this reading: OpenZeppelin keeps its shielded token in `archive/`, marked "archived until further notice, DO NOT USE IN PRODUCTION", citing no custom spend logic (so no pause or freeze) and unreliable total-supply accounting.
+
+**The note-based token preview is dropped.** There is no note-based module in OZ compact-contracts to preview — the shielded-UTXO module in `archive/` is the closest thing, and it is the option above. Any claim that note-based is "the higher-privacy path as it matures" needs a source before it goes on a product page.
 
 ---
 

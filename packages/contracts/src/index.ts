@@ -26,12 +26,16 @@
  * 1. OZ modules declare `pragma language_version >= 0.23.0`. Our counter does
  *    not declare one, matching the compiler's own canonical example.
  *
- * 2. There is no note-based token module. The shielded-UTXO token lives in
- *    upstream `archive/` and is marked "archived until further notice, DO NOT
- *    USE IN PRODUCTION" — it has no custom spend logic (so no pause or freeze)
- *    and cannot guarantee total-supply accounting. Those are precisely the
- *    regulated-asset requirements, so it is a documented dead end rather than a
- *    maturing option. Cite that upstream notice on the design-options page.
+ * 2. The shielded-UTXO token lives in upstream `archive/`, marked "archived
+ *    until further notice, DO NOT USE IN PRODUCTION": no custom spend logic (so
+ *    no pause or freeze) and no reliable total-supply accounting. It is not
+ *    custody-compatible, so it cannot meet the requirements checklist.
+ *
+ *    We still build it — last, after the products that work — so the design
+ *    options page can demonstrate the limitation rather than assert it. Cite the
+ *    upstream notice alongside the demo. Nothing else may depend on this block.
+ *
+ *    There is no note-based module here at all, so there is nothing to preview.
  *
  * 3. ConfidentialFungibleToken stores balances as ElGamal ciphertexts on Jubjub,
  *    with `accountId = persistentHash(secretKey)`. Total-supply tracking is NOT
