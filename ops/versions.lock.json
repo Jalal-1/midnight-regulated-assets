@@ -1,13 +1,46 @@
 {
-  "_comment": "The pinned RC3 set. These move TOGETHER — bumping one alone is unsupported. Nulls are unfilled as of M0; fill from a known-good localnet before relying on this file.",
-  "compactc": null,
-  "compact-stdlib": null,
-  "midnight-node": null,
-  "midnight-indexer": null,
-  "proof-server": null,
-  "midnight-js": null,
-  "wallet-sdk": null,
-  "openzeppelin-compact": null,
+  "_comment": [
+    "The Stagenet 'Ledger RC3 compatible' stack. These move TOGETHER — bumping one",
+    "alone is unsupported. Source: Midnight Q2 2026 Beta Delivery Document.",
+    "",
+    "Do NOT copy versions out of the midnight-context snapshot: that snapshot tracks",
+    "the PREVIEW line (node 1.0.0, indexer 4.3.2, ledger 8.x) and is a reference for",
+    "API shape only. Stagenet is a separate, newer line."
+  ],
+
+  "target": "stagenet",
+
+  "stack": {
+    "ledger": "9.1.0.0-rc.3",
+    "node": "2.0.0-rc.4",
+    "indexer": "4.4.0-pre-alpha.16",
+    "proofServer": "9.0.0-rc.5_experimental",
+    "compactCompiler": "0.33.0-rc.2",
+    "compactRuntime": "0.18.0-rc.1",
+    "compactJs": "2.5.5-rc.6",
+    "midnightJs": "5.0.0-beta.4",
+    "walletSdk": "2.0.0-beta.2"
+  },
+
   "flags": ["--feature-zkir-v3"],
-  "notes": "Proof server is always local, including against remote nodes."
+
+  "notes": {
+    "zkirV3": "--feature-zkir-v3 is a COMPILER flag. Contracts built with it must run against the _experimental proof-server build — the plain build will not verify them.",
+    "proofServer": "Always local, including against Stagenet.",
+    "indexerApi": "GraphQL path is /api/v4/graphql on Stagenet. It is version-scoped and moves with the indexer image; a mismatch fails as an opaque 404."
+  },
+
+  "dockerTags": {
+    "_comment": "Verified present on Docker Hub (midnightntwrk/*) on 2026-08-13. Live in ops/localnet/env/rc3.env.",
+    "node": "2.0.0-rc.4",
+    "proofServer": "9.0.0-rc.5_experimental",
+    "indexerStandalone": "4.4.0-pre-alpha.16-l91r3-n2r3-bridge-and-events-epics-contract-zswap-16c656df",
+    "indexerTagWarning": "There is no plain '4.4.0-pre-alpha.16' tag. The published image carries the build suffix above; shortening it gives 'manifest unknown'."
+  },
+
+  "unresolved": {
+    "compactLanguageVersion": "Compiler 0.31.x maps to language 0.23.0; the 0.33.0-rc.2 release notes do not state its language version. Confirm with `compact compile --version` once the toolchain is installed.",
+    "stagenetNetworkId": "The NetworkId string Stagenet expects is not documented in the delivery note. Localnet is 'undeployed'. Set MRA_NETWORK_ID until confirmed.",
+    "indexerUpgrade": "indexer-standalone 4.4.0-rc.2 is published and is a clean tag, but Stagenet was tested on pre-alpha.16. Do not switch without checking node 2.0.0-rc.4 compatibility."
+  }
 }

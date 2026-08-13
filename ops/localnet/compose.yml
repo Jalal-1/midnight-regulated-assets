@@ -1,0 +1,56 @@
+# Localnet: node + indexer + proof server. Nothing else.
+#
+# Ports here are the source of truth for packages/network.
+# Versions come from the env file, never inline — see ops/localnet/env/.
+#   yarn localnet:up    (docker compose --env-file ops/localnet/env/rc3.env ...)
+
+services:
+  node:
+    image: "midnightntwrk/midnight-node:${MIDNIGHT_NODE_VERSION}"
+    ports: ['9944:9944']
+    environment:
+      CFG_PRESET: 'dev'
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:9944/health']
+      interval: 2s
+      timeout: 5s
+      retries: 30
+      start_period: 5s
+
+  indexer:
+    image: "midnightntwrk/indexer-standalone:${INDEXER_VERSION}"
+    ports: ['8088:8088']
+    depends_on:
+      node:
+        condition: service_healthy
+    environment:
+      APP__INFRA__NODE__URL: 'ws://node:9944'
+      # Must match packages/network's localnet networkId, or sync returns nothing.
+      APP__APPLICATION__NETWORK_ID: 'undeployed'
+      APP__INFRA__STORAGE__PASSWORD: 'indexer'
+      APP__INFRA__PUB_SUB__PASSWORD: 'indexer'
+      APP__INFRA__LEDGER_STATE_STORAGE__PASSWORD: 'indexer'
+      APP__INFRA__SECRET: '303132333435363738393031323334353637383930313233343536373839303132'
+      # The 4.4.x line spawns an SPO/bridge subtask unconditionally and kills the
+      # whole process when it stops retrying (~5 min). There is no opt-out flag,
+      # so the reconnect delay is stretched to outlive any session.
+      APP__INFRA__SPO_NODE__BLOCKFROST_ID: 'dummy-no-spo-on-localnet'
+      APP__INFRA__SPO_NODE__RECONNECT_MAX_DELAY: '24h'
+    healthcheck:
+      test: ['CMD-SHELL', 'cat /var/run/indexer-standalone/running']
+      interval: 2s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+
+  proof-server:
+    image: "midnightntwrk/proof-server:${PROOF_SERVER_VERSION}"
+    command: ['midnight-proof-server --verbose']
+    ports: ['6300:6300']
+    environment:
+      RUST_BACKTRACE: 'full'
+    # Disabled deliberately: the image is a minimal Nix build with no shell and
+    # no curl, so any in-container probe fails and `up --wait` aborts even though
+    # the server is serving. It is ready long before node and indexer anyway.
+    healthcheck:
+      disable: true

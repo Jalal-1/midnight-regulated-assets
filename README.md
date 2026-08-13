@@ -20,13 +20,22 @@ The repo layout states that thesis directly: products live in `apps/`, the block
 
 ## Status
 
-M0 in progress. **The directory structure below exists, but it is a skeleton** — the packages carry entrypoints documenting their responsibility, not implementations. Specifically, nothing here deploys yet:
+M0 in progress. **Target network: Stagenet** — a new chain with its own genesis, on the Ledger RC3 compatible stack. Localnet mirrors that stack for development.
 
-- `ops/versions.lock.json` — every version is `null`. Nothing is actually pinned.
-- `ops/localnet/docker-compose.yml` — image tags are `TODO` placeholders.
+The directory structure below exists, but it is a skeleton: packages carry entrypoints documenting their responsibility, not implementations. What is real and what is not:
+
+**Real and verified**
+- `ops/versions.lock.json` + `ops/localnet/env/rc3.env` — the Stagenet RC3 stack, all three docker tags confirmed present on Docker Hub.
+- `ops/localnet/compose.yml` — validates and resolves images; carries the workarounds each image needs (see `docs/field-notes.md`).
+- `packages/network` — Stagenet and localnet endpoints, both verified.
+- `apps/counter/contract/counter.compact` — byte-identical to the upstream canonical example.
+
+**Not real yet**
 - `ops/setup-toolchain.sh`, `ops/redeploy.sh` — deliberately `exit 1` rather than pretend to work.
-- `packages/network` — real resolver logic, but localnet ports are unverified and Stagenet endpoints are empty.
-- `apps/counter/contract/counter.compact` — plausible, unverified against the pinned compiler.
+- Every `packages/*` entrypoint is an empty `export {}` with a docblock.
+- Nothing has been compiled, deployed, or proved. The localnet has not been booted.
+
+Two values remain unconfirmed, both flagged in `versions.lock.json`: the Compact **language** version for compiler `0.33.0-rc.2`, and the **NetworkId string** Stagenet expects.
 
 | Milestone | Deliverable | State |
 |---|---|---|
@@ -65,7 +74,7 @@ midnight-regulated-assets/
 ├── packages/
 │   ├── network/             # THE ONLY place endpoints live
 │   ├── wallet/              # thin Wallet SDK wrapper
-│   ├── contracts/           # THE BLOCKS: access-control, multisig, cft, note-preview, compliance
+│   ├── contracts/           # THE BLOCKS: access, multisig, security, token, crypto
 │   ├── ui/                  # design system + multi-party view component
 │   └── ledger-mock/         # mock core-banking ledger
 └── ops/                     # localnet compose, redeploy.sh, setup-toolchain.sh, versions.lock.json
@@ -81,22 +90,27 @@ midnight-regulated-assets/
 | Stand up or reset a localnet | `ops/` |
 | Know exact versions / what broke for us | `ops/versions.lock.json`, `docs/field-notes` |
 
+`packages/contracts` mirrors the OpenZeppelin `compact-contracts` layout on purpose — `access`, `multisig`, `security`, `token`, `crypto` — so a block here maps onto its upstream counterpart without translation. The composition names from the product pages sit on top of that: the confidential token is `token/`, and compliance (allowlist, blocklist, pausable) is `security/`.
+
 **The multi-party view** (`packages/ui`) is the flagship demo component: *View as Issuer / Sender / Receiver / Regulator / Public* — one transaction, five live queries, five visibility sets. It appears in every design option and every lifecycle demo.
 
 ---
 
 ## Getting started
 
-Prerequisites: Docker, Node, and the pinned Compact toolchain. Once M0 lands:
+Prerequisites: Docker, Node ≥ 22, Yarn 4 (via Corepack), and the pinned Compact toolchain.
 
 ```bash
-./ops/setup-toolchain.sh              # installs the pinned toolchain
-docker compose -f ops/localnet/docker-compose.yml up -d
-npm install
-npm run -w apps/counter deploy        # confirms the stack end to end
+corepack enable
+yarn install
+./ops/setup-toolchain.sh    # installs the pinned toolchain   (M0: exits 1)
+yarn localnet:up            # node + indexer + proof server on the RC3 stack
+yarn redeploy               # compile, deploy, record addresses (M0: exits 1)
 ```
 
 Start with `apps/counter`. If it does not deploy, nothing downstream will.
+
+To point at Stagenet instead of localnet: `MRA_NETWORK=stagenet`. Fund an address from the [faucet](https://faucet.stagenet.shielded.tools) first — and note that a Stagenet reset wipes state, so expect to resync, refund, and redeploy.
 
 ---
 
@@ -104,16 +118,21 @@ Start with `apps/counter`. If it does not deploy, nothing downstream will.
 
 These are not style preferences — they are properties of the current stack.
 
-- **Localnet first.** Develop against localnet; Stagenet endpoints are temporary and the 2.x stack is the target.
+- **Localnet first.** Develop against localnet, deploy to Stagenet. Both run the same RC3 stack.
 - **Endpoints only in `packages/network`.** A hardcoded URL anywhere else is a bug.
 - **The pinned RC3 set moves together.** Do not upgrade one component alone. See `ops/versions.lock.json`.
-- **Proof server is always local**, with `--feature-zkir-v3` and the experimental proof server.
+- **`--feature-zkir-v3` is a *compiler* flag**, and contracts built with it only verify against the `_experimental` proof-server build. Mixing the plain build with zkir-v3 contracts fails at proving time, not at compile time.
+- **Proof server is always local**, including against Stagenet.
 - **Design for minutes, not seconds.** ~40 s to submit, ~70 s per proved call. Any UI that assumes sub-second feedback is wrong.
 - **No Lace on 2.x** → wallets are programmatic, via the Wallet SDK directly.
 - **DUST-aware setup** is required before anything submits.
 - **Contract-to-contract, phase 1: unshielded data only** — no value movement across calls.
-- `midnight-js` 5.x `NetworkId` is a free-form string, not an enum.
+- **`NetworkId` is a free-form `string`**, held in module-level global state. `setNetworkId()` must run before any wallet or contract call or the SDK throws — `packages/wallet` owns that single call site.
+- **The indexer GraphQL path is version-scoped** (`/api/v4/graphql` on Stagenet) and a mismatch is an opaque 404. Derived from one constant in `packages/network`.
+- **Release versions are not docker tags.** Confirm any pin against the registry — see the first field note for how this bites.
 - Redeploy must stay one command and survive a full localnet reset.
+
+Do not lift version numbers from the `midnight-context` snapshot: it tracks the **preview** line (node 1.0.0, indexer 4.3.2, ledger 8.x). It is a reference for API shape and module layout only.
 
 ---
 

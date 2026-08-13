@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "extends": "@tsconfig/node24/tsconfig.json",
+  "compilerOptions": {
+    // NodeNext is required, not stylistic: @midnight-ntwrk/compact-runtime is a
+    // pure ES module as of 0.18, and the Compact compiler emits .js/.d.ts ESM.
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "target": "ES2023",
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "verbatimModuleSyntax": true,
+    "skipLibCheck": true,
+    "declaration": true,
+    "sourceMap": true
+  }
+}

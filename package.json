@@ -2,16 +2,33 @@
   "name": "midnight-regulated-assets",
   "private": true,
   "type": "module",
+  "packageManager": "yarn@4.14.1",
   "workspaces": [
     "packages/*",
     "apps/*"
   ],
   "engines": {
-    "node": ">=20"
+    "node": ">=22"
   },
   "scripts": {
-    "localnet:up": "docker compose -f ops/localnet/docker-compose.yml up -d",
-    "localnet:down": "docker compose -f ops/localnet/docker-compose.yml down -v",
+    "build": "turbo run build",
+    "check": "turbo run check",
+    "test": "turbo run test",
+    "localnet:up": "docker compose --env-file ops/localnet/env/rc3.env -f ops/localnet/compose.yml up -d --wait",
+    "localnet:down": "docker compose -f ops/localnet/compose.yml down -v",
     "redeploy": "./ops/redeploy.sh"
+  },
+  "devDependencies": {
+    "@tsconfig/node24": "^24.0.4",
+    "@types/node": "^24.0.0",
+    "turbo": "^2.9.16",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.7"
+  },
+  "resolutions": {
+    "@midnight-ntwrk/platform-js": "3.0.0",
+    "@midnightntwrk/ledger-v9": "1.0.0-rc.3",
+    "@midnightntwrk/onchain-runtime-v4": "4.0.0-rc.3",
+    "@midnight-ntwrk/compact-runtime": "0.18.0-rc.1"
   }
 }
