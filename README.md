@@ -119,32 +119,62 @@ midnight-regulated-assets/
 
 ## Getting started
 
-Prerequisites: Docker, Node ≥ 22, Yarn 4 (via Corepack), and the pinned Compact toolchain.
+Prerequisites: **Docker**, **Node ≥ 22**, and Yarn 4 via Corepack.
+
+### First time only
 
 ```bash
 corepack enable
 yarn install
 yarn toolchain      # fetch the pinned compactc into .toolchain/ (idempotent)
-yarn localnet:up    # node + indexer + proof server on the RC3 stack
-yarn redeploy       # compile every apps/*/contract/*.compact
-yarn check          # typecheck the whole repo
+yarn redeploy       # compile apps/*/contract/*.compact  (exits 1 at the deploy
+                    # stage by design — the compile step is what matters here)
 ```
 
-Then the browser UI, which shows the contract *and* a live view of the node,
-indexer, and proof server:
+### Every time — running the app from a fresh terminal
+
+Three processes. The first is detached; the other two stay in the foreground, so
+give them a terminal each.
 
 ```bash
-yarn ui             # http://localhost:5173
-yarn logs           # optional: streams container logs into the page (dev only)
+# 1. Infrastructure — node + indexer + proof server. Takes ~30s to report healthy.
+yarn localnet:up
+
+# 2. Log sidecar (terminal 2). Optional, but without it the log drawers in the
+#    page stay empty. Dev-only; binds to 127.0.0.1.
+yarn logs
+
+# 3. The app (terminal 3).
+yarn ui             # then open http://localhost:5173
 ```
 
-Then the toolchain proof, as far as it currently goes:
+In the page: **Connect wallet** → **Deploy counter** → **increment()**. Each of
+the last two takes ~18 s, almost all of it waiting for block inclusion. The
+Infrastructure panel on the right shows the node, indexer, and proof server live,
+each with a `LOGS` drawer.
+
+Shutting down: <kbd>Ctrl-C</kbd> the two foreground processes, then
+
+```bash
+yarn localnet:down  # -v, so chain state is discarded
+```
+
+**A restart is always a fresh chain.** The localnet keeps no volume, so any
+previously deployed contract is gone and the genesis seeds are funded again.
+Redeploy from the page; it takes 18 seconds. Nothing needs recompiling — the
+toolchain in `.toolchain/` and the build in `contract/managed/` both survive.
+
+### The same thing without a browser
 
 ```bash
 node --experimental-strip-types apps/counter/src/deploy.ts
 ```
 
-Start with `apps/counter`. If it does not compile and deploy, nothing downstream will.
+This is the reference implementation of the sequence the UI performs. If the two
+ever disagree, this one is right.
+
+`yarn check` typechecks the whole repo. Start with `apps/counter`: if it does not
+compile and deploy, nothing downstream will.
 
 To point at Stagenet instead of localnet: `MRA_NETWORK=stagenet`. Fund an address from the [faucet](https://faucet.stagenet.shielded.tools) first — and note that a Stagenet reset wipes state, so expect to resync, refund, and redeploy.
 
