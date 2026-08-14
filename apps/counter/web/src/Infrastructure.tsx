@@ -14,21 +14,25 @@
 import { useEffect, useRef, useState } from 'react';
 
 import {
-  observeProving,
+  getProvingObserver,
   probeAll,
   streamLogs,
   type Health,
   type InfraStatus,
   type LogLine,
-  type ProvingObserver,
 } from './infra.ts';
 
 const POLL_MS = 2000;
 /** Per source, so one chatty component cannot evict another's history. */
 const MAX_LINES_PER_SOURCE = 150;
 
-function Dot({ health }: { health: Health }) {
-  return <span className={`dot ${health}`} aria-label={health} />;
+function Dot({ health, pulsing }: { health: Health; pulsing?: boolean }) {
+  return <span className={`dot ${health}${pulsing ? ' pulsing' : ''}`} aria-label={health} />;
+}
+
+/** Health is up, down, or unknown — and unknown is a state worth saying out loud. */
+function HealthText({ health }: { health: Health }) {
+  return <span className={`health-text ${health}`}>{health}</span>;
 }
 
 function Row({ label, value }: { label: string; value: React.ReactNode }) {
@@ -80,21 +84,24 @@ function LogDrawer({
   );
 }
 
-export default function Infrastructure() {
+export default function Infrastructure({
+  onLogsState,
+}: {
+  /** Reports whether the log sidecar is streaming, for the header indicator. */
+  readonly onLogsState?: (connected: boolean) => void;
+}) {
   const [status, setStatus] = useState<InfraStatus | null>(null);
   // Grouped by source rather than one flat list: each drawer wants only its own
   // lines, and trimming per source stops a chatty component evicting another's.
   const [logs, setLogs] = useState<Record<string, readonly LogLine[]>>({});
   const [logsConnected, setLogsConnected] = useState(false);
-  const observer = useRef<ProvingObserver | null>(null);
-
-  // Patch fetch once, before any proving happens.
-  if (observer.current === null) observer.current = observeProving();
 
   useEffect(() => {
     let live = true;
+    // The shared observer: App uses the same one for the operation phase bar.
+    const observer = getProvingObserver();
     const tick = async () => {
-      const next = await probeAll(observer.current ?? undefined);
+      const next = await probeAll(observer);
       if (live) setStatus(next);
     };
     void tick();
@@ -106,12 +113,19 @@ export default function Infrastructure() {
   }, []);
 
   useEffect(() => {
-    return streamLogs((line) => {
-      setLogs((prev) => ({
-        ...prev,
-        [line.source]: [...(prev[line.source] ?? []), line].slice(-MAX_LINES_PER_SOURCE),
-      }));
-    }, setLogsConnected);
+    return streamLogs(
+      (line) => {
+        setLogs((prev) => ({
+          ...prev,
+          [line.source]: [...(prev[line.source] ?? []), line].slice(-MAX_LINES_PER_SOURCE),
+        }));
+      },
+      (connected) => {
+        setLogsConnected(connected);
+        onLogsState?.(connected);
+      },
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- subscribe once
   }, []);
 
   const { node, indexer, proof } = status ?? {};
@@ -130,11 +144,15 @@ export default function Infrastructure() {
           <div className="panel-head">
             <Dot health={node?.health ?? 'unknown'} />
             <strong>Node</strong>
+            <HealthText health={node?.health ?? 'unknown'} />
             <span className="muted small">{node?.version ?? '—'}</span>
           </div>
           <Row label="chain" value={node?.chain ?? '—'} />
-          <Row label="best" value={node?.best !== undefined ? `#${node.best}` : '—'} />
-          <Row label="finalized" value={node?.finalized !== undefined ? `#${node.finalized}` : '—'} />
+          <Row label="best" value={node?.best !== undefined ? `#${node.best.toLocaleString('en-US')}` : '—'} />
+          <Row
+            label="finalized"
+            value={node?.finalized !== undefined ? `#${node.finalized.toLocaleString('en-US')}` : '—'}
+          />
           <Row label="peers" value={node?.peers ?? '—'} />
           <Row
             label="mempool"
@@ -155,9 +173,13 @@ export default function Infrastructure() {
           <div className="panel-head">
             <Dot health={indexer?.health ?? 'unknown'} />
             <strong>Indexer</strong>
+            <HealthText health={indexer?.health ?? 'unknown'} />
             <span className="muted small">api v4</span>
           </div>
-          <Row label="indexed" value={indexer?.indexed !== undefined ? `#${indexer.indexed}` : '—'} />
+          <Row
+            label="indexed"
+            value={indexer?.indexed !== undefined ? `#${indexer.indexed.toLocaleString('en-US')}` : '—'}
+          />
           <Row
             label="lag"
             value={
@@ -166,7 +188,7 @@ export default function Infrastructure() {
               ) : indexer.lag <= 1 ? (
                 'in step'
               ) : (
-                <span className="busy">{indexer.lag} blocks behind</span>
+                <span className="warn">{indexer.lag} blocks behind</span>
               )
             }
           />
@@ -176,8 +198,9 @@ export default function Infrastructure() {
 
         <div className="panel">
           <div className="panel-head">
-            <Dot health={proof?.health ?? 'unknown'} />
+            <Dot health={proof?.health ?? 'unknown'} pulsing={proof?.proving} />
             <strong>Proof server</strong>
+            <HealthText health={proof?.health ?? 'unknown'} />
             <span className="muted small">{proof?.version ?? '—'}</span>
           </div>
           <Row label="url" value={<span className="mono small">{proof?.url ?? '—'}</span>} />
@@ -194,8 +217,8 @@ export default function Infrastructure() {
           {/* Proving is NOT what makes a transaction slow here, and the panel
               should not let anyone assume otherwise. */}
           <p className="note">
-            No metrics endpoint — observed from this page. Proving is sub-second; the ~18&nbsp;s per
-            transaction is block inclusion.
+            No metrics endpoint — observed from this page&apos;s own requests. Proving is
+            sub-second; the ~18&nbsp;s per transaction is block inclusion.
           </p>
           <LogDrawer source="proof" lines={logs.proof ?? []} connected={logsConnected} />
         </div>

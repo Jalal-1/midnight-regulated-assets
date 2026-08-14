@@ -15,6 +15,7 @@
 
 import {
   createKeystore,
+  DustAddress,
   DustWallet,
   HDWallet,
   InMemoryTransactionHistoryStorage,
@@ -22,7 +23,9 @@ import {
   NetworkId,
   PublicKey,
   Roles,
+  ShieldedAddress,
   ShieldedWallet,
+  UnshieldedAddress,
   UnshieldedWallet,
   WalletEntrySchema,
   WalletFacade,
@@ -60,6 +63,37 @@ export async function configureNetworkId(network: NetworkConfig = getNetwork()):
   const { setNetworkId } = await import('@midnight-ntwrk/midnight-js-network-id');
   setNetworkId(network.networkId);
   return network.networkId;
+}
+
+/** The three wallet addresses, as displayable bech32m strings. */
+export interface WalletAddresses {
+  readonly shielded: string;
+  readonly unshielded: string;
+  readonly dust: string;
+}
+
+/**
+ * Encode the synced state's address objects as bech32m strings.
+ *
+ * The SDK's address types (`ShieldedAddress` etc.) do not stringify — their
+ * `toString()` is `[object Object]` — and the working encoder is the STATIC
+ * `codec` on each class, exactly like the public-key codecs in providers.ts.
+ * Instance-level `MidnightBech32m.encode` throws; do not "simplify" back to it.
+ */
+export function encodeWalletAddresses(
+  state: {
+    readonly shielded: { readonly address: ShieldedAddress };
+    readonly unshielded: { readonly address: UnshieldedAddress };
+    readonly dust: { readonly address: DustAddress };
+  },
+  network: NetworkConfig = getNetwork(),
+): WalletAddresses {
+  const networkId = toWalletNetworkId(network.networkId);
+  return {
+    shielded: ShieldedAddress.codec.encode(networkId, state.shielded.address).asString(),
+    unshielded: UnshieldedAddress.codec.encode(networkId, state.unshielded.address).asString(),
+    dust: DustAddress.codec.encode(networkId, state.dust.address).asString(),
+  };
 }
 
 /** Everything a caller needs after building a wallet. */

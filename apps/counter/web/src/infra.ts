@@ -178,6 +178,17 @@ export function observeProving(): ProvingObserver {
   return { proving: () => inFlight > 0, lastProofMs: () => lastMs };
 }
 
+/**
+ * The one shared observer. Both the infrastructure panel and the operation
+ * phase tracker need it, and `observeProving` patches `fetch` — doing that
+ * twice would double-count every request.
+ */
+let sharedObserver: ProvingObserver | undefined;
+export function getProvingObserver(): ProvingObserver {
+  sharedObserver ??= observeProving();
+  return sharedObserver;
+}
+
 /** One full sweep of all three components. */
 export async function probeAll(observer?: ProvingObserver): Promise<InfraStatus> {
   const node = await probeNode();

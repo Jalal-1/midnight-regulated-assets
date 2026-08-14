@@ -10,7 +10,12 @@ import { deployContract, findDeployedContract } from '@midnight-ntwrk/midnight-j
 import { CompiledContract } from '@midnight-ntwrk/midnight-js-protocol/compact-js';
 import type { MidnightProviders } from '@midnight-ntwrk/midnight-js-types';
 import { getNetwork, LOCALNET_GENESIS_SEEDS } from '@mra/network';
-import { configureNetworkId, createWalletFromSeed, type MidnightWallet } from '@mra/wallet';
+import {
+  configureNetworkId,
+  createWalletFromSeed,
+  encodeWalletAddresses,
+  type MidnightWallet,
+} from '@mra/wallet';
 import { createBrowserProviders } from '@mra/wallet/providers/browser';
 
 import { Contract, ledger } from '../../contract/managed/contract/index.js';
@@ -32,7 +37,12 @@ export interface Session {
   readonly wallet: MidnightWallet;
   readonly providers: MidnightProviders<CircuitId>;
   readonly shieldedAddress: string;
+  readonly shieldedBalance: bigint;
+  readonly unshieldedAddress: string;
   readonly unshieldedBalance: bigint;
+  readonly dustAddress: string;
+  /** Spendable DUST coins — the wallet reports coins, not one balance. */
+  readonly dustCoins: number;
 }
 
 /**
@@ -59,11 +69,16 @@ export async function connect(seedIndex = 0): Promise<Session> {
   });
 
   const nativeToken = '0'.repeat(64);
+  const addresses = encodeWalletAddresses(state, network);
   return {
     wallet,
     providers,
-    shieldedAddress: String(state.shielded.address),
+    shieldedAddress: addresses.shielded,
+    shieldedBalance: BigInt(state.shielded.balances?.[nativeToken] ?? 0n),
+    unshieldedAddress: addresses.unshielded,
     unshieldedBalance: BigInt(state.unshielded.balances?.[nativeToken] ?? 0n),
+    dustAddress: addresses.dust,
+    dustCoins: state.dust.availableCoins?.length ?? 0,
   };
 }
 

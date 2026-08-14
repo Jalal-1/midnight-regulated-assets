@@ -59,15 +59,19 @@ if (process.env.HISTORY === '1') {
 
   const rowsBefore = await page.locator('.contract-row').count();
 
-  await page.getByRole('button', { name: /Deploy another|Deploy counter/ }).click();
+  await page.getByRole('button', { name: /Deploy another|Deploy contract/ }).click();
   await idle();
   await page.waitForTimeout(2500);
   const rowsAfter = await page.locator('.contract-row').count();
 
-  // Increment the newest so the two contracts hold different rounds.
-  await page.getByRole('button', { name: 'increment()' }).click();
-  await idle();
-  await page.waitForTimeout(2000);
+  // Increment the newest TWICE: autorun already left the first contract at
+  // round 1, so a single increment would leave both contracts at 1 and the
+  // switch assertion below could not tell them apart.
+  for (let i = 0; i < 2; i += 1) {
+    await page.getByRole('button', { name: 'increment()' }).click();
+    await idle();
+    await page.waitForTimeout(2000);
+  }
   const newestRound = await roundOf();
 
   // Newest is first, so the last ENABLED row is the oldest usable contract.
