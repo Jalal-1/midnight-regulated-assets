@@ -11,7 +11,15 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 
+import Contracts from './Contracts.tsx';
 import { connect, deploy, increment, readRound, type Session } from './counter.ts';
+import {
+  forget,
+  getGenesisHash,
+  loadChecked,
+  remember,
+  type CheckedContract,
+} from './history.ts';
 import Infrastructure from './Infrastructure.tsx';
 
 type Status = 'idle' | 'connecting' | 'ready' | 'working' | 'error';
@@ -40,6 +48,7 @@ export default function App() {
   const [address, setAddress] = useState<string | null>(null);
   const [round, setRound] = useState<bigint | null>(null);
   const [log, setLog] = useState<readonly LogLine[]>([]);
+  const [contracts, setContracts] = useState<readonly CheckedContract[]>([]);
   const logBox = useRef<HTMLDivElement>(null);
 
   const say = useCallback((text: string, kind: LogLine['kind'] = 'info', ms?: number) => {
@@ -53,6 +62,27 @@ export default function App() {
     const box = logBox.current;
     if (box) box.scrollTop = box.scrollHeight;
   }, [log]);
+
+  /**
+   * Re-check history against the current chain.
+   *
+   * Needs a session because reading a round goes through the providers. Before
+   * connect, history is listed but rounds and liveness are unknown — which is why
+   * this is called again right after connecting.
+   */
+  const refreshContracts = useCallback(
+    async (current: Session | null) => {
+      const next = await loadChecked(async (address) =>
+        current ? await readRound(current, address) : null,
+      );
+      setContracts(next);
+    },
+    [],
+  );
+
+  useEffect(() => {
+    void refreshContracts(null);
+  }, [refreshContracts]);
 
   /** Run a step, timing it and reporting failure rather than swallowing it. */
   const step = useCallback(
@@ -110,18 +140,64 @@ export default function App() {
     if (!next) return;
     setSession(next);
     say(`Unshielded balance ${next.unshieldedBalance.toLocaleString()}`, 'ok');
+    await refreshContracts(next);
     setStatus('ready');
   };
+
+  /**
+   * Deploy, record, and select — the single implementation.
+   *
+   * Takes the session explicitly so autorun can use it too. Keeping this in one
+   * place matters: when the button and autorun each had their own copy, only the
+   * button remembered the contract, so autorun deployments never reached history.
+   */
+  const deployAndRecord = useCallback(
+    async (current: Session): Promise<string | undefined> => {
+      const deployedAt = await step('Deploy counter (prove + submit)', () => deploy(current));
+      if (!deployedAt) return undefined;
+      setAddress(deployedAt);
+
+      // Tag the entry with the chain it belongs to, so a localnet reset can be
+      // detected later rather than offering a dead address as usable.
+      try {
+        remember(deployedAt, await getGenesisHash());
+      } catch {
+        say('could not record contract in history', 'error');
+      }
+
+      setRound((await step('Read round', () => readRound(current, deployedAt))) ?? null);
+      await refreshContracts(current);
+      return deployedAt;
+    },
+    [refreshContracts, say, step],
+  );
 
   const onDeploy = async () => {
     if (!session) return;
     setStatus('working');
-    const deployedAt = await step('Deploy counter (prove + submit)', () => deploy(session));
-    if (!deployedAt) return;
-    setAddress(deployedAt);
-    const initial = await step('Read round', () => readRound(session, deployedAt));
-    setRound(initial ?? null);
+    await deployAndRecord(session);
     setStatus('ready');
+  };
+
+  /** Switch to a previously deployed contract. */
+  const onSelect = async (next: string) => {
+    if (!session || next === address) return;
+    setStatus('working');
+    setAddress(next);
+    setRound(null);
+    say(`switched to ${next.slice(0, 10)}…`);
+    const current = await step('Read round', () => readRound(session, next));
+    setRound(current ?? null);
+    setStatus('ready');
+  };
+
+  const onForget = (target: string) => {
+    forget(target);
+    if (target === address) {
+      setAddress(null);
+      setRound(null);
+    }
+    void refreshContracts(session);
   };
 
   const onIncrement = async () => {
@@ -132,6 +208,9 @@ export default function App() {
     say(`tx ${result.txId.slice(0, 18)}… @ block ${result.blockHeight}`, 'ok');
     const next = await step('Read round', () => readRound(session, address));
     setRound(next ?? null);
+    // Refresh the list too, or its per-contract rounds go stale the moment you
+    // increment — the card would say 1 while the row still claimed 0.
+    await refreshContracts(session);
     setStatus('ready');
   };
 
@@ -157,19 +236,18 @@ export default function App() {
       setSession(s);
       say(`Unshielded balance ${s.unshieldedBalance.toLocaleString()}`, 'ok');
 
-      const at = await step('Deploy counter (prove + submit)', () => deploy(s));
+      const at = await deployAndRecord(s);
       if (!at) return;
-      setAddress(at);
-      setRound((await step('Read round', () => readRound(s, at))) ?? null);
 
       const result = await step('increment() (prove + submit)', () => increment(s, at));
       if (!result) return;
       say(`tx ${result.txId.slice(0, 18)}… @ block ${result.blockHeight}`, 'ok');
       setRound((await step('Read round', () => readRound(s, at))) ?? null);
+      await refreshContracts(s);
       setStatus('ready');
       say('autorun complete', 'ok');
     })();
-  }, [say, step]);
+  }, [deployAndRecord, refreshContracts, say, step]);
 
   return (
     <main>
@@ -209,12 +287,21 @@ export default function App() {
           {session ? 'Connected' : 'Connect wallet'}
         </button>
         <button onClick={onDeploy} disabled={busy || !session}>
-          Deploy counter
+          {contracts.some((c) => c.state === 'live') ? 'Deploy another' : 'Deploy counter'}
         </button>
         <button onClick={onIncrement} disabled={busy || !session || !address}>
           increment()
         </button>
       </section>
+
+      <Contracts
+        contracts={contracts}
+        active={address}
+        busy={busy}
+        onSelect={(next) => void onSelect(next)}
+        onForget={onForget}
+        onRefresh={() => void refreshContracts(session)}
+      />
 
       <section className="log" aria-live="polite" ref={logBox}>
         {log.length === 0 && <p className="muted">Connect a wallet to begin.</p>}

@@ -162,3 +162,52 @@ footer p { margin: 0; font-size: 11px; }
 .drawer-body.indexer p { color: #a78bfa; }
 .drawer-body.proof p { color: #f59e0b; }
 .drawer-body p.muted { color: var(--muted); }
+
+/* --- Contract history ----------------------------------------------------- */
+.contracts { flex: none; display: flex; flex-direction: column; gap: 6px; }
+.contracts-head { display: flex; align-items: baseline; gap: 10px; }
+.contracts h2 {
+  font-size: 13px; margin: 0; text-transform: uppercase;
+  letter-spacing: 0.06em; color: var(--muted);
+}
+.contracts-head .small { margin-right: auto; }
+.contracts-empty { margin: 0; }
+
+button.link {
+  background: none; border: 0; padding: 0; cursor: pointer;
+  color: var(--accent); font: inherit; font-size: 11px;
+}
+button.link:disabled { color: var(--muted); cursor: not-allowed; }
+
+/* Capped so a long history scrolls rather than growing the page. */
+.contract-list {
+  list-style: none; margin: 0; padding: 0;
+  max-height: 116px; overflow-y: auto;
+  border: 1px solid var(--line); border-radius: 9px;
+}
+.contract-list li { display: flex; align-items: center; border-bottom: 1px solid var(--line); }
+.contract-list li:last-child { border-bottom: 0; }
+.contract-list li.active { background: var(--card); }
+
+.contract-row {
+  flex: 1; display: grid;
+  grid-template-columns: auto auto 1fr auto;
+  align-items: center; gap: 10px;
+  background: none; border: 0; color: var(--fg);
+  padding: 6px 10px; font: inherit; font-size: 12px; text-align: left; cursor: pointer;
+}
+.contract-row:disabled { cursor: default; }
+/* Only the *unusable* rows are dimmed; the active row is disabled but current. */
+.contract-list li:not(.active) .contract-row:disabled { opacity: 0.55; }
+.contract-row .round { text-align: right; }
+
+.badge {
+  font-size: 10px; padding: 1px 6px; border-radius: 999px;
+  text-transform: uppercase; letter-spacing: 0.04em;
+}
+.badge.live { color: var(--ok); border: 1px solid currentColor; }
+.badge.not-found { color: var(--err); border: 1px solid currentColor; }
+.badge.other-chain { color: var(--muted); border: 1px solid currentColor; }
+
+.forget { padding: 0 10px; font-size: 14px; color: var(--muted); }
+.forget:hover { color: var(--err); }

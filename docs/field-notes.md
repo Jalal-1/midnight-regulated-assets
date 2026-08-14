@@ -529,3 +529,42 @@ request itself.
 `http://127.0.0.1:8899/logs`, so the page uses a same-origin path and CORS never
 enters the picture. The sidecar then needs no CORS configuration at all (its
 headers are kept only so `curl` and other clients still work).
+
+---
+
+## 2026-08-14 · contract history · a remembered address is only meaningful with its chain
+
+Storing deployed contract addresses in `localStorage` is trivial. Knowing when a
+stored address is **worthless** is the actual problem, and on localnet it comes up
+constantly: every `localnet:down && up` creates a brand-new chain. The addresses
+survive in the browser; nothing on the new chain answers to them.
+
+So each entry records the chain it belongs to, identified by its **genesis block
+hash** (`chain_getBlockHash(0)`), and is classified on load:
+
+| State | Meaning | Selectable |
+|---|---|---|
+| `live` | genesis matches, indexer has state | yes |
+| `not-found` | right chain, state did not read | **yes** |
+| `other-chain` | deployed before a localnet reset | no |
+
+`not-found` stays selectable on purpose. A failed state read can just be indexer
+lag, and refusing to select would strand a working contract with no way back —
+the failure mode is worse than the thing it guards against. Only `other-chain` is
+genuinely unusable, and that one is knowable for certain.
+
+Stale entries are shown, disabled, with the reason — rather than hidden. After a
+reset, "these belonged to the previous chain" is a much better message than a list
+that silently forgot.
+
+Also: if the node is unreachable, everything is reported `other-chain` rather than
+optimistically `live`. A wrong "live" badge sends the user into a transaction that
+cannot succeed.
+
+**The bug worth remembering** is not any of that — it was duplication. The deploy
+sequence existed twice, once behind the button and once in the `?autorun` path, and
+only the button recorded history. So autorun deployments vanished, the list held a
+single entry, that entry was the active one and therefore disabled, and the e2e
+failed as an opaque Playwright click timeout ("element is not enabled") pointing at
+the UI rather than at the missing write. One shared `deployAndRecord()` removed the
+class of bug, not just the instance.
