@@ -643,6 +643,17 @@ of magnitude: **NIGHT has 6 decimals** (atomic unit: star) and **DUST has 15**
 funding of `250000000000000` unshielded units is **250,000,000 NIGHT**, not
 250 trillion of anything.
 
+Cross-check that pins the ratios: the genesis accounts hold 250,000,000 NIGHT
+and their DUST balance reads 1,250,000,000 — exactly the spec's
+`night_dust_ratio` cap of **5 DUST per NIGHT**. Two independent chain reads
+agreeing with the spec is as sure as it gets.
+
+**NIGHT is never shielded.** It exists only in unshielded offers. The shielded
+balance a genesis wallet syncs is a SEPARATE shielded test asset in the private
+pool — label it as such, never as "shielded NIGHT". (Max supply context: NIGHT
+caps at 24 billion, so 250M per dev account is plausible; 250 trillion of a
+whole token would not have been.)
+
 A DUST balance is a **computed quantity, not a stored one** — DUST generates
 over time from held NIGHT and decays. The wallet API reflects that:
 `state.dust.balance(time: Date)` takes the moment you are asking about, and

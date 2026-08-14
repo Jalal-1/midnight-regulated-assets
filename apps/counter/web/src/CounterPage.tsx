@@ -237,9 +237,11 @@ export default function CounterPage() {
     },
     {
       k: 'shielded',
-      hint: 'The same native value held in the shielded pool — amounts and flows are private.',
+      // NIGHT is never shielded — it exists only as the public, unshielded
+      // token. What sits in the shielded pool is a separate asset.
+      hint: 'A shielded test asset in this wallet’s private pool (amounts and flows are private). This is NOT NIGHT — NIGHT is never shielded.',
       addr: session?.shieldedAddress ?? null,
-      bal: session ? `${formatNight(session.shieldedBalance)} NIGHT` : 'not created',
+      bal: session ? `${session.shieldedBalance.toLocaleString('en-US')} units` : 'not created',
     },
     {
       k: 'DUST',
