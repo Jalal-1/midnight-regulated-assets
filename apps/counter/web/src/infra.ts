@@ -15,7 +15,9 @@
  * node and indexer both support subscriptions if that ever stops being true.
  */
 
-import { getNetwork } from '@mra/network';
+import { getNetwork, meterProving, type ProvingMeter } from '@mra/network';
+
+export type { ProvingMeter };
 
 export type Health = 'up' | 'down' | 'unknown';
 
@@ -141,56 +143,20 @@ async function probeProofServer(): Promise<Omit<ProofServerStatus, 'proving' | '
 }
 
 /**
- * Observe the page's own proving requests.
- *
- * The proof server will not tell us what it is doing, so we record what we asked
- * it to do: patch `fetch` once and watch for calls to the proof server. This is
- * the only source of "currently proving" available client-side.
+ * The one shared proving meter (from @mra/network — the Node reference script
+ * uses the same instrument, so the numbers are comparable). The infrastructure
+ * panel, the operation phase tracker, and the timing breakdown all read this,
+ * and `meterProving` patches `fetch` — creating it twice would double-count
+ * every request.
  */
-export interface ProvingObserver {
-  proving: () => boolean;
-  lastProofMs: () => number | undefined;
-}
-
-export function observeProving(): ProvingObserver {
-  const { proofServer } = getNetwork();
-  let inFlight = 0;
-  let lastMs: number | undefined;
-
-  const original = globalThis.fetch;
-  globalThis.fetch = async (...args: Parameters<typeof fetch>) => {
-    const url = typeof args[0] === 'string' ? args[0] : String((args[0] as Request).url ?? args[0]);
-    // Only count actual proving. Proving is POST; the status poll above is
-    // GET /version, and counting it reported a 0 ms "last proof" every 2 s.
-    const method = (args[1]?.method ?? (args[0] as Request)?.method ?? 'GET').toUpperCase();
-    if (!url.startsWith(proofServer) || method !== 'POST') return original(...args);
-
-    inFlight += 1;
-    const started = Date.now();
-    try {
-      return await original(...args);
-    } finally {
-      inFlight -= 1;
-      lastMs = Date.now() - started;
-    }
-  };
-
-  return { proving: () => inFlight > 0, lastProofMs: () => lastMs };
-}
-
-/**
- * The one shared observer. Both the infrastructure panel and the operation
- * phase tracker need it, and `observeProving` patches `fetch` — doing that
- * twice would double-count every request.
- */
-let sharedObserver: ProvingObserver | undefined;
-export function getProvingObserver(): ProvingObserver {
-  sharedObserver ??= observeProving();
+let sharedObserver: ProvingMeter | undefined;
+export function getProvingObserver(): ProvingMeter {
+  sharedObserver ??= meterProving(getNetwork().proofServer);
   return sharedObserver;
 }
 
 /** One full sweep of all three components. */
-export async function probeAll(observer?: ProvingObserver): Promise<InfraStatus> {
+export async function probeAll(observer?: ProvingMeter): Promise<InfraStatus> {
   const node = await probeNode();
   const [finalized, indexer, proof] = await Promise.all([
     probeFinalized(),

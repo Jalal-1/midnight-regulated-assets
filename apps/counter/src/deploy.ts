@@ -17,7 +17,14 @@ import { dirname, resolve } from 'node:path';
 
 import { deployContract } from '@midnight-ntwrk/midnight-js-contracts';
 import { CompiledContract } from '@midnight-ntwrk/midnight-js-protocol/compact-js';
-import { getNetwork, LOCALNET_GENESIS_SEEDS } from '@mra/network';
+import {
+  breakdownWindow,
+  describeBreakdown,
+  getNetwork,
+  LOCALNET_GENESIS_SEEDS,
+  meterProving,
+  type ProvingMeter,
+} from '@mra/network';
 import { configureNetworkId, createWalletFromSeed } from '@mra/wallet';
 import { createProviders } from '@mra/wallet/providers';
 
@@ -47,6 +54,13 @@ function elapsed(since: number): string {
   return `${((Date.now() - since) / 1000).toFixed(1)}s`;
 }
 
+/** Print where a proved call's time actually went — measured, not estimated. */
+function printBreakdown(meter: ProvingMeter, callsBefore: number, startedAt: number): void {
+  const b = breakdownWindow(meter, callsBefore, startedAt, Date.now());
+  if (b) console.log(`  breakdown: ${describeBreakdown(b)}`);
+  else console.log('  breakdown: no proving requests observed — the prover was not called via fetch');
+}
+
 async function main(): Promise<void> {
   const network = getNetwork();
 
@@ -56,6 +70,10 @@ async function main(): Promise<void> {
 
   console.log(`network ${network.networkId}`);
   await configureNetworkId(network);
+
+  // Same instrument as the browser UI (packages/network/src/proving-meter.ts),
+  // installed before any provider can capture the unpatched fetch.
+  const meter = meterProving(network.proofServer);
 
   const seed = LOCALNET_GENESIS_SEEDS[0];
   console.log(`wallet from genesis seed ${seed.slice(0, 8)}…`);
@@ -79,9 +97,11 @@ async function main(): Promise<void> {
 
     console.log('deploying (proving + submitting — expect a minute or more)…');
     t = Date.now();
+    let callsBefore = meter.calls().length;
     const deployed = await deployContract(providers, { compiledContract });
     const address = deployed.deployTxData.public.contractAddress;
     console.log(`  deployed in ${elapsed(t)}`);
+    printBreakdown(meter, callsBefore, t);
     console.log(`  address ${address}`);
 
     // Read the initial on-chain state.
@@ -91,8 +111,10 @@ async function main(): Promise<void> {
     // Then prove we can interact with it.
     console.log('calling increment()…');
     t = Date.now();
+    callsBefore = meter.calls().length;
     const call = await deployed.callTx.increment();
     console.log(`  called in ${elapsed(t)}`);
+    printBreakdown(meter, callsBefore, t);
     console.log(`  tx ${call.public.txId} @ block ${call.public.blockHeight}`);
 
     const after = await providers.publicDataProvider.queryContractState(address);

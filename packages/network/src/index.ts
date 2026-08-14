@@ -232,3 +232,5 @@ export function getNetwork(name: string = process.env.MRA_NETWORK ?? 'localnet')
   const proofServerConfig = resolveProofServer();
   return { ...endpoints, proofServer: proofServerConfig.url, proofServerConfig };
 }
+
+export * from './proving-meter.ts';

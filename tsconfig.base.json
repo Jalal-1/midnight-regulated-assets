@@ -8,6 +8,9 @@
     "moduleResolution": "NodeNext",
     "target": "ES2023",
     "types": ["node"],
+    // Imports carry the real .ts extension (Node --experimental-strip-types
+    // needs it at runtime); tsc rewrites them to .js in emitted output.
+    "rewriteRelativeImportExtensions": true,
     "strict": true,
     "noUncheckedIndexedAccess": true,
     "verbatimModuleSyntax": true,

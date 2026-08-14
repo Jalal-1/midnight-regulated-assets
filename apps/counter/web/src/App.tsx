@@ -14,7 +14,12 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-import { getNetwork } from '@mra/network';
+import {
+  breakdownWindow,
+  describeBreakdown,
+  getNetwork,
+  type ProvingBreakdown,
+} from '@mra/network';
 
 import Contracts from './Contracts.tsx';
 import { connect, deploy, increment, readRound, type Session } from './counter.ts';
@@ -40,6 +45,53 @@ interface Operation {
   readonly label: string;
   readonly phase: number;
   readonly startedAt: number;
+  /** Proving-meter call count when the operation began, so the live timing bar
+   *  and the final breakdown only see this operation's proofs. */
+  readonly callsBefore: number;
+}
+
+/**
+ * The timing bar: one operation's wall-clock, split into its honest parts.
+ *
+ * Proving is ~2% of the bar, and that is the entire message — the segment is
+ * kept visible with a min-width, and the legend carries the exact numbers.
+ * Segment identity is fixed order + label, never colour alone.
+ */
+function TimingBar({ b, live }: { readonly b: ProvingBreakdown; readonly live: boolean }) {
+  const total = Math.max(1, b.prepareMs + b.provingMs + b.inclusionMs);
+  const width = (ms: number) => `${Math.max(0, (ms / total) * 100)}%`;
+  const s = (ms: number, digits = 1) => `${(ms / 1000).toFixed(digits)}s`;
+  const pending = live && b.provingCalls === 0;
+  return (
+    <div className="timing">
+      <div
+        className="timing-bar"
+        role="img"
+        aria-label={`prepare ${s(b.prepareMs)}, proving ${s(b.provingMs, 2)}, submit and inclusion ${s(b.inclusionMs)}`}
+      >
+        <span className="seg prepare" style={{ width: width(b.prepareMs) }} />
+        {b.provingMs > 0 && <span className="seg proving" style={{ width: width(b.provingMs) }} />}
+        {b.inclusionMs > 0 && (
+          <span className="seg inclusion" style={{ width: width(b.inclusionMs) }} />
+        )}
+      </div>
+      <div className="timing-legend">
+        <span>
+          <i className="chip prepare" />
+          prepare {s(b.prepareMs)}
+        </span>
+        <span>
+          <i className="chip proving" />
+          proving {pending ? '…' : s(b.provingMs, 2)}
+          {b.provingCalls > 1 ? ` (${b.provingCalls} calls)` : ''}
+        </span>
+        <span>
+          <i className="chip inclusion" />
+          submit + inclusion {pending ? '…' : s(b.inclusionMs)}
+        </span>
+      </div>
+    </div>
+  );
 }
 
 const THEME_KEY = 'mdd.theme.v1';
@@ -90,6 +142,10 @@ export default function App() {
   const [contracts, setContracts] = useState<readonly CheckedContract[]>([]);
   const [genesis, setGenesis] = useState<string | null>(null);
   const [op, setOp] = useState<Operation | null>(null);
+  const [lastTiming, setLastTiming] = useState<{
+    readonly label: string;
+    readonly b: ProvingBreakdown;
+  } | null>(null);
   const [now, setNow] = useState(() => Date.now());
   const [logsOn, setLogsOn] = useState(false);
   const logBox = useRef<HTMLDivElement>(null);
@@ -209,7 +265,9 @@ export default function App() {
   const trackOp = useCallback(
     async <T,>(label: string, fn: () => Promise<T>): Promise<T | undefined> => {
       const observer = getProvingObserver();
-      setOp({ label, phase: 0, startedAt: Date.now() });
+      const startedAt = Date.now();
+      const callsBefore = observer.calls().length;
+      setOp({ label, phase: 0, startedAt, callsBefore });
       let provingSeen = false;
       const watcher = setInterval(() => {
         if (observer.proving()) {
@@ -224,12 +282,23 @@ export default function App() {
         }
       }, 250);
       try {
-        return await fn();
+        const result = await fn();
+        // The measured answer to "how long does proving take", from this
+        // operation's actual requests to the prover — logged so it survives
+        // in the record, not just in the bar.
+        if (result !== undefined) {
+          const b = breakdownWindow(observer, callsBefore, startedAt, Date.now());
+          if (b) {
+            setLastTiming({ label, b });
+            say(`  ↳ ${describeBreakdown(b)}`);
+          }
+        }
+        return result;
       } finally {
         clearInterval(watcher);
       }
     },
-    [],
+    [say],
   );
 
   const endOp = useCallback(() => setOp(null), []);
@@ -551,10 +620,26 @@ export default function App() {
                 {op ? `${((now - op.startedAt) / 1000).toFixed(1)}s` : '—'}
               </span>
             </div>
+            {(() => {
+              // Live: this operation's window so far. Idle: the last one, frozen.
+              if (op) {
+                const b = breakdownWindow(getProvingObserver(), op.callsBefore, op.startedAt, now) ?? {
+                  prepareMs: now - op.startedAt,
+                  provingMs: 0,
+                  provingCalls: 0,
+                  inclusionMs: 0,
+                  totalMs: now - op.startedAt,
+                };
+                return <TimingBar b={b} live />;
+              }
+              return lastTiming ? <TimingBar b={lastTiming.b} live={false} /> : null;
+            })()}
             <div className="op-caption">
               {op
                 ? `${op.label} — ${OP_PHASES[op.phase]}`
-                : 'idle — no operation in flight · a proved call takes ~18s: proving ~0.3s, block inclusion the rest'}
+                : lastTiming
+                  ? `idle — last ${lastTiming.label}: ${describeBreakdown(lastTiming.b)}`
+                  : 'idle — no operation in flight · a proved call takes ~18s: proving ~0.3s, block inclusion the rest'}
             </div>
           </section>
 

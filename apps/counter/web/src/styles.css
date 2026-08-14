@@ -47,6 +47,12 @@
   --log-indexer: #b18aff;
   --log-proof: #d9a03f;
 
+  /* Timing-bar segments — validated as a categorical trio against #0A0A0A
+     (dataviz six-checks). Proving wears the brand blue: it is the message. */
+  --seg-prepare: #2e9e8f;
+  --seg-proving: #4747ff;
+  --seg-inclusion: #b8842d;
+
   --font-sans: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   --radius-sm: 10px;
@@ -81,6 +87,10 @@
   --log-node: #2f2fd0;
   --log-indexer: #6236bc;
   --log-proof: #7a5210;
+  /* Re-validated against #FFFFFF — dark values fail the light lightness band. */
+  --seg-prepare: #0b8a70;
+  --seg-proving: #0000fe;
+  --seg-inclusion: #a06e10;
   color-scheme: light;
 }
 
@@ -294,6 +304,28 @@ footer p { margin: 0; font-size: 11.5px; color: var(--text-muted); }
   font-variant-numeric: tabular-nums; color: var(--text-secondary);
 }
 .op-caption { font-size: 11.5px; color: var(--text-muted); }
+
+/* Timing bar: one operation's wall-clock split into prepare / proving /
+   submit+inclusion. Proving is ~2% of a real call — min-width keeps it visible,
+   the 2px gaps separate fills, and the legend carries the exact numbers in text
+   tokens (identity is order + label, never colour alone). */
+.timing { display: flex; flex-direction: column; gap: 4px; }
+.timing-bar { display: flex; gap: 2px; height: 6px; }
+.seg { border-radius: 3px; min-width: 8px; }
+.seg.prepare { background: var(--seg-prepare); }
+.seg.proving { background: var(--seg-proving); }
+.seg.inclusion { background: var(--seg-inclusion); }
+.timing-legend {
+  display: flex; flex-wrap: wrap; gap: 4px 14px;
+  font-size: 11px; color: var(--text-secondary); font-variant-numeric: tabular-nums;
+}
+.timing-legend .chip {
+  display: inline-block; width: 8px; height: 8px;
+  border-radius: 2px; margin-right: 5px;
+}
+.chip.prepare { background: var(--seg-prepare); }
+.chip.proving { background: var(--seg-proving); }
+.chip.inclusion { background: var(--seg-inclusion); }
 
 /* --- Contract history ---------------------------------------------------------- */
 .contracts { flex: none; display: flex; flex-direction: column; gap: 6px; }

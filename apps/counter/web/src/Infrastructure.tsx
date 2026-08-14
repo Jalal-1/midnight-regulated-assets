@@ -214,6 +214,17 @@ export default function Infrastructure({
               proof?.lastProofMs !== undefined ? `${(proof.lastProofMs / 1000).toFixed(2)}s` : '—'
             }
           />
+          {(() => {
+            // The hard numbers: every proving round-trip this page has made.
+            const calls = getProvingObserver().calls();
+            const value =
+              calls.length === 0
+                ? '—'
+                : `${calls.length} proof${calls.length === 1 ? '' : 's'} · avg ${(
+                    calls.reduce((sum, c) => sum + c.ms, 0) / calls.length / 1000
+                  ).toFixed(2)}s`;
+            return <Row label="this session" value={value} />;
+          })()}
           {/* Proving is NOT what makes a transaction slow here, and the panel
               should not let anyone assume otherwise. */}
           <p className="note">
