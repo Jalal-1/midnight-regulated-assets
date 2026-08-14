@@ -20,7 +20,7 @@ The repo layout states that thesis directly: products live in `apps/`, the block
 
 ## Status
 
-**M0 and M1 are done on localnet. M2 is next.** Target network is **Stagenet** — a new chain with its own genesis, on the Ledger RC3 compatible stack; localnet mirrors that stack for development.
+**M0 and M1 are done on localnet; M2 is underway** — the public contract token (OZ FungibleToken + Ownable) runs its full lifecycle on localnet: issue, transfer, redeem, and a keyless public read that enumerates every holder (`yarn workspace @mra/app-tokenised-deposit design-options:public`). Target network is **Stagenet** — a new chain with its own genesis, on the Ledger RC3 compatible stack; localnet mirrors that stack for development.
 
 **Real and verified — the full loop works on localnet**
 
@@ -56,8 +56,8 @@ Both previously-unconfirmed values are now resolved: the Compact language versio
 |---|---|---|
 | **M0** | Scaffold, pinned RC3 stack, localnet compose, redeploy runbook | **done** |
 | **M1** | Counter + thin wallet wrapper on localnet; field notes | **done (localnet)** |
-| **M2** | Deposit design options: native + public contract token, multi-party view | not started |
-| **M3** | Design options: account-based CFT — deposit design page complete | not started |
+| **M2** | Deposit design options: native + public contract token, multi-party view | **public token done**; native + view next |
+| **M3** | Design options: account-based CFT — deposit design page complete | **blocked on OZ**: alpha.2 predates language 0.25's curve renames (see field notes) |
 | **M4** | Deposit lifecycle: issue, transfer, audit, redeem | not started |
 | **M5** | RWA token product + site complete | not started |
 | **M6** | Shielded UTXO design option — built last, see below | not started |

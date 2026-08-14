@@ -1,0 +1,90 @@
+// Design option 1: the PUBLIC contract token.
+//
+// A deposit token as it would look on a transparent chain: an owner-controlled
+// fungible token whose every balance, every transfer, and the total supply sit
+// in public ledger state. The indexer hands all of it to anyone who asks —
+// no circuit call needed, no proof, no permission.
+//
+// That transparency is the point of demonstrating it. Issuer control works
+// (mint and burn are owner-only), custody of the owner key works, but the
+// bank's customers broadcast their balances and payment flows to the world.
+// This option exists so the multi-party view can show Public seeing exactly
+// what the Regulator sees — which is the checklist failure.
+//
+// Composition, not invention: OpenZeppelin's FungibleToken (account-based,
+// unshielded) gated by OpenZeppelin's Ownable. Both identify callers the same
+// way — accountId = persistentHash(secretKey), with the secret key supplied by
+// a witness — so "who can mint" and "whose balance moves" share one identity
+// scheme, supplied per-persona by the app.
+
+pragma language_version >= 0.23.0;
+
+import CompactStandardLibrary;
+
+import "../../../node_modules/@openzeppelin/compact-contracts/access/Ownable"
+  prefix Ownable_;
+import "../../../node_modules/@openzeppelin/compact-contracts/token/FungibleToken"
+  prefix FungibleToken_;
+
+// Surface the modules' ledger state at the top level. Without this, module
+// ledger fields exist on chain but do not appear in the generated `ledger()`
+// accessor, and reads would need circuit evaluation. Re-exported, the indexer
+// hands anyone the full balances map, the supply, and the owner — which is
+// this design option's failure mode, made legible.
+import { _balances, _totalSupply } from "../../../node_modules/@openzeppelin/compact-contracts/token/FungibleToken";
+import { _owner } from "../../../node_modules/@openzeppelin/compact-contracts/access/Ownable";
+export { _balances, _totalSupply, _owner };
+
+export { ContractAddress, Either };
+
+constructor(
+  name: Opaque<"string">,
+  symbol: Opaque<"string">,
+  decimals: Uint<8>,
+  initialOwner: Either<Bytes<32>, ContractAddress>
+) {
+  Ownable_initialize(initialOwner);
+  FungibleToken_initialize(name, symbol, decimals);
+}
+
+// --- Issuer operations — owner only -----------------------------------------
+
+/** Issue deposits: mint against a (mocked) core-ledger liability. */
+export circuit mint(account: Either<Bytes<32>, ContractAddress>, value: Uint<128>): [] {
+  Ownable_assertOnlyOwner();
+  FungibleToken__mint(account, value);
+}
+
+/** Redeem deposits: burn and (in the demo) credit the core ledger. */
+export circuit burn(account: Either<Bytes<32>, ContractAddress>, value: Uint<128>): [] {
+  Ownable_assertOnlyOwner();
+  FungibleToken__burn(account, value);
+}
+
+// --- Holder operations -------------------------------------------------------
+
+/** Customer payment. The amount, sender, and receiver all land in public state. */
+export circuit transfer(to: Either<Bytes<32>, ContractAddress>, value: Uint<128>): Boolean {
+  return FungibleToken_transfer(to, value);
+}
+
+// --- Reads -------------------------------------------------------------------
+//
+// The state behind these is public on chain, but compactc 0.33 does not expose
+// MODULE-scoped ledger fields through the generated `ledger()` accessor (only
+// top-level declarations appear there — the counter's `round` does, these do
+// not). So reads are circuits — which any observer evaluates LOCALLY against
+// indexer state via `createCircuitContext`: no transaction, no proof, no
+// permission. That anyone can compute anyone's balance is the demonstration.
+
+export circuit balanceOf(account: Either<Bytes<32>, ContractAddress>): Uint<128> {
+  return FungibleToken_balanceOf(account);
+}
+
+export circuit totalSupply(): Uint<128> {
+  return FungibleToken_totalSupply();
+}
+
+export circuit owner(): Either<Bytes<32>, ContractAddress> {
+  return Ownable_owner();
+}

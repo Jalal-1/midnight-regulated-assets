@@ -16,12 +16,19 @@ Candidate token architectures, each demonstrated live, properties stated
 neutrally, no verdicts — native token · public contract token · account-based
 confidential token · shielded UTXO token.
 
-Outcome: the **account-based confidential fungible token** satisfies the
-checklist today. It is the composition the rest of this page uses.
+Outcome: the **account-based confidential fungible token** is the composition
+that satisfies the checklist. It is the composition the rest of this page uses.
 
 Note it needs the `ConfidentialFungibleTokenPublicSupply` extension, not just the
 base module: the base does not track total supply, and proving 1:1 backing
 requires it.
+
+**Status (2026-08-14):** the public contract token option is built and runs the
+full lifecycle on localnet (`apps/tokenised-deposit/src/design-options/`). The
+confidential token does **not compile on the pinned RC3 toolchain** — OZ
+0.3.0-alpha.2 predates language 0.25's curve-type renames (`CurvePoint` →
+`JubjubPoint`, EC scalars). The rename is mechanical; the choice is to patch the
+vendored modules or wait for the next OZ alpha. See field notes, 2026-08-14.
 
 **Shielded UTXO is demonstrated last and does not pass.** It is not
 custody-compatible: OpenZeppelin keeps this module in `archive/`, marked

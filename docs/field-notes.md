@@ -568,3 +568,69 @@ single entry, that entry was the active one and therefore disabled, and the e2e
 failed as an opaque Playwright click timeout ("element is not enabled") pointing at
 the UI rather than at the missing write. One shared `deployAndRecord()` removed the
 class of bug, not just the instance.
+
+## 2026-08-14 · OZ compact-contracts 0.3.0-alpha.2 · consuming the library
+
+Three things the README does not spell out:
+
+- **The npm package is `@openzeppelin/compact-contracts`** (not
+  `@openzeppelin-compact/contracts` — that scope 404s). It ships the `.compact`
+  sources directly; there is nothing compiled in the package.
+- **Imports are file paths, resolved relative to the importing file.** From
+  `apps/<app>/contract/*.compact` that means
+  `import "../../../node_modules/@openzeppelin/compact-contracts/access/Ownable" prefix Ownable_;`.
+  This compiles unchanged under our root-driven `redeploy.sh`, which passes
+  absolute source paths to `compactc`.
+- **Caller identity is a witness, not a signature.** Both `Ownable` and
+  `FungibleToken` identify the caller as
+  `accountId = persistentHash(secretKey)`, with the key supplied by a witness
+  (`wit_OwnableSK` / `wit_FungibleTokenSK`). Two consequences worth
+  internalising: the app decides where keys come from (ours are derived
+  deterministically from the persona's wallet seed, domain-separated), and **a
+  recipient needs no wallet** — Bob received a transfer as a bare account id
+  and only needs his key the day he spends.
+
+## 2026-08-14 · compactc 0.33 · module ledger state is invisible until re-exported
+
+A contract that composes OZ modules compiles to a **`ledger()` accessor that
+returns `{}`** — module-scoped `export ledger` fields (the balances map, the
+supply, the owner) exist on chain but do not appear in the generated `Ledger`
+type, which only carries top-level declarations. The counter's `round` shows
+up; an imported module's `_balances` does not.
+
+The fix is the re-export idiom OZ's own test mocks use:
+
+```compact
+import { _balances, _totalSupply } from ".../token/FungibleToken";
+import { _owner } from ".../access/Ownable";
+export { _balances, _totalSupply, _owner };
+```
+
+After that, `ledger(state.data)._balances` decodes off the indexer directly —
+including **iteration over the whole map**, which is exactly the demonstration
+the public-token design option needs (an observer with no keys enumerates the
+holder list). The alternative — local circuit evaluation via
+`createCircuitContext` — works too, but is a page of ceremony to read a map.
+
+## 2026-08-14 · OZ ConfidentialFungibleToken does NOT compile on the RC3 toolchain
+
+Open question #1, answered by a compile-only spike: `ConfidentialFungibleToken`
+(+ `PublicSupply` extension) **fails under compactc 0.33.0-rc.2** with
+
+```
+no compatible function named ecMulGenerator is in scope at this call
+  supplied argument types: (Field)
+  declared: (JubjubScalar) | (Secp256k1Scalar)
+```
+
+Language 0.25 renamed the curve types out from under alpha.2: `CurvePoint` is
+now `JubjubPoint`, and the EC functions take `JubjubScalar`, not `Field`. A
+probe confirms `ecMulGenerator(0 as JubjubScalar): JubjubPoint` compiles, so
+the incompatibility is a **mechanical rename** — but it touches ~31 call sites
+across `crypto/ElGamal`, `crypto/EcdhMask`, and the CFT module itself, plus the
+`Field`-typed struct fields that flow through them.
+
+Options, both honest: patch the vendored modules (`yarn patch`) and carry the
+diff until OZ ships an alpha targeting compactc 0.33, or hold the account-based
+CFT milestone until that release. The **public** `FungibleToken` + `Ownable` +
+`security/*` path is unaffected — it compiles and runs end-to-end today.
