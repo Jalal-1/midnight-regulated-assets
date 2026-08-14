@@ -564,6 +564,48 @@ a.home-card:hover { border-color: var(--blue-text); box-shadow: 0 0 32px rgba(71
 .naming input:disabled { opacity: 0.45; cursor: not-allowed; }
 .naming-note { align-self: center; }
 
+/* --- Token instances ------------------------------------------------------------------------
+   Each deployed token is a card carrying its own commands. Capped so a long
+   list scrolls rather than growing the page. */
+.token-list {
+  list-style: none; margin: 0; padding: 0;
+  max-height: 230px; overflow-y: auto;
+  border: 1px solid var(--border-subtle); border-radius: var(--radius-sm);
+}
+.token-list li { border-bottom: 1px solid var(--border-subtle); }
+.token-list li:last-child { border-bottom: 0; }
+.token-list li { display: flex; flex-direction: column; }
+.token-list li.active { background: var(--surface-overlay); }
+/* Accent bar marking the active instance. */
+.token-list li { border-left: 3px solid transparent; }
+.token-list li.active { border-left-color: var(--accent-hover); }
+
+.token-row { display: flex; align-items: stretch; }
+.token-head {
+  flex: 1; display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto auto auto;
+  align-items: center; gap: 10px;
+  background: none; border: 0; color: var(--text-primary);
+  padding: 7px 10px; font: inherit; font-size: 12px; text-align: left; cursor: pointer;
+}
+.token-head strong { font-size: 13px; font-weight: 500; }
+.token-head:disabled { cursor: default; }
+.token-list li:not(.active) .token-head:disabled { opacity: 0.55; }
+.token-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.token-supply { font-variant-numeric: tabular-nums; }
+
+.token-actions {
+  display: flex; flex-wrap: wrap; gap: 6px;
+  padding: 0 10px 8px 10px;
+}
+.token-actions button {
+  font-size: 11.5px; font-weight: 500; padding: 3px 12px;
+  border-radius: var(--radius-pill); cursor: pointer; white-space: nowrap;
+  border: 1px solid var(--border-strong); background: none; color: var(--text-primary);
+  transition: border-color 150ms var(--ease-out);
+}
+.token-actions button:hover:not(:disabled) { border-color: var(--text-primary); }
+
 /* --- Public view (unshielded contract token) ---------------------------------------------- */
 .public-view {
   /* Shares its column with the infrastructure panels: cap it so both fit the
