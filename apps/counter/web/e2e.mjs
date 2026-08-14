@@ -10,7 +10,7 @@
  */
 import { firefox } from 'playwright';
 
-const URL = process.env.UI_URL ?? 'http://localhost:5173/?autorun';
+const URL = process.env.UI_URL ?? 'http://localhost:5173/counter?autorun';
 const TIMEOUT_MS = 240_000;
 
 const browser = await firefox.launch();

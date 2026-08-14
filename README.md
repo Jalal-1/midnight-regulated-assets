@@ -20,7 +20,7 @@ The repo layout states that thesis directly: products live in `apps/`, the block
 
 ## Status
 
-**M0 and M1 are done on localnet; M2 is underway** — the public contract token (OZ FungibleToken + Ownable) runs its full lifecycle on localnet: issue, transfer, redeem, and a keyless public read that enumerates every holder (`yarn workspace @mra/app-tokenised-deposit design-options:public`). Target network is **Stagenet** — a new chain with its own genesis, on the Ledger RC3 compatible stack; localnet mirrors that stack for development.
+**M0 and M1 are done on localnet; M2 is underway** — the unshielded contract token (OZ FungibleToken + Ownable) runs its full lifecycle on localnet: issue, transfer, redeem, and a keyless public read that enumerates every holder (`yarn workspace @mra/app-tokenised-deposit design-options:public`). Target network is **Stagenet** — a new chain with its own genesis, on the Ledger RC3 compatible stack; localnet mirrors that stack for development.
 
 **Real and verified — the full loop works on localnet**
 
@@ -41,12 +41,17 @@ round after increment = 1
 - **The pin set is coherent.** The compiler self-reports `ledger-9.1.0.0-rc.3` and runtime `0.18.0-rc.1`, both matching the delivery note.
 - **`yarn check` is clean** and the lockfile is committed.
 
+**The browser UI** (`yarn ui` → http://localhost:5173) has a homepage routing to
+each live example: the counter dashboard (`/counter`) and the unshielded contract
+token (`/unshielded-token`) — wallets, live infrastructure panels, per-operation
+timing breakdowns (proving is ~0.3 s; block inclusion is the rest), and the
+keyless public view. Every value on every page is live chain state.
+
 **Not real yet**
-- **Nothing has run against Stagenet.** Everything above is localnet. The Stagenet endpoints are configured but untested, and the deploy script is deliberately localnet-only because it uses well-known genesis seeds.
-- No UI. Interaction is a script, not an interface.
-- `ops/redeploy.sh` compiles but does not deploy — deployment currently lives in `apps/counter/src/deploy.ts`.
+- **Nothing has run against Stagenet.** Everything above is localnet. The Stagenet endpoints are configured but untested, and the demo scripts are deliberately localnet-only because they use well-known genesis seeds.
+- `ops/redeploy.sh` compiles but does not deploy — deployment lives in each app's scripts.
 - `packages/contracts`, `packages/ui`, and `packages/ledger-mock` are still empty `export {}` with docblocks.
-- `apps/tokenised-deposit` and `apps/rwa-token` are empty, and are excluded from the root `tsconfig.json` references until they have source.
+- `apps/rwa-token` is empty and excluded from the root `tsconfig.json` references until it has source.
 
 Every non-obvious thing that cost time on the way here is written up in **[docs/field-notes.md](docs/field-notes.md)** — 14 entries so far, and it is the most useful file in the repo right now. The wallet-bridge entry alone will save a day.
 
@@ -56,7 +61,7 @@ Both previously-unconfirmed values are now resolved: the Compact language versio
 |---|---|---|
 | **M0** | Scaffold, pinned RC3 stack, localnet compose, redeploy runbook | **done** |
 | **M1** | Counter + thin wallet wrapper on localnet; field notes | **done (localnet)** |
-| **M2** | Deposit design options: native + public contract token, multi-party view | **public token done**; native + view next |
+| **M2** | Deposit design options: native + unshielded contract token, multi-party view | **unshielded contract token done**; native + view next |
 | **M3** | Design options: account-based CFT — deposit design page complete | **blocked on OZ**: alpha.2 predates language 0.25's curve renames (see field notes) |
 | **M4** | Deposit lifecycle: issue, transfer, audit, redeem | not started |
 | **M5** | RWA token product + site complete | not started |

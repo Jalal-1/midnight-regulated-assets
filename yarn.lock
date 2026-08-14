@@ -490,6 +490,7 @@ __metadata:
     "@midnight-ntwrk/midnight-js-protocol": "npm:5.0.0-beta.4"
     "@midnight-ntwrk/midnight-js-types": "npm:5.0.0-beta.4"
     "@midnightntwrk/wallet-sdk": "npm:2.0.0-beta.2"
+    "@mra/app-tokenised-deposit": "workspace:^"
     "@mra/network": "workspace:^"
     "@mra/wallet": "workspace:^"
     "@types/react": "npm:^19.2.18"
@@ -510,7 +511,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@mra/app-tokenised-deposit@workspace:apps/tokenised-deposit":
+"@mra/app-tokenised-deposit@workspace:^, @mra/app-tokenised-deposit@workspace:apps/tokenised-deposit":
   version: 0.0.0-use.local
   resolution: "@mra/app-tokenised-deposit@workspace:apps/tokenised-deposit"
   dependencies:

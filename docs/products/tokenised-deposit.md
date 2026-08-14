@@ -13,7 +13,7 @@ The checklist from the overview, as a bank states it.
 
 ## 2. Design options
 Candidate token architectures, each demonstrated live, properties stated
-neutrally, no verdicts — native token · public contract token · account-based
+neutrally, no verdicts — native token · unshielded contract token · account-based
 confidential token · shielded UTXO token.
 
 Outcome: the **account-based confidential fungible token** is the composition
@@ -23,7 +23,7 @@ Note it needs the `ConfidentialFungibleTokenPublicSupply` extension, not just th
 base module: the base does not track total supply, and proving 1:1 backing
 requires it.
 
-**Status (2026-08-14):** the public contract token option is built and runs the
+**Status (2026-08-14):** the unshielded contract token option is built and runs the
 full lifecycle on localnet (`apps/tokenised-deposit/src/design-options/`). The
 confidential token does **not compile on the pinned RC3 toolchain** — OZ
 0.3.0-alpha.2 predates language 0.25's curve-type renames (`CurvePoint` →

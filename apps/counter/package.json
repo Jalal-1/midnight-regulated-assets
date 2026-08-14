@@ -14,6 +14,7 @@
     "@midnight-ntwrk/midnight-js-protocol": "5.0.0-beta.4",
     "@midnight-ntwrk/midnight-js-types": "5.0.0-beta.4",
     "@midnightntwrk/wallet-sdk": "2.0.0-beta.2",
+    "@mra/app-tokenised-deposit": "workspace:^",
     "@mra/network": "workspace:^",
     "@mra/wallet": "workspace:^",
     "react": "^19.2.8",

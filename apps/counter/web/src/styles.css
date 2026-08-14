@@ -444,6 +444,137 @@ button.link:disabled { color: var(--text-muted); cursor: not-allowed; }
 .warn { color: var(--warn-text); font-weight: 600; }
 .panel .note { margin-top: 7px; font-size: 10.5px; }
 
+/* --- Homepage ---------------------------------------------------------------------------- */
+/* The one page allowed to scroll — it scrolls INSIDE its own container, so the
+   global fixed-view rule for the app pages stays intact. */
+
+@keyframes sweep {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+@keyframes breathe {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 1; }
+}
+
+.home {
+  height: 100vh;
+  overflow-y: auto;
+  position: relative;
+  background: var(--surface-page);
+}
+.home-glow {
+  position: absolute;
+  top: -180px; left: 50%;
+  transform: translateX(-50%);
+  width: 720px; height: 480px;
+  background: radial-gradient(ellipse at center, rgba(0, 0, 254, 0.28), transparent 65%);
+  animation: breathe 7s ease-in-out infinite;
+  pointer-events: none;
+}
+.home-inner {
+  width: 100%;
+  max-width: 960px;
+  margin: 0 auto;
+  box-sizing: border-box;
+  padding: 88px 40px 64px;
+  display: flex;
+  flex-direction: column;
+  gap: 56px;
+  position: relative;
+}
+.home-hero { display: flex; flex-direction: column; gap: 18px; align-items: flex-start; }
+.home-logo { width: 40px; height: 40px; color: var(--text-primary); }
+.home-hero h1 {
+  font-size: clamp(36px, 5vw, 56px);
+  font-weight: 500; line-height: 1.05; letter-spacing: -0.02em;
+  margin: 0; max-width: 640px; white-space: normal;
+}
+.home-sub { margin: 0; font-size: 17px; line-height: 1.55; color: var(--text-secondary); max-width: 560px; }
+.home-divider {
+  width: 100%; height: 1px; margin-top: 10px;
+  background: linear-gradient(90deg, transparent, rgba(122, 122, 255, 0.08) 35%, #4747ff 50%, rgba(122, 122, 255, 0.08) 65%, transparent);
+  background-size: 200% 100%;
+  animation: sweep 5s linear infinite;
+}
+
+.home-cards { display: flex; flex-direction: column; gap: 12px; }
+.home-card {
+  display: grid;
+  grid-template-columns: 64px 1fr auto;
+  align-items: center;
+  gap: 24px;
+  padding: 26px 28px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 16px;
+  background: var(--surface-card);
+  text-decoration: none;
+  color: var(--text-primary);
+  position: relative;
+  overflow: hidden;
+  transition: border-color 150ms var(--ease-out), box-shadow 300ms var(--ease-out);
+}
+a.home-card:hover { border-color: var(--blue-text); box-shadow: 0 0 32px rgba(71, 71, 255, 0.18); color: var(--text-primary); }
+.home-card.disabled { background: var(--surface-raised); opacity: 0.6; }
+.card-sweep {
+  position: absolute; top: 0; left: 0; right: 0; height: 1px;
+  background: linear-gradient(90deg, transparent, #4747ff 50%, transparent);
+  background-size: 200% 100%;
+  animation: sweep 3.5s linear infinite;
+}
+.card-n { font-size: 15px; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.card-body { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.card-title-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.card-title-row strong { font-size: 20px; font-weight: 500; }
+.card-desc { font-size: 14px; line-height: 1.5; color: var(--text-secondary); }
+.card-arrow { font-size: 22px; color: var(--text-link); }
+.card-arrow.muted { color: var(--text-muted); }
+
+.home-links { display: flex; align-items: center; gap: 24px; flex-wrap: wrap; }
+.home-links a { font-size: 14px; }
+.home-status {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-size: 12px; color: var(--text-muted); font-variant-numeric: tabular-nums;
+}
+.home-status .down { color: var(--err-text); font-weight: 600; }
+.home-status-dot { width: 7px; height: 7px; border-radius: 50%; flex: none; }
+.home-status-dot.up { background: var(--ok); animation: pulse 4s ease-in-out infinite; }
+.home-status-dot.down { background: var(--err); }
+.home-status-dot.unknown { background: transparent; border: 1.5px solid var(--unknown); }
+
+.home-footer { border-top: 1px solid var(--border-subtle); padding-top: 16px; }
+.home-footer p { margin: 0; font-size: 12px; color: var(--text-muted); }
+
+.brand-home { display: flex; color: inherit; }
+.brand-home:hover .brand-logo { color: var(--text-link); }
+
+/* --- Public view (unshielded contract token) ---------------------------------------------- */
+.public-view {
+  /* Shares its column with the infrastructure panels: cap it so both fit the
+     fixed view, and let its own body scroll when the holder list grows. */
+  flex: 0 1 auto; max-height: 44%; min-height: 150px; overflow-y: auto;
+  display: flex; flex-direction: column; gap: 10px;
+  border: 1px solid var(--border-subtle); border-radius: var(--radius-md);
+  padding: 11px 14px; background: var(--surface-card);
+}
+.public-view-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.public-view-head h2 {
+  font-size: 11.5px; font-weight: 500; margin: 0;
+  text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-muted);
+}
+.public-view-head .small { margin-left: auto; }
+
+.holders { width: 100%; border-collapse: collapse; font-size: 12px; }
+.holders th {
+  text-align: left; font-weight: 500; font-size: 10.5px;
+  text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted);
+  padding: 4px 8px; border-bottom: 1px solid var(--border-subtle);
+}
+.holders td { padding: 6px 8px; border-bottom: 1px solid var(--border-subtle); }
+.holders tr:last-child td { border-bottom: 0; }
+.holders .num { text-align: right; font-variant-numeric: tabular-nums; }
+.public-facts { display: flex; flex-direction: column; gap: 2px; }
+
 /* --- Per-component log drawer ---------------------------------------------------------- */
 .drawer { margin-top: 8px; border-top: 1px solid var(--border-subtle); padding-top: 6px; }
 .drawer-toggle {
