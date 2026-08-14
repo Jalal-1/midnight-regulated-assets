@@ -406,6 +406,11 @@ button.link:disabled { color: var(--text-muted); cursor: not-allowed; }
 .log .ms { color: var(--text-muted); font-variant-numeric: tabular-nums; flex: none; }
 .log .working { color: var(--text-muted); animation: pulse 2s ease-in-out infinite; }
 
+/* First-visit guide shown in the empty log — plain sentences, numbered steps. */
+.guide { display: flex; flex-direction: column; gap: 6px; }
+.guide p { display: block; margin: 0; line-height: 1.5; }
+.guide strong { color: var(--text-secondary); }
+
 /* --- Infrastructure ------------------------------------------------------------------ */
 .infra { display: flex; flex-direction: column; gap: 9px; min-height: 0; flex: 1; }
 .infra-head { flex: none; display: flex; align-items: baseline; gap: 10px; }

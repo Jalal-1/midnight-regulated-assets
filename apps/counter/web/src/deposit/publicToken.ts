@@ -115,7 +115,10 @@ export interface TokenSession {
   readonly wallet: MidnightWallet;
   readonly providers: MidnightProviders<CircuitId>;
   readonly secretKey: Uint8Array;
+  /** NIGHT, in stars. */
   readonly unshieldedBalance: bigint;
+  /** DUST in specks, computed for the asked-about moment (it generates/decays). */
+  readonly dustBalance: (time: Date) => bigint;
 }
 
 /** Current best block height, straight from the node. */
@@ -172,6 +175,7 @@ export async function connectPersona(persona: TokenPersona): Promise<TokenSessio
     providers,
     secretKey: await tokenSecretKey(seed),
     unshieldedBalance: BigInt(state.unshielded.balances?.[nativeToken] ?? 0n),
+    dustBalance: (time) => state.dust.balance(time),
   };
 }
 

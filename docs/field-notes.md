@@ -634,3 +634,21 @@ Options, both honest: patch the vendored modules (`yarn patch`) and carry the
 diff until OZ ships an alpha targeting compactc 0.33, or hold the account-based
 CFT milestone until that release. The **public** `FungibleToken` + `Ownable` +
 `security/*` path is unaffected — it compiles and runs end-to-end today.
+
+## 2026-08-14 · NIGHT and DUST denominations, and reading a DUST balance
+
+Raw chain integers are atomic units, and the two tokens differ by nine orders
+of magnitude: **NIGHT has 6 decimals** (atomic unit: star) and **DUST has 15**
+(atomic unit: speck) — ledger spec `spec/dust.md`. So the localnet genesis
+funding of `250000000000000` unshielded units is **250,000,000 NIGHT**, not
+250 trillion of anything.
+
+A DUST balance is a **computed quantity, not a stored one** — DUST generates
+over time from held NIGHT and decays. The wallet API reflects that:
+`state.dust.balance(time: Date)` takes the moment you are asking about, and
+`availableCoins.length` is a UTXO count, not a balance — do not display it as
+one. Genesis accounts sit at the DUST cap (1,250,000,000 DUST), so their
+balance projects flat; a normal account's would grow between reads.
+
+Formatting lives in `packages/wallet/src/units.ts` so every surface renders
+the same number the same way.

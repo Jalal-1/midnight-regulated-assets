@@ -182,3 +182,5 @@ export async function createWalletFromSeed(
 
   return { wallet, shieldedSecretKeys, dustSecretKey };
 }
+
+export * from './units.ts';

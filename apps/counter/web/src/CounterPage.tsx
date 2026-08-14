@@ -14,6 +14,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { getNetwork } from '@mra/network';
+import { formatDust, formatNight } from '@mra/wallet';
 
 import Contracts from './Contracts.tsx';
 import { connect, deploy, increment, readRound, type Session } from './counter.ts';
@@ -91,7 +92,7 @@ export default function CounterPage() {
     const next = await step(`Create wallet for ${name} (build + sync)`, () => connect(persona));
     if (!next) return;
     setSessions((prev) => ({ ...prev, [persona]: next }));
-    say(`Unshielded balance ${next.unshieldedBalance.toLocaleString('en-US')}`, 'ok');
+    say(`Balance ${formatNight(next.unshieldedBalance)} NIGHT · ${formatDust(next.dustBalance(new Date()))} DUST for fees`, 'ok');
     await refreshContracts(next);
     setStatus('ready');
   };
@@ -204,7 +205,7 @@ export default function CounterPage() {
       const s = await step(`Create wallet for ${PERSONAS[0]} (build + sync)`, () => connect(0));
       if (!s) return;
       setSessions((prev) => ({ ...prev, 0: s }));
-      say(`Unshielded balance ${s.unshieldedBalance.toLocaleString('en-US')}`, 'ok');
+      say(`Balance ${formatNight(s.unshieldedBalance)} NIGHT · ${formatDust(s.dustBalance(new Date()))} DUST for fees`, 'ok');
 
       const at = await deployAndRecord(s);
       if (!at) return;
@@ -227,21 +228,24 @@ export default function CounterPage() {
   }, [deployAndRecord, endOp, opReadingBack, refreshContracts, say, setStatus, step, trackOp]);
 
   const liveCount = contracts.filter((c) => c.state === 'live').length;
-  const walletRows: readonly { k: string; addr: string | null; bal: string }[] = [
+  const walletRows: readonly { k: string; hint: string; addr: string | null; bal: string }[] = [
     {
-      k: 'unshielded',
+      k: 'NIGHT',
+      hint: "Midnight's native token, held unshielded (publicly visible). Atomic unit: star, 10\u2076 per NIGHT.",
       addr: session?.unshieldedAddress ?? null,
-      bal: session ? session.unshieldedBalance.toLocaleString('en-US') : 'not created',
+      bal: session ? `${formatNight(session.unshieldedBalance)} NIGHT` : 'not created',
     },
     {
       k: 'shielded',
+      hint: 'The same native value held in the shielded pool — amounts and flows are private.',
       addr: session?.shieldedAddress ?? null,
-      bal: session ? session.shieldedBalance.toLocaleString('en-US') : 'not created',
+      bal: session ? `${formatNight(session.shieldedBalance)} NIGHT` : 'not created',
     },
     {
       k: 'DUST',
+      hint: 'Pays transaction fees. Generated over time by holding NIGHT; cannot be bought or transferred. Atomic unit: speck, 10\u00b9\u2075 per DUST.',
       addr: session?.dustAddress ?? null,
-      bal: session ? `${session.dustCoins} coins` : 'not created',
+      bal: session ? `${formatDust(session.dustBalance(new Date(ops.now)))} DUST` : 'not created',
     },
   ];
 
@@ -313,9 +317,7 @@ export default function CounterPage() {
             <div className="card">
               <span className="label">Wallet — {PERSONAS[persona]}</span>
               <span className="value small">
-                {session
-                  ? `${session.unshieldedBalance.toLocaleString('en-US')} unshielded`
-                  : 'not created'}
+                {session ? `${formatNight(session.unshieldedBalance)} NIGHT` : 'not created'}
               </span>
             </div>
           </section>
@@ -354,7 +356,9 @@ export default function CounterPage() {
             </div>
             {walletRows.map((row) => (
               <div className="wallet-row" key={row.k}>
-                <span className="k">{row.k}</span>
+                <span className="k" title={row.hint}>
+                  {row.k}
+                </span>
                 <span
                   className={row.addr ? 'addr copyable' : 'addr empty'}
                   title={
@@ -388,7 +392,17 @@ export default function CounterPage() {
           />
 
           <section className="log" aria-live="polite" ref={ops.logBox}>
-            {ops.log.length === 0 && <p className="muted">Create a wallet to begin.</p>}
+            {ops.log.length === 0 && (
+              <div className="guide">
+                <p className="muted">
+                  <strong>New here?</strong> This page proves the whole Midnight toolchain, live:
+                </p>
+                <p className="muted">1 · Create a wallet — built in this page from a public test seed, funded with NIGHT by the local chain.</p>
+                <p className="muted">2 · Deploy the counter — compiles to a zero-knowledge circuit; the proof is generated on this machine.</p>
+                <p className="muted">3 · increment() — a real transaction: proved locally (~0.3s), then included in a block (~18s). Fees are paid in DUST.</p>
+                <p className="muted">Everything you see afterwards is read back from the chain, never assumed.</p>
+              </div>
+            )}
             {ops.log.map((line, i) => (
               <p key={i} className={line.kind}>
                 <span>{line.text}</span>
