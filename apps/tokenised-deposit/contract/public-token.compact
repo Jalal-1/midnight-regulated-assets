@@ -31,9 +31,9 @@ import "../../../node_modules/@openzeppelin/compact-contracts/token/FungibleToke
 // accessor, and reads would need circuit evaluation. Re-exported, the indexer
 // hands anyone the full balances map, the supply, and the owner — which is
 // this design option's failure mode, made legible.
-import { _balances, _totalSupply } from "../../../node_modules/@openzeppelin/compact-contracts/token/FungibleToken";
+import { _balances, _totalSupply, _name, _symbol, _decimals } from "../../../node_modules/@openzeppelin/compact-contracts/token/FungibleToken";
 import { _owner } from "../../../node_modules/@openzeppelin/compact-contracts/access/Ownable";
-export { _balances, _totalSupply, _owner };
+export { _balances, _totalSupply, _name, _symbol, _decimals, _owner };
 
 export { ContractAddress, Either };
 

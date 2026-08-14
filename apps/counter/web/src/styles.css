@@ -548,6 +548,22 @@ a.home-card:hover { border-color: var(--blue-text); box-shadow: 0 0 32px rgba(71
 .brand-home { display: flex; color: inherit; }
 .brand-home:hover .brand-logo { color: var(--text-link); }
 
+/* --- Token naming (set before deploy) ------------------------------------------------------ */
+.naming { flex: none; display: flex; align-items: flex-end; gap: 10px; flex-wrap: wrap; }
+.naming label { display: flex; flex-direction: column; gap: 4px; }
+.naming input {
+  font: inherit; font-size: 13px; color: var(--text-primary);
+  background: var(--surface-card);
+  border: 1px solid var(--border-subtle); border-radius: var(--radius-sm);
+  padding: 6px 10px; width: 220px;
+  transition: border-color 150ms var(--ease-out);
+}
+.naming input.mono { font-family: var(--font-mono); width: 100px; }
+.naming input:hover:not(:disabled) { border-color: var(--border-strong); }
+.naming input:focus { outline: none; border-color: var(--blue-bright); }
+.naming input:disabled { opacity: 0.45; cursor: not-allowed; }
+.naming-note { align-self: center; }
+
 /* --- Public view (unshielded contract token) ---------------------------------------------- */
 .public-view {
   /* Shares its column with the infrastructure panels: cap it so both fit the

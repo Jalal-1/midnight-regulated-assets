@@ -175,12 +175,21 @@ export async function connectPersona(persona: TokenPersona): Promise<TokenSessio
   };
 }
 
-/** Deploy a fresh token with the session's persona as owner. Returns its address. */
-export async function deployToken(session: TokenSession): Promise<string> {
+export interface TokenNaming {
+  readonly name: string;
+  readonly symbol: string;
+}
+
+/**
+ * Deploy a fresh token with the session's persona as owner. Returns its address.
+ * Name and symbol are constructor arguments — they live in the contract's public
+ * state from block one, which is where every display of them reads from.
+ */
+export async function deployToken(session: TokenSession, naming: TokenNaming): Promise<string> {
   const owner = asAccount(accountId(session.secretKey));
   const deployed = await deployContract(session.providers, {
     compiledContract: compiledFor(session.secretKey),
-    args: ['Meridian Deposit Token', 'mUSD', 2n, owner],
+    args: [naming.name, naming.symbol, 2n, owner],
   });
   return deployed.deployTxData.public.contractAddress;
 }
@@ -226,6 +235,10 @@ export interface PublicView {
   readonly holdings: readonly PublicHolding[];
   readonly totalSupply: bigint;
   readonly owner: Uint8Array;
+  /** From chain state — the name the deployer chose, visible to everyone. */
+  readonly name: string;
+  readonly symbol: string;
+  readonly decimals: number;
 }
 
 export async function readPublicView(address: string): Promise<PublicView | null> {
@@ -238,5 +251,12 @@ export async function readPublicView(address: string): Promise<PublicView | null
   for (const [account, balance] of decoded._balances) {
     holdings.push({ account: account.left, balance });
   }
-  return { holdings, totalSupply: decoded._totalSupply, owner: decoded._owner.left };
+  return {
+    holdings,
+    totalSupply: decoded._totalSupply,
+    owner: decoded._owner.left,
+    name: decoded._name,
+    symbol: decoded._symbol,
+    decimals: Number(decoded._decimals),
+  };
 }

@@ -59,7 +59,9 @@ async function recallToken(): Promise<string | null> {
   }
 }
 
-const fmt = (units: bigint) => `${(Number(units) / 100).toFixed(2)} mUSD`;
+/** Format token units with the ON-CHAIN symbol; before deploy, the chosen one. */
+const fmtWith = (units: bigint, symbol: string, decimals = 2) =>
+  `${(Number(units) / 10 ** decimals).toFixed(decimals)} ${symbol}`.trim();
 const short = (value: string, head = 10, tail = 6) => `${value.slice(0, head)}…${value.slice(-tail)}`;
 
 export default function PublicTokenPage() {
@@ -71,6 +73,8 @@ export default function PublicTokenPage() {
   const [ids, setIds] = useState<Awaited<ReturnType<typeof tokenIdentities>> | null>(null);
   const [genesis, setGenesis] = useState<string | null>(null);
   const [logsOn, setLogsOn] = useState(false);
+  const [tokenName, setTokenName] = useState('Meridian Deposit Token');
+  const [tokenSymbol, setTokenSymbol] = useState('mUSD');
   const viewBox = useRef<HTMLDivElement>(null);
 
   const network = getNetwork();
@@ -154,8 +158,14 @@ export default function PublicTokenPage() {
   const onDeploy = async () => {
     if (!sessions.meridian) return;
     ops.setStatus('working');
+    const naming = {
+      name: tokenName.trim() || 'Meridian Deposit Token',
+      symbol: tokenSymbol.trim() || 'mUSD',
+    };
     const deployed = await ops.trackOp('Deploy token', () =>
-      ops.step('Deploy public-token (Meridian is owner)', () => deployToken(sessions.meridian!)),
+      ops.step(`Deploy "${naming.name}" (${naming.symbol}, Meridian is owner)`, () =>
+        deployToken(sessions.meridian!, naming),
+      ),
     );
     if (!deployed) {
       ops.endOp();
@@ -184,6 +194,11 @@ export default function PublicTokenPage() {
 
   const ready = !!sessions.meridian && !!sessions.alice;
   const busy = ops.busy;
+  // The symbol shown on amounts: the chain's once the token exists (real state),
+  // the input's before then (it only labels what the buttons INTEND to do).
+  const symbol = view?.symbol ?? (tokenSymbol.trim() || 'mUSD');
+  const decimals = view?.decimals ?? 2;
+  const fmt = (units: bigint) => fmtWith(units, symbol, decimals);
 
   return (
     <main>
@@ -246,7 +261,7 @@ export default function PublicTokenPage() {
                 }
               }}
             >
-              <span className="label">Token</span>
+              <span className="label">{view ? `Token — ${view.symbol}` : 'Token'}</span>
               <span className="value small">{address ? short(address) : 'not deployed'}</span>
             </div>
             <div className="card">
@@ -257,6 +272,33 @@ export default function PublicTokenPage() {
                   : 'not created'}
               </span>
             </div>
+          </section>
+
+          <section className="naming">
+            <label>
+              <span className="label">Token name</span>
+              <input
+                value={tokenName}
+                onChange={(e) => setTokenName(e.target.value)}
+                disabled={busy}
+                maxLength={48}
+                placeholder="Meridian Deposit Token"
+              />
+            </label>
+            <label>
+              <span className="label">Symbol</span>
+              <input
+                className="mono"
+                value={tokenSymbol}
+                onChange={(e) => setTokenSymbol(e.target.value)}
+                disabled={busy}
+                maxLength={12}
+                placeholder="mUSD"
+              />
+            </label>
+            <span className="muted small naming-note">
+              set before deploying — both land in public chain state
+            </span>
           </section>
 
           <section className="actions">
@@ -362,6 +404,12 @@ export default function PublicTokenPage() {
                   </tbody>
                 </table>
                 <div className="public-facts">
+                  <div className="row">
+                    <span className="k">token</span>
+                    <span className="v">
+                      {view.name} ({view.symbol})
+                    </span>
+                  </div>
                   <div className="row">
                     <span className="k">total supply</span>
                     <span className="v">{fmt(view.totalSupply)}</span>
