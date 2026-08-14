@@ -85,22 +85,33 @@ export default function CounterPage() {
     void refreshContracts(null);
   }, [refreshContracts]);
 
+  const connectPersona = useCallback(
+    async (index: number) => {
+      setStatus('connecting');
+      const name = PERSONAS[index];
+      const next = await step(`Create wallet for ${name} (build + sync)`, () => connect(index));
+      if (!next) return;
+      setSessions((prev) => ({ ...prev, [index]: next }));
+      say(
+        `${name}: ${formatNight(next.unshieldedBalance)} NIGHT · ${formatDust(next.dustBalance(new Date()))} DUST for fees`,
+        'ok',
+      );
+      await refreshContracts(next);
+      setStatus('ready');
+    },
+    [refreshContracts, say, setStatus, step],
+  );
+
   const onConnect = async () => {
     if (session) return;
-    setStatus('connecting');
-    const name = PERSONAS[persona];
-    const next = await step(`Create wallet for ${name} (build + sync)`, () => connect(persona));
-    if (!next) return;
-    setSessions((prev) => ({ ...prev, [persona]: next }));
-    say(`Balance ${formatNight(next.unshieldedBalance)} NIGHT · ${formatDust(next.dustBalance(new Date()))} DUST for fees`, 'ok');
-    await refreshContracts(next);
-    setStatus('ready');
+    await connectPersona(persona);
   };
 
+  /** Switching persona IS switching wallet: build it on the spot if it's new. */
   const onPersona = (index: number) => {
     if (index === persona || busy) return;
     setPersona(index);
-    say(`persona switched to ${PERSONAS[index]} (genesis seed #${index})`);
+    if (!sessions[index]) void connectPersona(index);
   };
 
   /**
@@ -205,7 +216,7 @@ export default function CounterPage() {
       const s = await step(`Create wallet for ${PERSONAS[0]} (build + sync)`, () => connect(0));
       if (!s) return;
       setSessions((prev) => ({ ...prev, 0: s }));
-      say(`Balance ${formatNight(s.unshieldedBalance)} NIGHT · ${formatDust(s.dustBalance(new Date()))} DUST for fees`, 'ok');
+      say(`Alice: ${formatNight(s.unshieldedBalance)} NIGHT · ${formatDust(s.dustBalance(new Date()))} DUST for fees`, 'ok');
 
       const at = await deployAndRecord(s);
       if (!at) return;
