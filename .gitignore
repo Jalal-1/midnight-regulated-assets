@@ -38,3 +38,6 @@ npm-debug.log*
 
 # Vite build output
 dist-web/
+
+# Runtime private-state store (created by deploy.ts) — per-user, never commit
+midnight-level-db/
