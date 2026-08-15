@@ -37,6 +37,7 @@ import {
   type TokenSession,
 } from './publicToken.ts';
 import FaucetSetup from './FaucetSetup.tsx';
+import StagenetSeeds from './StagenetSeeds.tsx';
 import {
   forgetToken,
   loadCheckedTokens,
@@ -322,31 +323,14 @@ export default function PublicTokenLab() {
 
               {!isLocalnet && (
                 <section className="naming">
-                  <label>
-                    <span className="label">ACME Bank seed (issuer)</span>
-                    <input
-                      className="mono seed-input"
-                      type="password"
-                      value={seedAcme}
-                      onChange={(e) => setSeedAcme(e.target.value)}
-                      disabled={busy || ready}
-                      placeholder="64 hex · faucet-funded"
-                    />
-                  </label>
-                  <label>
-                    <span className="label">Alice seed (customer)</span>
-                    <input
-                      className="mono seed-input"
-                      type="password"
-                      value={seedAlice}
-                      onChange={(e) => setSeedAlice(e.target.value)}
-                      disabled={busy || ready}
-                      placeholder="64 hex · faucet-funded"
-                    />
-                  </label>
-                  <span className="muted small naming-note">
-                    developer/test entry — memory only, never persisted
-                  </span>
+                  <StagenetSeeds
+                    disabled={busy || ready}
+                    say={ops.say}
+                    fields={[
+                      { key: 'acme', label: 'ACME Bank seed (issuer)', value: seedAcme, onChange: setSeedAcme },
+                      { key: 'alice', label: 'Alice seed (customer)', value: seedAlice, onChange: setSeedAlice },
+                    ]}
+                  />
                   {sessions.acme && (
                     <FaucetSetup
                       label="ACME Bank"

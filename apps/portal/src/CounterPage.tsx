@@ -19,6 +19,7 @@ import { formatDust, formatNight } from '@mra/wallet';
 
 import Contracts from './Contracts.tsx';
 import FaucetSetup from './labs/FaucetSetup.tsx';
+import StagenetSeeds from './labs/StagenetSeeds.tsx';
 import { connect, deploy, increment, readRound, type Session } from './counter.ts';
 import {
   forget,
@@ -360,14 +361,12 @@ export default function CounterPage() {
                   </button>
                 ))
               ) : (
-                <input
-                  className="seed-input mono"
-                  type="password"
-                  value={stagenetSeed}
-                  onChange={(e) => setStagenetSeed(e.target.value)}
+                <StagenetSeeds
                   disabled={busy || !!session}
-                  placeholder="faucet-funded seed (64 hex) — kept in memory only"
-                  title="Fund an address at faucet.stagenet.shielded.tools, then paste the seed here. Never persisted by this app."
+                  say={say}
+                  fields={[
+                    { key: 'wallet', label: 'seed', value: stagenetSeed, onChange: setStagenetSeed },
+                  ]}
                 />
               )}
               <span className="wallet-meta">

@@ -46,6 +46,7 @@ import {
 } from './confidentialToken.ts';
 import { forgetCft, loadCheckedCfts, rememberCft, type CheckedCft } from './cftHistory.ts';
 import FaucetSetup from './FaucetSetup.tsx';
+import StagenetSeeds from './StagenetSeeds.tsx';
 
 const ISSUE = 100_000n;
 const PAY = 25_000n;
@@ -333,22 +334,15 @@ export default function ConfidentialTokenLab() {
 
               {!isLocalnet && (
                 <section className="naming">
-                  {(['acme', 'alice', 'bob'] as const).map((who) => (
-                    <label key={who}>
-                      <span className="label">{who === 'acme' ? 'ACME Bank seed' : `${who} seed`}</span>
-                      <input
-                        className="mono seed-input"
-                        type="password"
-                        value={seeds[who]}
-                        onChange={(e) => setSeeds((prev) => ({ ...prev, [who]: e.target.value }))}
-                        disabled={busy || ready}
-                        placeholder="64 hex · faucet-funded"
-                      />
-                    </label>
-                  ))}
-                  <span className="muted small naming-note">
-                    developer/test entry — memory only, never persisted
-                  </span>
+                  <StagenetSeeds
+                    disabled={busy || ready}
+                    say={ops.say}
+                    fields={[
+                      { key: 'acme', label: 'ACME Bank seed (issuer)', value: seeds.acme, onChange: (v) => setSeeds((prev) => ({ ...prev, acme: v })) },
+                      { key: 'alice', label: 'Alice seed (customer)', value: seeds.alice, onChange: (v) => setSeeds((prev) => ({ ...prev, alice: v })) },
+                      { key: 'bob', label: 'Bob seed (customer)', value: seeds.bob, onChange: (v) => setSeeds((prev) => ({ ...prev, bob: v })) },
+                    ]}
+                  />
                   {(['acme', 'alice', 'bob'] as const).map((who) => {
                     const session = sessions[who];
                     return session ? (

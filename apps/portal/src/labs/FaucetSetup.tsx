@@ -39,10 +39,20 @@ export interface FaucetSetupProps {
 export default function FaucetSetup({ label, wallet, address, say }: FaucetSetupProps) {
   const [status, setStatus] = useState<DustSetupStatus | null>(null);
   const [registering, setRegistering] = useState(false);
+  const [expanded, setExpanded] = useState(false);
   const registered = useRef(false);
   const network = currentNetwork();
 
+  // Defense in depth: the faucet accepts only addresses encoded for ITS
+  // network. The same key encodes to a different string per network
+  // (mn_addr_stagenet1… vs mn_addr_undeployed1…), so a localnet-encoded
+  // address pasted into the Stagenet faucet fails as "invalid". This row
+  // must never offer such a hand-off.
+  const expectedPrefix = `mn_addr_${network.networkId}1`;
+  const wrongNetwork = !address.startsWith(expectedPrefix);
+
   useEffect(() => {
+    if (wrongNetwork) return;
     let live = true;
     const tick = async () => {
       try {
@@ -79,7 +89,21 @@ export default function FaucetSetup({ label, wallet, address, say }: FaucetSetup
       live = false;
       clearInterval(timer);
     };
-  }, [label, say, wallet]);
+  }, [label, say, wallet, wrongNetwork]);
+
+  // After the hooks (rules of hooks): a mismatched address gets a warning row,
+  // never a faucet hand-off the faucet would reject.
+  if (wrongNetwork) {
+    return (
+      <div className="faucet-row">
+        <span className="faucet-label">{label}</span>
+        <span className="muted small">
+          address is not encoded for {network.networkId} (starts {address.slice(0, 20)}…) — the
+          faucet would reject it; reload the page so the wallet re-derives on this network
+        </span>
+      </div>
+    );
+  }
 
   const openFaucet = () => {
     try {
@@ -104,9 +128,13 @@ export default function FaucetSetup({ label, wallet, address, say }: FaucetSetup
   return (
     <div className="faucet-row">
       <span className="faucet-label">{label}</span>
-      <span className="mono muted small faucet-addr" title={address}>
-        {address.slice(0, 16)}…{address.slice(-8)}
-      </span>
+      <button
+        className="mono muted small faucet-addr"
+        onClick={() => setExpanded((v) => !v)}
+        title={expanded ? 'collapse' : 'show the full address'}
+      >
+        {expanded ? address : `${address.slice(0, 16)}…${address.slice(-8)}`}
+      </button>
       <button
         className="link"
         onClick={() => {
@@ -114,7 +142,8 @@ export default function FaucetSetup({ label, wallet, address, say }: FaucetSetup
             void navigator.clipboard.writeText(address);
             say(`${label}: address copied`, 'ok');
           } catch {
-            /* clipboard unavailable */
+            setExpanded(true);
+            say(`${label}: clipboard unavailable — the full address is shown in the row`, 'error');
           }
         }}
         title="Copy the full address"
