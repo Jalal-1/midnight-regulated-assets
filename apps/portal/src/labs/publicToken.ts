@@ -30,7 +30,13 @@ import {
 } from '@mra/app-tokenised-deposit/contract';
 import { LOCALNET_GENESIS_SEEDS } from '@mra/network';
 import { currentNetwork } from '@mra/lab-shell';
-import { configureNetworkId, createWalletFromSeed, type MidnightWallet } from '@mra/wallet';
+import {
+  configureNetworkId,
+  createWalletFromSeed,
+  encodeWalletAddresses,
+  ensureDustGeneration,
+  type MidnightWallet,
+} from '@mra/wallet';
 import { createBrowserProviders } from '@mra/wallet/providers/browser';
 
 /** Served by Vite from web/public/managed-token — a symlink to the compiled contract. */
@@ -127,6 +133,8 @@ export interface TokenSession {
   readonly unshieldedBalance: bigint;
   /** DUST in specks, computed for the asked-about moment (it generates/decays). */
   readonly dustBalance: (time: Date) => bigint;
+  /** bech32m unshielded address — what a faucet funds. */
+  readonly unshieldedAddress: string;
 }
 
 /** Current best block height, straight from the node. */
@@ -162,7 +170,11 @@ export async function waitForNextBlock(node: string): Promise<void> {
  * seeds; Stagenet requires the caller to pass a faucet-funded seed (never
  * hardcoded, never persisted).
  */
-export async function connectPersona(persona: TokenPersona, seedHex?: string): Promise<TokenSession> {
+export async function connectPersona(
+  persona: TokenPersona,
+  seedHex?: string,
+  onProgress?: (message: string) => void,
+): Promise<TokenSession> {
   const network = currentNetwork();
   await configureNetworkId(network);
 
@@ -172,6 +184,9 @@ export async function connectPersona(persona: TokenPersona, seedHex?: string): P
   const seed = seedHex ?? LOCALNET_GENESIS_SEEDS[TOKEN_PERSONAS[persona].seedIndex]!;
   const wallet = await createWalletFromSeed(seed, network);
   const state = await wallet.wallet.waitForSyncedState();
+  if (network.networkId !== 'undeployed') {
+    await ensureDustGeneration(wallet, { onProgress });
+  }
   await waitForNextBlock(network.node);
 
   const providers = await createBrowserProviders<CircuitId>({
@@ -191,6 +206,7 @@ export async function connectPersona(persona: TokenPersona, seedHex?: string): P
     secretKey: await tokenSecretKey(seed),
     unshieldedBalance: BigInt(state.unshielded.balances?.[nativeToken] ?? 0n),
     dustBalance: (time) => state.dust.balance(time),
+    unshieldedAddress: encodeWalletAddresses(state, network).unshielded,
   };
 }
 

@@ -51,7 +51,10 @@ yarn ui               # the portal → http://localhost:5173`}</pre>
         <h2>Lifecycle scripts (the Node references)</h2>
         <pre className="code-block">{`yarn workspace @mra/app-tokenised-deposit design-options:public
 yarn workspace @mra/app-tokenised-deposit design-options:confidential
-yarn counter:deploy   # the counter diagnostic`}</pre>
+yarn counter:deploy   # the counter diagnostic
+node --experimental-strip-types apps/counter/src/dust-setup-check.ts
+                      # first-time-wallet diagnostic: fund a fresh wallet,
+                      # register DUST generation, watch DUST accrue from zero`}</pre>
         <p>
           The browser labs mirror these scripts; when they disagree, the scripts are the
           reference.
@@ -72,7 +75,12 @@ yarn counter:deploy   # the counter diagnostic`}</pre>
           runtime; seed entry is developer/test functionality, kept in memory only, never
           persisted, never bundled. Endpoints live in <span className="mono">packages/network</span>{' '}
           and nowhere else. Wallet connectivity is verified on Stagenet; the token lifecycles are
-          not yet — they are labelled accordingly until actually run there.
+          not yet — they are labelled accordingly until actually run there. A first-time Stagenet
+          wallet is walked through funding automatically: the console shows a faucet link that
+          copies the address (the faucet is captcha-gated and takes no URL parameters), and the
+          moment NIGHT arrives the wallet registers its own DUST address for generation — the
+          one-time step without which no fees can ever be paid. Localnet never needs this:
+          genesis wallets arrive pre-registered.
         </p>
 
         <h2>Proving: local versus hosted</h2>

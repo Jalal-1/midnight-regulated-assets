@@ -763,3 +763,29 @@ Verified after the restructure: counter autorun e2e, both CLI lifecycles, both
 browser labs end-to-end (public: holders enumerable at 250.00/250.00; CFT:
 supply 500.00 public, 4 ciphertext cells unreadable, wallet-side 250.00/250.00),
 16 routes × 2 viewports + 4 legacy redirects (`apps/portal/e2e-portal.mjs`).
+
+## 2026-08-16 · First-time wallets: DUST designation, and a faucet that takes no parameters
+
+A wallet that has just RECEIVED NIGHT generates no DUST — and therefore cannot
+pay for anything — until it registers its NIGHT UTXOs for generation and
+designates a DUST address (normally itself). Localnet hides this completely:
+the dev genesis pre-registers its accounts. On Stagenet it is the FIRST thing
+every faucet-funded wallet must do, so the portal now does it automatically
+(`packages/wallet/src/dust.ts`, surfaced by the labs' FaucetSetup rows).
+
+Traps found while proving it end to end (`apps/counter/src/dust-setup-check.ts`
+funds a fresh wallet from genesis and registers it — DUST measurably accrues
+from zero, ~0.21 DUST registration fee paid out of PROJECTED generation):
+
+- **Do not `signRecipe` after `registerNightUtxosForDustGeneration`.** The
+  facade signs both the registration segment and the unshielded inputs through
+  the callback you pass it; signing again puts two signatures on one input and
+  the node rejects the tx as `Malformed(InputsSignaturesLengthMismatch)`.
+- **`process.exit(0)` in a `finally` masks failures as success.** The above
+  rejection hid behind a green exit for two runs.
+- The registration fee wait is `waitForGeneratedDust(utxos, fee)` — the SDK
+  projects generation for not-yet-registered UTXOs precisely so the
+  registration can pay for itself.
+- The Stagenet faucet is Turnstile-gated and ignores every address query param
+  (probed: address/addr/to/recipient/wallet) — so the UI copies the address to
+  the clipboard and opens the faucet; paste + captcha is the whole job.

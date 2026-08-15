@@ -18,6 +18,7 @@ import { currentNetwork } from '@mra/lab-shell';
 import { formatDust, formatNight } from '@mra/wallet';
 
 import Contracts from './Contracts.tsx';
+import FaucetSetup from './labs/FaucetSetup.tsx';
 import { connect, deploy, increment, readRound, type Session } from './counter.ts';
 import {
   forget,
@@ -94,7 +95,7 @@ export default function CounterPage() {
       setStatus('connecting');
       const name = seed === undefined ? PERSONAS[index] : 'Stagenet wallet';
       const next = await step(`Create wallet — ${name} (build + sync)`, () =>
-        connect(seed ?? index),
+        connect(seed ?? index, (m) => say(`  ↳ ${m}`)),
       );
       if (!next) return;
       setSessions((prev) => ({ ...prev, [index]: next }));
@@ -373,6 +374,14 @@ export default function CounterPage() {
                 {isLocalnet ? `genesis seed #${persona} · public test seed` : 'faucet-funded seed · memory only'}
               </span>
             </div>
+            {!isLocalnet && session && (
+              <FaucetSetup
+                label="Wallet"
+                wallet={session.wallet}
+                address={session.unshieldedAddress}
+                say={say}
+              />
+            )}
             {walletRows.map((row) => (
               <div className="wallet-row" key={row.k}>
                 <span className="k" title={row.hint}>

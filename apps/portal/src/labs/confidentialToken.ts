@@ -35,7 +35,13 @@ import {
 } from '@mra/app-tokenised-deposit/contract-confidential';
 import { LOCALNET_GENESIS_SEEDS } from '@mra/network';
 import { currentNetwork } from '@mra/lab-shell';
-import { configureNetworkId, createWalletFromSeed, type MidnightWallet } from '@mra/wallet';
+import {
+  configureNetworkId,
+  createWalletFromSeed,
+  encodeWalletAddresses,
+  ensureDustGeneration,
+  type MidnightWallet,
+} from '@mra/wallet';
 import { createBrowserProviders } from '@mra/wallet/providers/browser';
 
 import { waitForNextBlock } from './publicToken.ts';
@@ -158,10 +164,16 @@ export interface CftSession {
   /** NIGHT, in stars. */
   readonly unshieldedBalance: bigint;
   readonly dustBalance: (time: Date) => bigint;
+  /** bech32m unshielded address — what a faucet funds. */
+  readonly unshieldedAddress: string;
 }
 
 /** Build a persona's wallet, providers, and token-wallet secrets. */
-export async function connectCftPersona(persona: CftPersona, seedHex?: string): Promise<CftSession> {
+export async function connectCftPersona(
+  persona: CftPersona,
+  seedHex?: string,
+  onProgress?: (message: string) => void,
+): Promise<CftSession> {
   const network = currentNetwork();
   await configureNetworkId(network);
 
@@ -173,6 +185,9 @@ export async function connectCftPersona(persona: CftPersona, seedHex?: string): 
 
   const wallet = await createWalletFromSeed(seed, network);
   const state = await wallet.wallet.waitForSyncedState();
+  if (network.networkId !== 'undeployed') {
+    await ensureDustGeneration(wallet, { onProgress });
+  }
   await waitForNextBlock(network.node);
 
   const providers = await createBrowserProviders<CftCircuitId>({
@@ -192,6 +207,7 @@ export async function connectCftPersona(persona: CftPersona, seedHex?: string): 
     tokenWallet,
     unshieldedBalance: BigInt(state.unshielded.balances?.[nativeToken] ?? 0n),
     dustBalance: (time) => state.dust.balance(time),
+    unshieldedAddress: encodeWalletAddresses(state, network).unshielded,
   };
 }
 

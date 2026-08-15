@@ -1065,3 +1065,21 @@ a.model-card:hover { border-color: var(--blue-text); box-shadow: 0 0 28px rgba(7
   .lab-console .log { min-height: 160px; max-height: 300px; }
   .public-view { max-height: none; }
 }
+
+/* --- Faucet setup (Stagenet first-time wallets) -------------------------------------------- */
+.faucet-row {
+  flex-basis: 100%;
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  padding: 6px 10px;
+  border: 1px solid var(--border-subtle); border-radius: var(--radius-sm);
+  background: var(--surface-raised);
+}
+.faucet-label { font-size: 12px; font-weight: 500; min-width: 74px; }
+.faucet-addr { overflow: hidden; text-overflow: ellipsis; }
+.faucet-open {
+  font-size: 11.5px; font-weight: 500; padding: 3px 12px;
+  border-radius: var(--radius-pill); cursor: pointer; white-space: nowrap;
+  border: 1px solid var(--blue-text); background: none; color: var(--text-link);
+}
+.faucet-open:hover { border-color: var(--accent-hover); color: var(--accent-hover); }
+.faucet-state { margin-left: auto; font-variant-numeric: tabular-nums; }

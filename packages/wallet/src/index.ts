@@ -30,6 +30,7 @@ import {
   WalletEntrySchema,
   WalletFacade,
   type DefaultConfiguration,
+  type UnshieldedKeystore,
 } from '@midnightntwrk/wallet-sdk';
 import { DustSecretKey, LedgerParameters, ZswapSecretKeys } from '@midnightntwrk/ledger-v9';
 import { getNetwork, type NetworkConfig } from '@mra/network';
@@ -101,6 +102,11 @@ export interface MidnightWallet {
   readonly wallet: WalletFacade;
   readonly shieldedSecretKeys: ZswapSecretKeys;
   readonly dustSecretKey: DustSecretKey;
+  /**
+   * The unshielded keystore: verifying key + signer, needed for wallet-level
+   * transactions (DUST-generation registration, plain NIGHT transfers).
+   */
+  readonly keystore: UnshieldedKeystore;
 }
 
 function buildConfiguration(network: NetworkConfig): DefaultConfiguration {
@@ -180,7 +186,8 @@ export async function createWalletFromSeed(
 
   await wallet.start(shieldedSecretKeys, dustSecretKey);
 
-  return { wallet, shieldedSecretKeys, dustSecretKey };
+  return { wallet, shieldedSecretKeys, dustSecretKey, keystore };
 }
 
 export * from './units.ts';
+export * from './dust.ts';

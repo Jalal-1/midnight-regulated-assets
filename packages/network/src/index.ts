@@ -29,6 +29,11 @@ export interface NetworkConfig {
   nodeWs: string;
   indexer: string;
   indexerWs: string;
+  /**
+   * Token faucet for funded test seeds — hosted test networks only; absent on
+   * localnet, where genesis seeds are pre-funded and pre-registered for DUST.
+   */
+  faucet?: string;
   /** Proof server base URL — convenience alias for `proofServerConfig.url`. */
   proofServer: string;
   /**
@@ -170,8 +175,12 @@ const localnet: NetworkEndpoints = {
  */
 const stagenet: NetworkEndpoints = {
   // 'stagenet' is the wallet SDK's own NetworkId.StageNet value, so it is the
-  // string both SDKs should agree on. Still unverified against a live sync.
+  // string both SDKs agree on (verified against a live Stagenet sync 2026-08-15).
   networkId: process.env.MRA_NETWORK_ID ?? 'stagenet',
+  // The faucet is Turnstile-gated and does NOT accept an address query param
+  // (probed 2026-08-16: address/addr/to/recipient/wallet all ignored) — callers
+  // should copy the address for the user and open this URL.
+  faucet: 'https://faucet.stagenet.shielded.tools',
   node: 'https://rpc.stagenet.shielded.tools',
   nodeWs: 'wss://rpc.stagenet.shielded.tools',
   indexer: `https://indexer.stagenet.shielded.tools/api/${INDEXER_API_VERSION}/graphql`,

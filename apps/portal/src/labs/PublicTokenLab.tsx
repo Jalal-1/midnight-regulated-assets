@@ -36,6 +36,7 @@ import {
   type PublicView,
   type TokenSession,
 } from './publicToken.ts';
+import FaucetSetup from './FaucetSetup.tsx';
 import {
   forgetToken,
   loadCheckedTokens,
@@ -137,12 +138,12 @@ export default function PublicTokenLab() {
     }
     ops.setStatus('connecting');
     const acme = await ops.step('Create wallet for ACME Bank (build + sync)', () =>
-      connectPersona('acme', seeds?.acme),
+      connectPersona('acme', seeds?.acme, (m) => ops.say(`  ↳ ${m}`)),
     );
     if (!acme) return;
     setSessions((prev) => ({ ...prev, acme }));
     const alice = await ops.step('Create wallet for Alice (build + sync)', () =>
-      connectPersona('alice', seeds?.alice),
+      connectPersona('alice', seeds?.alice, (m) => ops.say(`  ↳ ${m}`)),
     );
     if (!alice) return;
     setSessions((prev) => ({ ...prev, alice }));
@@ -346,6 +347,22 @@ export default function PublicTokenLab() {
                   <span className="muted small naming-note">
                     developer/test entry — memory only, never persisted
                   </span>
+                  {sessions.acme && (
+                    <FaucetSetup
+                      label="ACME Bank"
+                      wallet={sessions.acme.wallet}
+                      address={sessions.acme.unshieldedAddress}
+                      say={ops.say}
+                    />
+                  )}
+                  {sessions.alice && (
+                    <FaucetSetup
+                      label="Alice"
+                      wallet={sessions.alice.wallet}
+                      address={sessions.alice.unshieldedAddress}
+                      say={ops.say}
+                    />
+                  )}
                 </section>
               )}
 

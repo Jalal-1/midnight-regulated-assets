@@ -15,6 +15,7 @@ import {
   configureNetworkId,
   createWalletFromSeed,
   encodeWalletAddresses,
+  ensureDustGeneration,
   type MidnightWallet,
 } from '@mra/wallet';
 import { createBrowserProviders } from '@mra/wallet/providers/browser';
@@ -57,7 +58,10 @@ export interface Session {
  * faucet-funded seed the USER typed — such a seed is never hardcoded and never
  * persisted by this app.
  */
-export async function connect(seedOrIndex: number | string = 0): Promise<Session> {
+export async function connect(
+  seedOrIndex: number | string = 0,
+  onProgress?: (message: string) => void,
+): Promise<Session> {
   const network = currentNetwork();
   await configureNetworkId(network);
 
@@ -67,6 +71,13 @@ export async function connect(seedOrIndex: number | string = 0): Promise<Session
       : (LOCALNET_GENESIS_SEEDS[seedOrIndex] ?? LOCALNET_GENESIS_SEEDS[0]!);
   const wallet = await createWalletFromSeed(seed, network);
   const state = await wallet.wallet.waitForSyncedState();
+
+  // Hosted networks: a first-time wallet must designate a DUST address before
+  // it can pay for anything. No-op when already generating; localnet genesis
+  // wallets are pre-registered so this never runs there.
+  if (network.networkId !== 'undeployed') {
+    await ensureDustGeneration(wallet, { onProgress });
+  }
 
   const providers = await createBrowserProviders<CircuitId>({
     network,

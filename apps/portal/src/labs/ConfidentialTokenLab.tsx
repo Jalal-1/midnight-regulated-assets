@@ -45,6 +45,7 @@ import {
   type CftView,
 } from './confidentialToken.ts';
 import { forgetCft, loadCheckedCfts, rememberCft, type CheckedCft } from './cftHistory.ts';
+import FaucetSetup from './FaucetSetup.tsx';
 
 const ISSUE = 100_000n;
 const PAY = 25_000n;
@@ -137,7 +138,7 @@ export default function ConfidentialTokenLab() {
     for (const persona of ['acme', 'alice', 'bob'] as const) {
       const label = persona === 'acme' ? 'ACME Bank' : persona === 'alice' ? 'Alice' : 'Bob';
       const session = await ops.step(`Create wallet for ${label} (build + sync)`, () =>
-        connectCftPersona(persona, typed?.[persona]),
+        connectCftPersona(persona, typed?.[persona], (m) => ops.say(`  ↳ ${m}`)),
       );
       if (!session) return;
       setSessions((prev) => ({ ...prev, [persona]: session }));
@@ -348,6 +349,18 @@ export default function ConfidentialTokenLab() {
                   <span className="muted small naming-note">
                     developer/test entry — memory only, never persisted
                   </span>
+                  {(['acme', 'alice', 'bob'] as const).map((who) => {
+                    const session = sessions[who];
+                    return session ? (
+                      <FaucetSetup
+                        key={who}
+                        label={session.tokenWallet.label}
+                        wallet={session.wallet}
+                        address={session.unshieldedAddress}
+                        say={ops.say}
+                      />
+                    ) : null;
+                  })}
                 </section>
               )}
 
