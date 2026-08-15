@@ -55,10 +55,10 @@ import {
   type ContractAddress,
   type Either,
   type Ledger,
-} from '../../contract/managed/contract/index.js';
+} from '../../contract/managed/public-token/contract/index.js';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const ZK_CONFIG_PATH = resolve(HERE, '../../contract/managed');
+const ZK_CONFIG_PATH = resolve(HERE, '../../contract/managed/public-token');
 
 const PRIVATE_STATE_PASSWORD = process.env.MRA_PRIVATE_STATE_PASSWORD ?? 'Localnet-Dev-Pw-2026!';
 

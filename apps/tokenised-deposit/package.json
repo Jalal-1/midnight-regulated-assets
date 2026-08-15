@@ -4,7 +4,8 @@
   "private": true,
   "type": "module",
   "exports": {
-    "./contract": "./contract/managed/contract/index.js"
+    "./contract": "./contract/managed/public-token/contract/index.js",
+    "./contract-confidential": "./contract/managed/confidential-token/contract/index.js"
   },
   "dependencies": {
     "@midnight-ntwrk/compact-runtime": "0.18.0-rc.1",
@@ -13,9 +14,10 @@
     "@midnight-ntwrk/midnight-js-protocol": "5.0.0-beta.4",
     "@mra/network": "workspace:^",
     "@mra/wallet": "workspace:^",
-    "@openzeppelin/compact-contracts": "0.3.0-alpha.2"
+    "@openzeppelin/compact-contracts": "patch:@openzeppelin/compact-contracts@npm%3A0.3.0-alpha.2#~/.yarn/patches/@openzeppelin-compact-contracts-npm-0.3.0-alpha.2-51da427d6f.patch"
   },
   "scripts": {
-    "design-options:public": "node --experimental-strip-types src/design-options/public-token.ts"
+    "design-options:public": "node --experimental-strip-types src/design-options/public-token.ts",
+    "design-options:confidential": "node --experimental-strip-types src/design-options/confidential-token.ts"
   }
 }

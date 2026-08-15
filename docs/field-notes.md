@@ -676,3 +676,59 @@ the first ~6 s of a new chain; treat that as "cannot identify", not "matches".
 Related: `yarn localnet:up` now ALWAYS starts a fresh chain (down -v first) —
 retained state across restarts confused everyone. `yarn localnet:resume`
 restarts the containers without wiping.
+
+## 2026-08-15 · OZ compact-contracts 0.3.0-alpha.2 PATCHED for language 0.25 — the CFT compiles and runs
+
+The confidential fungible token is unblocked. What was wrong, what the patch
+does, and a compiler bug it uncovered:
+
+**Why it did not compile.** OZ 0.3.0-alpha.2 targets the pre-0.25 stdlib where
+curve ops took `Field` scalars. Language 0.25 types them: `ecMulGenerator` /
+`ecMul` want a `JubjubScalar`. First error: `no compatible function named
+ecMulGenerator … supplied (Field), declared (JubjubScalar)`.
+
+**The patch** — `.yarn/patches/@openzeppelin-compact-contracts-npm-0.3.0-alpha.2-*.patch`,
+applied automatically by yarn on every install, three files, two kinds of change:
+
+1. **16 scalar casts**: every `ec*` call site gains `as JubjubScalar`
+   (`crypto/ElGamal.compact`, `crypto/EcdhMask.compact`,
+   `token/ConfidentialFungibleToken.compact`). Semantically safe by OZ's own
+   hash-to-scalar discipline: every scalar reaching a curve op is already
+   reduced below the Jubjub subgroup order, so the (range-checked) casts
+   cannot fault on values the modules produce.
+2. **One rename**: 0.25's stdlib gained its own `ecNeg`, making OZ's local one
+   ambiguous at every call site. `ecNeg` → `ecNegViaOrder` in ElGamal.compact.
+   Behaviour unchanged (still negates via `ecMul` by ℓ−1).
+
+**No cryptographic behaviour changes.** Both edits are type-level. Re-verify
+against the diff, not this note. Drop the patch when OZ ships an 0.25-ready
+release.
+
+**Compiler bug uncovered (report upstream):** with `--feature-zkir-v3`,
+compactc 0.33.0-rc.2 dies on the CFT composition with an INTERNAL error —
+`failed assertion cannot-happen at line 558 of compiler/zkir-v3-passes.ss`.
+Without the flag all 11 circuits compile, and the `_experimental` proof server
+proves them fine (measured 0.27–0.40s per proof). So `ops/redeploy.sh` grew a
+per-contract opt-out: the marker `// compactc-flags: no-zkir-v3` at the top of
+a .compact file. Only confidential-token.compact carries it.
+
+**Multiple contracts per app**: redeploy.sh now compiles each contract to
+`managed/<contract-name>/` — a shared `managed/` let the alphabetically-last
+contract silently overwrite the others' keys.
+
+**The full confidential lifecycle runs on localnet** (deploy → register ×2 →
+mint 1,000.00 → sweep → transfer 250.00 (amount hidden) → sweep →
+redeem 500.00): proving stays ~0.3s per call even for the k=16 transfer
+circuit. Witness notes that matter:
+- `wit_RandomnessSeed` MUST return fresh CSPRNG bytes per call. OZ's own test
+  witness returns a fixed seed and its header says reuse leaks amount
+  differences. Do not copy the test witness.
+- `wit_PlaintextBalance(ct)` is the wallet's job: track your own plaintext (or
+  ElGamal-decrypt by discrete log). The circuit verifies the claim with
+  `assertDecryptsTo`, so wrong tracking fails the proof, never corrupts state.
+  Match the `ct` argument against the ledger's balance vs pending cell to know
+  which number is being asked for.
+- Recipients must `register()` (publish an encryption key) BEFORE they can be
+  minted to or paid — and registering is a transaction, so on this composition
+  every participant needs a funded wallet, unlike the public token where a
+  recipient was just an account id.

@@ -1,0 +1,136 @@
+// Design option 2: the account-based CONFIDENTIAL fungible token.
+//
+// The composition the tokenised deposit actually wants: balances and transfer
+// amounts are ElGamal ciphertexts — the indexer serves only encrypted cells —
+// while the issuer keeps control (owner-gated mint and compliance burn) and
+// the total supply stays PUBLIC via the PublicSupply extension, because a bank
+// attesting 1:1 backing needs an attestable circulating supply.
+//
+// What stays visible on chain, deliberately: the counterparty graph (sender
+// and recipient account ids on each transfer) and each mint/redeem amount via
+// the totalSupply delta. What is hidden: every balance and every transfer
+// amount.
+//
+// Composition, not invention: OpenZeppelin's ConfidentialFungibleToken +
+// ConfidentialFungibleTokenPublicSupply extension, gated by OpenZeppelin's
+// Ownable. NOTE: the OZ package is patched for Compact language 0.25 (typed
+// Jubjub scalars; a local ecNeg rename) — see
+// .yarn/patches/@openzeppelin-compact-contracts-*.patch and the field notes
+// entry of 2026-08-15. The patch is mechanical; no cryptographic behaviour
+// changes.
+//
+// The supply/token pairing below is a CONTRACT-LEVEL invariant the extension
+// cannot enforce: every _mint pairs with _addSupply, every burn with
+// _subSupply, or sum(balances) == totalSupply stops being true.
+
+// compactc-flags: no-zkir-v3
+// ^ NOT decorative: compactc 0.33.0-rc.2's zkir-v3 passes crash with an
+// internal "cannot-happen" error (zkir-v3-passes.ss:558) on this composition.
+// Without the flag all 11 circuits compile, and the pinned _experimental
+// proof server accepts both IR versions. Remove when the compiler is fixed.
+
+pragma language_version >= 0.23.0;
+
+import CompactStandardLibrary;
+
+import "../../../node_modules/@openzeppelin/compact-contracts/access/Ownable"
+  prefix Ownable_;
+import "../../../node_modules/@openzeppelin/compact-contracts/crypto/ElGamal"
+  prefix ElGamal_;
+import "../../../node_modules/@openzeppelin/compact-contracts/token/ConfidentialFungibleToken"
+  prefix CFT_;
+import "../../../node_modules/@openzeppelin/compact-contracts/token/extensions/ConfidentialFungibleTokenPublicSupply"
+  prefix Supply_;
+
+// Surface the modules' ledger state at the top level (same reasoning as the
+// public token): the indexer then hands anyone the ENCRYPTED balance cells,
+// the encryption-key registry, the public supply, and the token identity.
+// Serving the ciphertexts publicly is the design: they are safe to publish.
+import { _balances, _pending, _encryptionKeys, _name, _symbol, _decimals } from "../../../node_modules/@openzeppelin/compact-contracts/token/ConfidentialFungibleToken";
+import { _totalSupply } from "../../../node_modules/@openzeppelin/compact-contracts/token/extensions/ConfidentialFungibleTokenPublicSupply";
+import { _owner } from "../../../node_modules/@openzeppelin/compact-contracts/access/Ownable";
+export { _balances, _pending, _encryptionKeys, _name, _symbol, _decimals, _totalSupply, _owner };
+
+export { ContractAddress, Either };
+
+constructor(
+  name: Opaque<"string">,
+  symbol: Opaque<"string">,
+  decimals: Uint<8>,
+  initialOwner: Either<Bytes<32>, ContractAddress>
+) {
+  Ownable_initialize(initialOwner);
+  CFT_initialize(name, symbol, decimals);
+}
+
+// --- Onboarding ----------------------------------------------------------------
+
+/**
+ * Publish the caller's encryption public key. An account must register before
+ * it can receive: senders encrypt to this key. Returns the caller's accountId.
+ */
+export circuit register(): Bytes<32> {
+  return CFT_register();
+}
+
+// --- Issuer operations — owner only ----------------------------------------------
+
+/** Issue deposits: mint to a registered account. The amount is public ONLY via
+ *  the totalSupply delta; the recipient's balance stays encrypted. */
+export circuit mint(account: Bytes<32>, value: Uint<128>): [] {
+  Ownable_assertOnlyOwner();
+  Supply__addSupply(value);
+  CFT__mint(account, value);
+}
+
+/** Compliance burn: the issuer burns from a named account (court order,
+ *  redemption on the account's behalf). Owner-gated. */
+export circuit burnFrom(account: Bytes<32>, value: Uint<128>): [] {
+  Ownable_assertOnlyOwner();
+  Supply__subSupply(value);
+  CFT__burnFrom(account, value);
+}
+
+// --- Holder operations ------------------------------------------------------------
+
+/** Customer payment. Amount hidden; (sender, recipient) ids are public. */
+export circuit transfer(to: Bytes<32>, value: Uint<128>): Bytes<32> {
+  return CFT_transfer(to, value);
+}
+
+/** Redeem: the CALLER surrenders `value` (burns own funds); the bank credits
+ *  fiat off-chain. The amount becomes public via the supply delta. */
+export circuit redeem(value: Uint<128>): Bytes<32> {
+  Supply__subSupply(value);
+  return CFT__burn(value);
+}
+
+/** Fold received (pending) funds into the spendable balance. Incoming credits
+ *  land in pending so a sender cannot re-randomize the recipient's live
+ *  balance cell; the recipient sweeps on their own schedule. */
+export circuit sweep(): Bytes<32> {
+  return CFT_sweep();
+}
+
+// --- Reads --------------------------------------------------------------------------
+
+/** The ENCRYPTED balance cell — anyone can fetch it; only the key holder can read it. */
+export circuit balanceOf(account: Bytes<32>): ElGamal_Ciphertext {
+  return CFT_balanceOf(account);
+}
+
+export circuit pendingOf(account: Bytes<32>): ElGamal_Ciphertext {
+  return CFT_pendingOf(account);
+}
+
+export circuit isRegistered(account: Bytes<32>): Boolean {
+  return CFT_isRegistered(account);
+}
+
+export circuit totalSupply(): Uint<128> {
+  return Supply_totalSupply();
+}
+
+export circuit owner(): Either<Bytes<32>, ContractAddress> {
+  return Ownable_owner();
+}

@@ -521,7 +521,7 @@ __metadata:
     "@midnight-ntwrk/midnight-js-protocol": "npm:5.0.0-beta.4"
     "@mra/network": "workspace:^"
     "@mra/wallet": "workspace:^"
-    "@openzeppelin/compact-contracts": "npm:0.3.0-alpha.2"
+    "@openzeppelin/compact-contracts": "patch:@openzeppelin/compact-contracts@npm%3A0.3.0-alpha.2#~/.yarn/patches/@openzeppelin-compact-contracts-npm-0.3.0-alpha.2-51da427d6f.patch"
   languageName: unknown
   linkType: soft
 
@@ -681,6 +681,15 @@ __metadata:
   dependencies:
     "@openzeppelin/compact-cli": "npm:^0.0.2"
   checksum: 10/0020df160e2952ee78cf8a3df4eea0dc8c907bf645109b43d9c7460607b3ad3e4b8496aa7c2a49d256fa454d534a40ab592abead1e7cc2064df1a7db79d509dc
+  languageName: node
+  linkType: hard
+
+"@openzeppelin/compact-contracts@patch:@openzeppelin/compact-contracts@npm%3A0.3.0-alpha.2#~/.yarn/patches/@openzeppelin-compact-contracts-npm-0.3.0-alpha.2-51da427d6f.patch":
+  version: 0.3.0-alpha.2
+  resolution: "@openzeppelin/compact-contracts@patch:@openzeppelin/compact-contracts@npm%3A0.3.0-alpha.2#~/.yarn/patches/@openzeppelin-compact-contracts-npm-0.3.0-alpha.2-51da427d6f.patch::version=0.3.0-alpha.2&hash=187da6"
+  dependencies:
+    "@openzeppelin/compact-cli": "npm:^0.0.2"
+  checksum: 10/0221d54a4ea7a180004881a7a592112285d5d69d439a6ef71c500791b0359f2d0986fc3827e15c7c2302f70b83eec164b870485149cf2111ea25ee56f0421059
   languageName: node
   linkType: hard
 

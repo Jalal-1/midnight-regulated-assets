@@ -28,10 +28,10 @@ import {
 import { configureNetworkId, createWalletFromSeed } from '@mra/wallet';
 import { createProviders } from '@mra/wallet/providers';
 
-import { Contract, ledger } from '../contract/managed/contract/index.js';
+import { Contract, ledger } from '../contract/managed/counter/contract/index.js';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const ZK_CONFIG_PATH = resolve(HERE, '../contract/managed');
+const ZK_CONFIG_PATH = resolve(HERE, '../contract/managed/counter');
 
 /**
  * Localnet-only password for private-state-at-rest encryption. Encryption is not

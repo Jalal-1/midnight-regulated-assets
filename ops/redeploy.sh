@@ -16,22 +16,38 @@ TOOLCHAIN="$REPO_ROOT/.toolchain/current"
 }
 export PATH="$TOOLCHAIN:$PATH"
 
-# ZKIR v3 everywhere: contracts built with it only verify against the
+# ZKIR v3 by default: contracts built with it only verify against the
 # _experimental proof-server build, which is what ops/localnet pins.
+#
+# Per-contract opt-out: a source containing the marker line
+#   // compactc-flags: no-zkir-v3
+# compiles WITHOUT the flag. Exists for exactly one reason so far: the OZ
+# ConfidentialFungibleToken trips an internal compiler error in the zkir-v3
+# passes ("cannot-happen, zkir-v3-passes.ss:558") but compiles clean without
+# it, and the experimental proof server accepts both IR versions.
 COMPACTC_FLAGS=(--feature-zkir-v3)
 
 echo "Compact $(compactc --version), language $(compactc --language-version)"
 echo
 
-# Every .compact under apps/*/contract/ compiles to a sibling managed/ dir.
+# Every .compact under apps/*/contract/ compiles to managed/<contract-name>/ —
+# per-contract, because an app can ship several contracts and a shared managed/
+# would let the last one silently overwrite the rest.
 shopt -s nullglob
 found=0
 for source in "$REPO_ROOT"/apps/*/contract/*.compact; do
   found=1
   app="$(basename "$(dirname "$(dirname "$source")")")"
-  target="$(dirname "$source")/managed"
-  printf '  %-20s %s\n' "$app" "$(basename "$source")"
-  compactc "${COMPACTC_FLAGS[@]}" "$source" "$target"
+  name="$(basename "$source" .compact)"
+  target="$(dirname "$source")/managed/$name"
+  flags=("${COMPACTC_FLAGS[@]}")
+  if grep -q '^// compactc-flags: no-zkir-v3' "$source"; then
+    flags=()
+    printf '  %-20s %s  (no zkir-v3 — see marker in source)\n' "$app" "$(basename "$source")"
+  else
+    printf '  %-20s %s\n' "$app" "$(basename "$source")"
+  fi
+  compactc "${flags[@]}" "$source" "$target"
 done
 [ "$found" = 1 ] || { echo "no .compact sources found"; exit 1; }
 

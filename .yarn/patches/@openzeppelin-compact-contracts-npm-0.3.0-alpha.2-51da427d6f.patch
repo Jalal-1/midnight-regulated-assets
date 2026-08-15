@@ -1,0 +1,146 @@
+diff --git a/crypto/EcdhMask.compact b/crypto/EcdhMask.compact
+index a43bad07e82269fbefe631a1f75fef394b93dbfc..e86073b11fa1fd1502b35e22fdc38e602f090498 100644
+--- a/crypto/EcdhMask.compact
++++ b/crypto/EcdhMask.compact
+@@ -145,15 +145,15 @@ module EcdhMask {
+                         e: Field,
+                         domain: Bytes<32>
+                         ): Ciphertext {
+-    const identity = ecMulGenerator(0 as Field);
++    const identity = ecMulGenerator(0 as Field as JubjubScalar);
+     assert(recipientPk != identity, "EcdhMask: identity pk");
+-    const ephemeralPk = ecMulGenerator(e);
++    const ephemeralPk = ecMulGenerator(e as JubjubScalar);
+     // Guard the ephemeral POINT, not the scalar: `ephemeralPk == identity`
+     // captures `e == 0` and any `e` that reduces to 0 mod l, so the guard is
+     // correct regardless of how the runtime treats an out-of-range scalar. This
+     // subsumes `e != 0` (see the weak-inputs note).
+     assert(ephemeralPk != identity, "EcdhMask: zero ephemeral");
+-    const sShared = ecMul(recipientPk, e);
++    const sShared = ecMul(recipientPk, e as JubjubScalar);
+     const mask = kdf(sShared, domain);
+     return Ciphertext { ephemeralPk: ephemeralPk, ct: (value as Field) + mask };
+   }
+@@ -170,7 +170,7 @@ module EcdhMask {
+    *         which is `< 2^128`).
+    */
+   export pure circuit decrypt(ciphertext: Ciphertext, ekScalar: Field, domain: Bytes<32>): Field {
+-    const sShared = ecMul(ciphertext.ephemeralPk, ekScalar);
++    const sShared = ecMul(ciphertext.ephemeralPk, ekScalar as JubjubScalar);
+     const mask = kdf(sShared, domain);
+     return ciphertext.ct - mask;
+   }
+diff --git a/crypto/ElGamal.compact b/crypto/ElGamal.compact
+index 004ddd2f84a390e200fb3f3e973e2a87790df5fa..6c0eacdc472e988cf8a623d4e57be619e0dd98f9 100644
+--- a/crypto/ElGamal.compact
++++ b/crypto/ElGamal.compact
+@@ -117,7 +117,7 @@ module ElGamal {
+    * @return The corresponding public key point.
+    */
+   export pure circuit derivePk(ek: Bytes<32>): JubjubPoint {
+-    return ecMulGenerator(secretToScalar(ek));
++    return ecMulGenerator(secretToScalar(ek) as JubjubScalar);
+   }
+ 
+   /**
+@@ -168,8 +168,8 @@ module ElGamal {
+    * cofactor clearing), so no in-subgroup precondition needs to be checked or
+    * assumed. See the module-level subgroup note.
+    */
+-  pure circuit ecNeg(p: JubjubPoint): JubjubPoint {
+-    return ecMul(p, JUBJUB_SUBGROUP_ORDER_MINUS_ONE());
++  pure circuit ecNegViaOrder(p: JubjubPoint): JubjubPoint {
++    return ecMul(p, JUBJUB_SUBGROUP_ORDER_MINUS_ONE() as JubjubScalar);
+   }
+ 
+   // ---------------------------------------------------------------------------
+@@ -186,7 +186,7 @@ module ElGamal {
+    * before treating it as private.
+    */
+   export pure circuit encryptZero(): Ciphertext {
+-    const id = ecMulGenerator(0 as Field);
++    const id = ecMulGenerator(0 as Field as JubjubScalar);
+     return Ciphertext { c1: id, c2: id };
+   }
+ 
+@@ -215,10 +215,10 @@ module ElGamal {
+    * @return The ciphertext `(g^r, pk^r * m)`.
+    */
+   export pure circuit encryptPoint(pk: JubjubPoint, m: JubjubPoint, r: Field): Ciphertext {
+-    assert(pk != ecMulGenerator(0 as Field), "ElGamal: identity pk");
++    assert(pk != ecMulGenerator(0 as Field as JubjubScalar), "ElGamal: identity pk");
+     assert(r != 0 as Field, "ElGamal: zero randomness");
+-    const c1 = ecMulGenerator(r);
+-    const mask = ecMul(pk, r);
++    const c1 = ecMulGenerator(r as JubjubScalar);
++    const mask = ecMul(pk, r as JubjubScalar);
+     const c2 = ecAdd(mask, m);
+     return Ciphertext { c1: c1, c2: c2 };
+   }
+@@ -240,7 +240,7 @@ module ElGamal {
+    * @return The ciphertext `(g^r, pk^r * g^value)`.
+    */
+   export pure circuit encrypt(pk: JubjubPoint, value: Uint<128>, r: Field): Ciphertext {
+-    return encryptPoint(pk, ecMulGenerator(value as Field), r);
++    return encryptPoint(pk, ecMulGenerator(value as Field as JubjubScalar), r);
+   }
+ 
+   /**
+@@ -252,7 +252,7 @@ module ElGamal {
+    * @return A ciphertext of `-v`.
+    */
+   export pure circuit negate(ct: Ciphertext): Ciphertext {
+-    return Ciphertext { c1: ecNeg(ct.c1), c2: ecNeg(ct.c2) };
++    return Ciphertext { c1: ecNegViaOrder(ct.c1), c2: ecNegViaOrder(ct.c2) };
+   }
+ 
+   /**
+@@ -311,7 +311,7 @@ module ElGamal {
+    * @return A ciphertext of `k * v`.
+    */
+   export pure circuit scalarMul(ct: Ciphertext, k: Field): Ciphertext {
+-    return Ciphertext { c1: ecMul(ct.c1, k), c2: ecMul(ct.c2, k) };
++    return Ciphertext { c1: ecMul(ct.c1, k as JubjubScalar), c2: ecMul(ct.c2, k as JubjubScalar) };
+   }
+ 
+   /**
+@@ -431,15 +431,15 @@ module ElGamal {
+     // `ekField` is computed once and reused for the decryption below, avoiding
+     // a second `secretToScalar` hash in this hot verification path.
+     const ekField = secretToScalar(ek);
+-    assert(ecMulGenerator(ekField) == pk,
++    assert(ecMulGenerator(ekField as JubjubScalar) == pk,
+            "ElGamal: ek/pk mismatch");
+ 
+     // m = c2 - ek*c1. ek*c1 is negated via ecNeg (scalar mul by ℓ-1) rather
+     // than ecMul by a negative scalar, which would exceed the Jubjub scalar
+     // field. ekField < ℓ (the subgroup order), so ecMul(ct.c1, ekField) is a
+     // valid scalar mul.
+-    const ekC1 = ecMul(ct.c1, ekField);
+-    const mPoint = ecAdd(ct.c2, ecNeg(ekC1));
++    const ekC1 = ecMul(ct.c1, ekField as JubjubScalar);
++    const mPoint = ecAdd(ct.c2, ecNegViaOrder(ekC1));
+     assert(mPoint == m,
+            "ElGamal: plaintext mismatch");
+   }
+@@ -468,6 +468,6 @@ module ElGamal {
+                    ek: Bytes<32>,
+                    claimedValue: Uint<128>
+                    ): [] {
+-    assertDecryptsToPoint(ct, pk, ek, ecMulGenerator(claimedValue as Field));
++    assertDecryptsToPoint(ct, pk, ek, ecMulGenerator(claimedValue as Field as JubjubScalar));
+   }
+ }
+diff --git a/token/ConfidentialFungibleToken.compact b/token/ConfidentialFungibleToken.compact
+index 9014b9e76e5cd42dabb41241f669961b05b7621f..4e6e887fd8a6e574d55f16b970c9e73c86d7e9eb 100644
+--- a/token/ConfidentialFungibleToken.compact
++++ b/token/ConfidentialFungibleToken.compact
+@@ -1167,7 +1167,7 @@ module ConfidentialFungibleToken {
+           // never decrypted. Use an on-curve identity point (never a `default`,
+           // which is off-curve).
+           ownerMemo: EcdhMask_Ciphertext {
+-            ephemeralPk: ecMulGenerator(0 as Field),
++            ephemeralPk: ecMulGenerator(0 as Field as JubjubScalar),
+             ct: 0 as Field
+           }
+         })
