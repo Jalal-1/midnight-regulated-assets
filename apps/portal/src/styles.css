@@ -1364,3 +1364,40 @@ a.model-card:hover { border-color: var(--blue-text); box-shadow: 0 0 28px rgba(7
   .st-compare-grid, .st-assur-grid, .st-part-grid, .st-matrix-grid { grid-template-columns: 1fr; gap: 4px; }
   .st-table-head { display: none; }
 }
+
+/* De-pilled: chips are quiet text flags. The ONE pill is the topbar network pill. */
+.chip-badge { border: 0; padding: 0; border-radius: 0; font-size: 11.5px; letter-spacing: 0.02em; }
+.chip-dot { display: none; }
+.st-netpill {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-size: 12px; font-weight: 600; padding: 5px 14px;
+  border-radius: var(--radius-pill); white-space: nowrap;
+  background: var(--accent); color: #fff;
+}
+.st-netpill.local { background: none; border: 1px solid var(--blue-text); color: var(--text-link); font-weight: 500; }
+.st-netpill .dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+
+/* Landing + text flags */
+.st-landing { flex: 1; display: flex; justify-content: center; align-items: center; position: relative; overflow: hidden; padding: 48px 24px; }
+.st-landing-inner { max-width: 720px; display: grid; gap: 22px; justify-items: center; text-align: center; position: relative; animation: fadeUp 0.35s var(--ease-out); }
+.st-landing-logo { width: 44px; height: 44px; color: var(--text-primary); }
+.st-landing-inner h1 { font-size: clamp(34px, 5vw, 54px); font-weight: 500; letter-spacing: -0.02em; line-height: 1.06; margin: 0; white-space: normal; }
+.st-landing-lede { margin: 0; font-size: 17px; line-height: 1.55; color: var(--text-secondary); max-width: 560px; }
+.st-landing-points { display: grid; gap: 10px; text-align: left; max-width: 560px; font-size: 13.5px; color: var(--text-secondary); line-height: 1.55; }
+.st-landing-points strong { color: var(--text-primary); font-weight: 500; }
+
+.st-flag { font-size: 11.5px; font-weight: 500; color: var(--text-muted); letter-spacing: 0.02em; white-space: nowrap; }
+.st-flag.ok { color: #5fd79a; }
+.st-flag.warn { color: #efbe6e; }
+.st-flag.err { color: #f27e82; }
+.st-flag.accent { color: var(--blue-text); }
+.theme-light .st-flag.ok { color: #166b3e; }
+.theme-light .st-flag.warn { color: #805508; }
+.theme-light .st-flag.err { color: #a82a2e; }
+.st-flag.mono { font-family: var(--font-mono); }
+
+.st-pick.token { gap: 6px; }
+.st-pick-model { font-size: 12.5px; color: var(--blue-text); font-weight: 500; }
+.st-pick.undeployable { opacity: 0.86; }
+.st-pick .st-flag { white-space: normal; }
+.st-flag.big { font-size: 13px; }

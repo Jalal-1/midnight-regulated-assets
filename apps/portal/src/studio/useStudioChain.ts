@@ -1,11 +1,19 @@
 /**
  * The studio's chain bridge — every number and hash the studio shows comes
- * through here, and none of it is simulated. Reuses the CFT lab's lifecycle
- * module (same contract, witnesses, wallets); the studio adds the pipeline
- * shape the design wants: a stepped deployment, activity with real tx ids and
- * measured durations, and auto-sweep so "issue" and "transfer" behave like the
- * product actions the design describes (each sweep is its own REAL transaction
- * and is logged as one).
+ * through here, and none of it is simulated.
+ *
+ * Two deployable token kinds, both real:
+ *   'public'        — the unshielded contract token (FungibleToken + Ownable):
+ *                     balances in public contract state, read straight off the
+ *                     indexer.
+ *   'confidential'  — the CFT: encrypted balances, hidden amounts, public
+ *                     supply; wallet-side plaintext tracked in memory and
+ *                     verified by every proof.
+ *
+ * The deployment pipeline's steps are actual transactions completing live;
+ * issue/transfer/redeem carry real ids and measured durations. On the
+ * confidential token, the recipient's required sweep runs as its own real,
+ * logged transaction.
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -24,9 +32,20 @@ import {
   sweepCft,
   transferCft,
   type CftSession,
-  type CftView,
 } from '../labs/confidentialToken.ts';
+import {
+  accountId,
+  asAccount,
+  burn as burnPublic,
+  connectPersona as connectPublicPersona,
+  deployToken as deployPublic,
+  mint as mintPublic,
+  readPublicView,
+  transfer as transferPublic,
+  type TokenSession,
+} from '../labs/publicToken.ts';
 
+export type TokenKind = 'public' | 'confidential';
 export type PersonaId = 'acme' | 'alice' | 'bob';
 export const PERSONA_LABEL: Record<PersonaId, string> = {
   acme: 'ACME Bank treasury',
@@ -51,24 +70,44 @@ export interface DeployStep {
   readonly detail?: string;
 }
 
-const DEPLOY_STEPS: readonly Omit<DeployStep, 'state' | 'detail'>[] = [
-  { id: 'wallets', label: 'Preparing issuer environment', tech: 'wallets built from seeds · roles derived · DUST available' },
-  { id: 'deploy', label: 'Deploying the asset contract', tech: 'proved locally · submitted · block inclusion' },
-  { id: 'registerAlice', label: 'Registering Alice for confidential receiving', tech: 'encryption key published on-chain (proved transaction)' },
-  { id: 'registerBob', label: 'Registering Bob for confidential receiving', tech: 'encryption key published on-chain (proved transaction)' },
-];
+const STEPS: Record<TokenKind, readonly Omit<DeployStep, 'state' | 'detail'>[]> = {
+  confidential: [
+    { id: 'wallets', label: 'Preparing issuer environment', tech: 'wallets built from seeds · roles derived · DUST available' },
+    { id: 'deploy', label: 'Deploying the asset contract', tech: 'proved locally · submitted · block inclusion' },
+    { id: 'registerAlice', label: 'Registering Alice for confidential receiving', tech: 'encryption key published on-chain (proved transaction)' },
+    { id: 'registerBob', label: 'Registering Bob for confidential receiving', tech: 'encryption key published on-chain (proved transaction)' },
+  ],
+  public: [
+    { id: 'wallets', label: 'Preparing issuer environment', tech: 'wallets built from seeds · roles derived · DUST available' },
+    { id: 'deploy', label: 'Deploying the asset contract', tech: 'proved locally · submitted · block inclusion' },
+  ],
+};
 
 const now = () => new Date().toTimeString().slice(0, 8);
 const shortTx = (tx: string) => `${tx.slice(0, 10)}…`;
 const seconds = (ms: number) => `${(ms / 1000).toFixed(1)} s`;
 
-type Sessions = Partial<Record<PersonaId, CftSession>>;
+/** One shape for both kinds — the dashboard renders from this. */
+export interface StudioView {
+  readonly symbol: string;
+  readonly decimals: number;
+  readonly totalSupply: bigint;
+  /** Confidential only: registered account count (public data). Null for public kind. */
+  readonly registeredCount: number | null;
+  /** Public kind only: the enumerable holder list, straight off the indexer. */
+  readonly holders: readonly { id: string; balance: bigint }[] | null;
+}
+
+interface AnySessions {
+  kind: TokenKind;
+  cft: Partial<Record<PersonaId, CftSession>>;
+  pub: Partial<Record<PersonaId, TokenSession>>;
+}
 
 export interface StudioChain {
-  readonly sessions: Sessions;
+  readonly kind: TokenKind;
   readonly address: string | null;
-  readonly deployTx: string | null;
-  readonly view: CftView | null;
+  readonly view: StudioView | null;
   readonly activity: readonly ActivityEvent[];
   readonly deploySteps: readonly DeployStep[];
   readonly busy: boolean;
@@ -76,8 +115,16 @@ export interface StudioChain {
   readonly lastOp: { label: string; tx: string; ms: number } | null;
   readonly issuedTotal: bigint;
   readonly redeemedTotal: bigint;
-  readonly balances: Readonly<Record<string, bigint>>;
+  /** Holder balances by persona. Public kind: chain-read. Confidential: wallet-side. */
+  readonly balances: Readonly<Partial<Record<'alice' | 'bob', bigint>>>;
+  /** Confidential only: pending (unswept) amounts, wallet-side. */
+  readonly pending: Readonly<Partial<Record<'alice' | 'bob', bigint>>>;
+  readonly registered: (who: 'alice' | 'bob') => boolean;
+  readonly walletAddress: (who: PersonaId) => string | null;
+  readonly walletOf: (who: PersonaId) => CftSession['wallet'] | TokenSession['wallet'] | null;
+  readonly accountIdHex: (who: PersonaId) => string | null;
   readonly runDeployment: (
+    kind: TokenKind,
     naming: { name: string; symbol: string },
     seeds?: Record<PersonaId, string>,
   ) => Promise<boolean>;
@@ -89,95 +136,122 @@ export interface StudioChain {
 }
 
 export function useStudioChain(): StudioChain {
-  const [sessions, setSessions] = useState<Sessions>({});
+  const [kind, setKind] = useState<TokenKind>('confidential');
   const [address, setAddress] = useState<string | null>(null);
-  const [deployTx, setDeployTx] = useState<string | null>(null);
-  const [view, setView] = useState<CftView | null>(null);
+  const [view, setView] = useState<StudioView | null>(null);
+  const [registeredIds, setRegisteredIds] = useState<readonly string[]>([]);
   const [activity, setActivity] = useState<readonly ActivityEvent[]>([]);
   const [deploySteps, setDeploySteps] = useState<readonly DeployStep[]>(
-    DEPLOY_STEPS.map((s) => ({ ...s, state: 'pending' as const })),
+    STEPS.confidential.map((s) => ({ ...s, state: 'pending' as const })),
   );
   const [busy, setBusy] = useState(false);
   const [opErr, setOpErr] = useState<string | null>(null);
   const [lastOp, setLastOp] = useState<{ label: string; tx: string; ms: number } | null>(null);
   const [issuedTotal, setIssuedTotal] = useState(0n);
   const [redeemedTotal, setRedeemedTotal] = useState(0n);
-  // Re-render tick so wallet-side (mutable CftWallet) balances refresh on screen.
   const [, setTick] = useState(0);
-  const sessionsRef = useRef<Sessions>({});
+  const sessionsRef = useRef<AnySessions>({ kind: 'confidential', cft: {}, pub: {} });
 
   const log = useCallback((label: string, note: string, tx: string) => {
     setActivity((prev) => [{ t: now(), label, note, tx }, ...prev]);
   }, []);
 
-  // Eve's poll — the PUBLIC view, straight off the indexer.
+  const refreshView = useCallback(async (at: string, forKind: TokenKind) => {
+    if (forKind === 'confidential') {
+      const v = await readCftView(at);
+      if (!v) return;
+      setRegisteredIds(v.registered.map(hex));
+      setView({
+        symbol: v.symbol,
+        decimals: v.decimals,
+        totalSupply: v.totalSupply,
+        registeredCount: v.registered.length,
+        holders: null,
+      });
+    } else {
+      const v = await readPublicView(at);
+      if (!v) return;
+      setView({
+        symbol: v.symbol,
+        decimals: v.decimals,
+        totalSupply: v.totalSupply,
+        registeredCount: null,
+        holders: v.holdings.map((h) => ({ id: hex(h.account), balance: h.balance })),
+      });
+    }
+  }, []);
+
   useEffect(() => {
     if (!address) return;
-    const tick = async () => {
-      try {
-        setView(await readCftView(address));
-      } catch {
-        /* transient — next poll */
-      }
-    };
+    const tick = () => refreshView(address, sessionsRef.current.kind).catch(() => {});
     void tick();
-    const timer = setInterval(() => void tick(), 5000);
+    const timer = setInterval(tick, 5000);
     return () => clearInterval(timer);
-  }, [address]);
+  }, [address, refreshView]);
 
   const step = useCallback((id: string, state: StepState, detail?: string) => {
     setDeploySteps((prev) => prev.map((s) => (s.id === id ? { ...s, state, detail } : s)));
   }, []);
 
-  /**
-   * The REAL deployment pipeline the design's deploy screen renders:
-   * wallets (×3, with DUST setup on hosted networks) → deploy → register
-   * Alice → register Bob. Every check mark is an actual completed step.
-   */
   const runDeployment = useCallback(
-    async (naming: { name: string; symbol: string }, seeds?: Record<PersonaId, string>): Promise<boolean> => {
+    async (
+      deployKind: TokenKind,
+      naming: { name: string; symbol: string },
+      seeds?: Record<PersonaId, string>,
+    ): Promise<boolean> => {
       setBusy(true);
       setOpErr(null);
-      setDeploySteps(DEPLOY_STEPS.map((s) => ({ ...s, state: 'pending' as const })));
+      setKind(deployKind);
+      sessionsRef.current = { kind: deployKind, cft: {}, pub: {} };
+      setDeploySteps(STEPS[deployKind].map((s) => ({ ...s, state: 'pending' as const })));
       try {
         step('wallets', 'running');
-        const started = Date.now();
-        const next: Sessions = {};
-        for (const persona of ['acme', 'alice', 'bob'] as const) {
-          next[persona] = await connectCftPersona(persona, seeds?.[persona], (m) =>
-            step('wallets', 'running', m),
-          );
+        if (deployKind === 'confidential') {
+          for (const persona of ['acme', 'alice', 'bob'] as const) {
+            sessionsRef.current.cft[persona] = await connectCftPersona(persona, seeds?.[persona], (m) =>
+              step('wallets', 'running', m),
+            );
+          }
+        } else {
+          for (const persona of ['acme', 'alice', 'bob'] as const) {
+            sessionsRef.current.pub[persona] = await connectPublicPersona(persona, seeds?.[persona], (m) =>
+              step('wallets', 'running', m),
+            );
+          }
         }
-        sessionsRef.current = next;
-        setSessions(next);
-        const acme = next.acme!;
+        const issuer =
+          deployKind === 'confidential' ? sessionsRef.current.cft.acme! : sessionsRef.current.pub.acme!;
         step(
           'wallets',
           'done',
-          `issuer holds ${formatNight(acme.unshieldedBalance)} NIGHT · ${formatDust(acme.dustBalance(new Date()))} DUST`,
+          `issuer holds ${formatNight(issuer.unshieldedBalance)} NIGHT · ${formatDust(issuer.dustBalance(new Date()))} DUST`,
         );
 
         step('deploy', 'running');
         let t = Date.now();
-        const deployed = await deployCft(acme, naming);
+        const deployed =
+          deployKind === 'confidential'
+            ? await deployCft(sessionsRef.current.cft.acme!, naming)
+            : await deployPublic(sessionsRef.current.pub.acme!, naming);
         setAddress(deployed);
         step('deploy', 'done', `address ${deployed.slice(0, 12)}… · ${seconds(Date.now() - t)}`);
         log(`Deployed ${naming.name} (${naming.symbol})`, `proved + confirmed in ${seconds(Date.now() - t)}`, deployed.slice(0, 10));
-        setDeployTx(deployed);
 
-        for (const persona of ['alice', 'bob'] as const) {
-          const id = persona === 'alice' ? 'registerAlice' : 'registerBob';
-          step(id, 'running');
-          t = Date.now();
-          const tx = await registerCft(next[persona]!, deployed);
-          step(id, 'done', `tx ${shortTx(tx.txId)} · ${seconds(Date.now() - t)}`);
-          log(
-            `Registered ${PERSONA_LABEL[persona]} for confidential receiving`,
-            `proved + confirmed in ${seconds(Date.now() - t)}`,
-            shortTx(tx.txId),
-          );
+        if (deployKind === 'confidential') {
+          for (const persona of ['alice', 'bob'] as const) {
+            const id = persona === 'alice' ? 'registerAlice' : 'registerBob';
+            step(id, 'running');
+            t = Date.now();
+            const tx = await registerCft(sessionsRef.current.cft[persona]!, deployed);
+            step(id, 'done', `tx ${shortTx(tx.txId)} · ${seconds(Date.now() - t)}`);
+            log(
+              `Registered ${PERSONA_LABEL[persona]} for confidential receiving`,
+              `proved + confirmed in ${seconds(Date.now() - t)}`,
+              shortTx(tx.txId),
+            );
+          }
         }
-        setView(await readCftView(deployed));
+        await refreshView(deployed, deployKind);
         setBusy(false);
         return true;
       } catch (error) {
@@ -190,12 +264,11 @@ export function useStudioChain(): StudioChain {
         return false;
       }
     },
-    [log, step],
+    [log, refreshView, step],
   );
 
-  /** One lifecycle op; refreshes the public view afterwards. */
   const run = useCallback(
-    async (label: string, note: string, fn: () => Promise<{ txId: string }>): Promise<string | null> => {
+    async (label: string, note: string, fn: () => Promise<{ txId: string }>): Promise<boolean> => {
       setBusy(true);
       setOpErr(null);
       const t = Date.now();
@@ -204,19 +277,18 @@ export function useStudioChain(): StudioChain {
         const ms = Date.now() - t;
         log(label, `${note} · ${seconds(ms)}`, shortTx(tx.txId));
         setLastOp({ label, tx: shortTx(tx.txId), ms });
-        if (address) setView(await readCftView(address));
+        if (address) await refreshView(address, sessionsRef.current.kind).catch(() => {});
         setTick((n) => n + 1);
-        return tx.txId;
+        return true;
       } catch (error) {
-        const message = String((error as Error)?.message ?? error).slice(0, 240);
-        setOpErr(`${label} failed: ${message}`);
+        setOpErr(`${label} failed: ${String((error as Error)?.message ?? error).slice(0, 240)}`);
         setLastOp(null);
-        return null;
+        return false;
       } finally {
         setBusy(false);
       }
     },
-    [address, log],
+    [address, log, refreshView],
   );
 
   const fmtUnits = (units: bigint) =>
@@ -225,21 +297,29 @@ export function useStudioChain(): StudioChain {
   const issue = useCallback(
     async (to: 'alice' | 'bob', units: bigint) => {
       const s = sessionsRef.current;
-      if (!s.acme || !s[to] || !address) return;
+      if (!address) return;
       const sym = view?.symbol ?? '';
-      const ok = await run(
-        `Issued ${fmtUnits(units)} ${sym} to ${PERSONA_LABEL[to]}`,
-        'mint under issuer authority — supply delta is public',
-        () => mintCft(s.acme!, address, s[to]!.tokenWallet, units),
-      );
-      if (ok === null) return;
-      // Issuance lands as PENDING; the recipient's sweep makes it spendable.
-      // A real, separate proved transaction — logged as exactly that.
-      await run(
-        `${PERSONA_LABEL[to]} swept pending funds to spendable`,
-        'recipient sweep — required after receiving',
-        () => sweepCft(s[to]!, address),
-      );
+      if (s.kind === 'confidential') {
+        if (!s.cft.acme || !s.cft[to]) return;
+        const ok = await run(
+          `Issued ${fmtUnits(units)} ${sym} to ${PERSONA_LABEL[to]}`,
+          'mint under issuer authority — supply delta is public',
+          () => mintCft(s.cft.acme!, address, s.cft[to]!.tokenWallet, units),
+        );
+        if (!ok) return;
+        await run(
+          `${PERSONA_LABEL[to]} swept incoming funds to spendable`,
+          'recipient sweep — the confidential model requires it',
+          () => sweepCft(s.cft[to]!, address),
+        );
+      } else {
+        if (!s.pub.acme || !s.pub[to]) return;
+        await run(
+          `Issued ${fmtUnits(units)} ${sym} to ${PERSONA_LABEL[to]}`,
+          'mint under issuer authority — amount and balance are public',
+          () => mintPublic(s.pub.acme!, address, asAccount(accountId(s.pub[to]!.secretKey)), units),
+        );
+      }
     },
     [address, run, view],
   );
@@ -247,30 +327,37 @@ export function useStudioChain(): StudioChain {
   const transfer = useCallback(
     async (from: 'alice' | 'bob', to: 'alice' | 'bob', units: bigint) => {
       const s = sessionsRef.current;
-      if (!s[from] || !s[to] || !address) return;
-      if (from === to) {
-        setOpErr('Choose two different participants.');
-        return;
-      }
-      const have = s[from]!.tokenWallet.spendable;
-      if (units > have) {
-        setOpErr(
-          `Insufficient spendable balance — ${PERSONA_LABEL[from]} holds ${fmtUnits(have)} ${view?.symbol ?? ''}.`,
-        );
+      if (!address || from === to) {
+        if (from === to) setOpErr('Choose two different participants.');
         return;
       }
       const sym = view?.symbol ?? '';
-      const ok = await run(
-        `Transferred ${fmtUnits(units)} ${sym} — ${PERSONA_LABEL[from]} → ${PERSONA_LABEL[to]}`,
-        'value hidden on the public ledger',
-        () => transferCft(s[from]!, address, s[to]!.tokenWallet, units),
-      );
-      if (ok === null) return;
-      await run(
-        `${PERSONA_LABEL[to]} swept pending funds to spendable`,
-        'recipient sweep — required after receiving',
-        () => sweepCft(s[to]!, address),
-      );
+      if (s.kind === 'confidential') {
+        if (!s.cft[from] || !s.cft[to]) return;
+        const have = s.cft[from]!.tokenWallet.spendable;
+        if (units > have) {
+          setOpErr(`Insufficient spendable balance — ${PERSONA_LABEL[from]} holds ${fmtUnits(have)} ${sym}.`);
+          return;
+        }
+        const ok = await run(
+          `Transferred ${fmtUnits(units)} ${sym} — ${PERSONA_LABEL[from]} → ${PERSONA_LABEL[to]}`,
+          'value hidden on the public ledger',
+          () => transferCft(s.cft[from]!, address, s.cft[to]!.tokenWallet, units),
+        );
+        if (!ok) return;
+        await run(
+          `${PERSONA_LABEL[to]} swept incoming funds to spendable`,
+          'recipient sweep — the confidential model requires it',
+          () => sweepCft(s.cft[to]!, address),
+        );
+      } else {
+        if (!s.pub[from] || !s.pub[to]) return;
+        await run(
+          `Transferred ${fmtUnits(units)} ${sym} — ${PERSONA_LABEL[from]} → ${PERSONA_LABEL[to]}`,
+          'amount and both balances are public',
+          () => transferPublic(s.pub[from]!, address, asAccount(accountId(s.pub[to]!.secretKey)), units),
+        );
+      }
     },
     [address, run, view],
   );
@@ -278,26 +365,32 @@ export function useStudioChain(): StudioChain {
   const redeem = useCallback(
     async (from: 'alice' | 'bob', units: bigint) => {
       const s = sessionsRef.current;
-      if (!s[from] || !address) return;
-      const have = s[from]!.tokenWallet.spendable;
-      if (units > have) {
-        setOpErr(
-          `Insufficient spendable balance — ${PERSONA_LABEL[from]} holds ${fmtUnits(have)} ${view?.symbol ?? ''}.`,
-        );
-        return;
-      }
+      if (!address) return;
       const sym = view?.symbol ?? '';
-      await run(
-        `Redeemed ${fmtUnits(units)} ${sym} from ${PERSONA_LABEL[from]}`,
-        'burned against the issuer — supply delta is public',
-        () => redeemCft(s[from]!, address, units),
-      );
+      if (s.kind === 'confidential') {
+        if (!s.cft[from]) return;
+        const have = s.cft[from]!.tokenWallet.spendable;
+        if (units > have) {
+          setOpErr(`Insufficient spendable balance — ${PERSONA_LABEL[from]} holds ${fmtUnits(have)} ${sym}.`);
+          return;
+        }
+        await run(
+          `Redeemed ${fmtUnits(units)} ${sym} from ${PERSONA_LABEL[from]}`,
+          'burned against the issuer — supply delta is public',
+          () => redeemCft(s.cft[from]!, address, units),
+        );
+      } else {
+        if (!s.pub.acme || !s.pub[from]) return;
+        await run(
+          `Redeemed ${fmtUnits(units)} ${sym} from ${PERSONA_LABEL[from]}`,
+          'burned by the issuer — amount and balance are public',
+          () => burnPublic(s.pub.acme!, address, asAccount(accountId(s.pub[from]!.secretKey)), units),
+        );
+      }
     },
     [address, run, view],
   );
 
-  // Session-side issued/redeemed tallies derive from the activity we actually
-  // performed (the chain publishes only the supply).
   useEffect(() => {
     let issued = 0n;
     let redeemed = 0n;
@@ -312,20 +405,40 @@ export function useStudioChain(): StudioChain {
     setRedeemedTotal(redeemed);
   }, [activity]);
 
-  const balances: Record<string, bigint> = {};
+  const accountIdHex = (who: PersonaId): string | null => {
+    const s = sessionsRef.current;
+    if (s.kind === 'confidential') {
+      const session = s.cft[who];
+      return session ? hex(session.tokenWallet.id) : null;
+    }
+    const session = s.pub[who];
+    return session ? hex(accountId(session.secretKey)) : null;
+  };
+
+  const balances: Partial<Record<'alice' | 'bob', bigint>> = {};
+  const pending: Partial<Record<'alice' | 'bob', bigint>> = {};
   for (const persona of ['alice', 'bob'] as const) {
-    const s = sessions[persona];
-    if (s) balances[persona] = s.tokenWallet.spendable + s.tokenWallet.pending;
+    if (sessionsRef.current.kind === 'confidential') {
+      const s = sessionsRef.current.cft[persona];
+      if (s) {
+        balances[persona] = s.tokenWallet.spendable;
+        pending[persona] = s.tokenWallet.pending;
+      }
+    } else {
+      const id = accountIdHex(persona);
+      const holder = view?.holders?.find((h) => h.id === id);
+      if (id) balances[persona] = holder?.balance ?? 0n;
+    }
   }
 
   const reset = useCallback(() => {
-    sessionsRef.current = {};
-    setSessions({});
+    sessionsRef.current = { kind: 'confidential', cft: {}, pub: {} };
+    setKind('confidential');
     setAddress(null);
-    setDeployTx(null);
     setView(null);
+    setRegisteredIds([]);
     setActivity([]);
-    setDeploySteps(DEPLOY_STEPS.map((s) => ({ ...s, state: 'pending' as const })));
+    setDeploySteps(STEPS.confidential.map((s) => ({ ...s, state: 'pending' as const })));
     setOpErr(null);
     setLastOp(null);
     setIssuedTotal(0n);
@@ -333,9 +446,8 @@ export function useStudioChain(): StudioChain {
   }, []);
 
   return {
-    sessions,
+    kind,
     address,
-    deployTx,
     view,
     activity,
     deploySteps,
@@ -345,6 +457,20 @@ export function useStudioChain(): StudioChain {
     issuedTotal,
     redeemedTotal,
     balances,
+    pending,
+    registered: (who) => {
+      const id = accountIdHex(who);
+      return !!id && registeredIds.includes(id);
+    },
+    walletAddress: (who) => {
+      const s = sessionsRef.current;
+      return (s.kind === 'confidential' ? s.cft[who]?.unshieldedAddress : s.pub[who]?.unshieldedAddress) ?? null;
+    },
+    walletOf: (who) => {
+      const s = sessionsRef.current;
+      return (s.kind === 'confidential' ? s.cft[who]?.wallet : s.pub[who]?.wallet) ?? null;
+    },
+    accountIdHex,
     runDeployment,
     issue,
     transfer,
@@ -357,5 +483,4 @@ export function useStudioChain(): StudioChain {
   };
 }
 
-export { hex, currentNetwork };
-export type { CftSession, CftView };
+export { currentNetwork, hex };

@@ -57,6 +57,7 @@ export type Account = Either<Uint8Array, ContractAddress>;
 export const TOKEN_PERSONAS = {
   acme: { label: 'ACME Bank', seedIndex: 0 },
   alice: { label: 'Alice', seedIndex: 1 },
+  bob: { label: 'Bob', seedIndex: 2 },
 } as const;
 
 export type TokenPersona = keyof typeof TOKEN_PERSONAS;
@@ -71,7 +72,7 @@ async function tokenSecretKey(seedOrLabel: string): Promise<Uint8Array> {
 }
 
 /** accountId = persistentHash(secretKey) — must match OZ Utils.computeAccountId. */
-function accountId(secretKey: Uint8Array): Uint8Array {
+export function accountId(secretKey: Uint8Array): Uint8Array {
   return persistentHash(new CompactTypeVector(1, new CompactTypeBytes(32)), [secretKey]);
 }
 

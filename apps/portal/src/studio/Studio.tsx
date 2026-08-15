@@ -1,13 +1,11 @@
 /**
  * Midnight Asset Studio — the product-first experience.
  *
- * A guided issuance wizard (product → privacy → controls → custody → network →
- * review) flowing into an asset dashboard. Faithful to the Asset Studio design
- * with ONE deliberate upgrade over its mock: everything on chain is REAL. The
- * deployment screen's steps are actual transactions completing live; issue,
- * transfer and redeem are proved calls with real ids and measured durations;
- * the dashboard's supply is read from the indexer. Where the design simulated,
- * this implementation performs.
+ * Landing → guided issuance (token type → privacy → controls → custody →
+ * network → review) → live deployment → asset dashboard. Everything on chain
+ * is real: the deployment steps are actual transactions completing live, and
+ * two token types deploy end to end today — the unshielded contract token and
+ * the confidential (CFT) shielded contract token.
  */
 
 import { useEffect, useRef, useState } from 'react';
@@ -26,24 +24,27 @@ import {
   custodyLabel,
   DEFAULT_CONFIG,
   loadConfig,
-  privacyRows,
-  PRODUCT_NAME,
+  privacyOverview,
   saveConfig,
   STAGE_LABELS,
-  visibilityProfile,
+  TOKEN_DEFS,
+  tokenDef,
   type StudioConfig,
 } from './config.ts';
 import StudioDashboard from './StudioDashboard.tsx';
-import { PERSONA_LABEL, useStudioChain, type PersonaId } from './useStudioChain.ts';
+import { PERSONA_LABEL, useStudioChain, type PersonaId, type TokenKind } from './useStudioChain.ts';
 
-type Screen = 'wizard' | 'compare' | 'deploy' | 'success' | 'dashboard';
+type Screen = 'landing' | 'wizard' | 'compare' | 'deploy' | 'success' | 'dashboard';
 
 const normSeed = (raw: string) => raw.trim().toLowerCase().replace(/^0x/, '');
 const isSeed = (raw: string) => /^[0-9a-f]{64}$/.test(raw);
 
+const kindOf = (config: StudioConfig): TokenKind =>
+  config.token === 'contract-unshielded' ? 'public' : 'confidential';
+
 export default function Studio() {
   const restored = useRef(loadConfig());
-  const [screen, setScreen] = useState<Screen>('wizard');
+  const [screen, setScreen] = useState<Screen>(restored.current ? 'wizard' : 'landing');
   const [stage, setStage] = useState(restored.current?.stage ?? 1);
   const [maxStage, setMaxStage] = useState(restored.current?.stage ?? 1);
   const [config, setConfig] = useState<StudioConfig>(restored.current?.config ?? DEFAULT_CONFIG);
@@ -54,7 +55,9 @@ export default function Studio() {
   const activeNetwork = currentNetworkName();
   const wantsStagenet = config.network === 'stagenet';
   const networkMatches = wantsStagenet === (activeNetwork === 'stagenet');
-  const netLabel = config.network === 'stagenet' ? 'Stagenet — test network' : 'Local development';
+  const netLabel = wantsStagenet ? 'Stagenet' : 'Local development';
+  const selected = tokenDef(config.token);
+  const confidential = kindOf(config) === 'confidential';
 
   useEffect(() => {
     document.title = 'Midnight Asset Studio';
@@ -71,12 +74,12 @@ export default function Studio() {
 
   const startDeploy = async () => {
     if (!networkMatches) {
-      // The SDK's network id is process-global: switching networks must reload.
-      // Persist the (non-secret) wizard config so the studio resumes here.
+      // The SDK's network id is process-global: switching networks reloads.
+      // The (non-secret) wizard config persists so the studio resumes here.
       saveConfig(config, 6);
       if (
         confirm(
-          `Deploying to ${netLabel} requires switching this page's network. The page reloads and returns to this step (seeds are not kept — they never persist).`,
+          `Deploying to ${netLabel} switches this page's network. The page reloads and returns to this step. Seeds never persist.`,
         )
       ) {
         switchNetwork(wantsStagenet ? 'stagenet' : 'localnet');
@@ -86,7 +89,7 @@ export default function Studio() {
     if (wantsStagenet) {
       const typed = { acme: normSeed(seeds.acme), alice: normSeed(seeds.alice), bob: normSeed(seeds.bob) };
       if (!isSeed(typed.acme) || !isSeed(typed.alice) || !isSeed(typed.bob)) {
-        setDeployNote('Stagenet needs three 64-hex faucet-funded seeds — generate them below, fund each address, then deploy.');
+        setDeployNote('Stagenet needs three 64-hex funded seeds — generate them below, fund each address, then deploy.');
         return;
       }
     }
@@ -94,7 +97,8 @@ export default function Studio() {
     setScreen('deploy');
     window.scrollTo(0, 0);
     const ok = await chain.runDeployment(
-      { name: config.assetName.trim() || 'Confidential deposit token', symbol: config.symbol.trim() || 'CDT' },
+      kindOf(config),
+      { name: config.assetName.trim() || selected.defaults.name, symbol: config.symbol.trim() || selected.defaults.symbol },
       wantsStagenet
         ? { acme: normSeed(seeds.acme), alice: normSeed(seeds.alice), bob: normSeed(seeds.bob) }
         : undefined,
@@ -112,12 +116,11 @@ export default function Studio() {
     setConfig(DEFAULT_CONFIG);
     setStage(1);
     setMaxStage(1);
-    setScreen('wizard');
+    setScreen('landing');
     window.scrollTo(0, 0);
   };
 
-  const profile = visibilityProfile(config.priv);
-  const rows = privacyRows(config.priv);
+  const overview = privacyOverview(config.token);
 
   const header = (
     <div className="st-topbar">
@@ -133,15 +136,51 @@ export default function Studio() {
             New asset
           </button>
         )}
-        <Chip tone="accent" dot>
+        <span className={`st-netpill${wantsStagenet ? '' : ' local'}`}>
+          <span className="dot" />
           {netLabel}
-        </Chip>
-        <Chip tone="neutral">Demonstration environment</Chip>
+        </span>
       </div>
     </div>
   );
 
-  // ---- Wizard ------------------------------------------------------------------
+  // ---- Landing --------------------------------------------------------------------
+
+  if (screen === 'landing') {
+    return (
+      <div className="st-page">
+        {header}
+        <div className="st-landing">
+          <div className="home-glow" />
+          <div className="st-landing-inner">
+            <LogoMark className="st-landing-logo" />
+            <h1>Issue regulated assets on Midnight</h1>
+            <p className="st-landing-lede">
+              Choose a token type, set what stays confidential, keep issuer control, and deploy to
+              a public network — in minutes, with zero-knowledge proofs generated on your own
+              machine.
+            </p>
+            <div className="st-landing-points">
+              <div><strong>Five token types.</strong> From fully public UTXOs to encrypted-balance contract tokens — one studio, real trade-offs.</div>
+              <div><strong>Real deployments.</strong> Every step on the deploy screen is a live transaction; every dashboard number is chain state.</div>
+              <div><strong>Built for institutions.</strong> Custody, approvals and disclosure are first-class configuration, not afterthoughts.</div>
+            </div>
+            <div className="cta-row">
+              <button className="st-btn accent lg" onClick={() => { setScreen('wizard'); go(1); }}>
+                Design your asset →
+              </button>
+              <button className="st-btn ghost lg" onClick={() => setScreen('compare')}>
+                Compare token types
+              </button>
+            </div>
+            <p className="st-muted-xs">Test networks · test assets · proofs stay on your machine</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ---- Wizard + compare ---------------------------------------------------------------
 
   if (screen === 'wizard' || screen === 'compare') {
     return (
@@ -151,52 +190,32 @@ export default function Studio() {
           <div className="st-center">
             <div className="st-compare">
               <div className="st-head-block">
-                <span className="st-overline">Asset architectures</span>
-                <h1>Compare asset models</h1>
+                <span className="st-overline">Token types</span>
+                <h1>Midnight&apos;s token models, side by side</h1>
                 <p>
-                  Every product is a different composition of the same building blocks. Properties
-                  are stated neutrally; statuses come from the implementation, not aspiration.
+                  Two axes: UTXO versus account model, unshielded versus shielded. Every product is
+                  a composition of these primitives.
                 </p>
               </div>
               <div className="st-table">
                 <div className="st-table-head st-compare-grid">
-                  <div>Model</div><div>Balances</div><div>Transfer values</div><div>Supply</div>
-                  <div>Custody &amp; controls</div><div>Status</div>
+                  <div>Token type</div><div>Balances</div><div>Transfer values</div><div>Supply</div>
+                  <div>Issuer control</div><div>Today</div>
                 </div>
-                <div className="st-table-row st-compare-grid">
-                  <div className="st-cell-title">Confidential fungible token<span>Account-based</span></div>
-                  <div>Encrypted</div><div>Hidden</div><div>Public (extension)</div>
-                  <div>Controlled issue &amp; redeem; richer controls designed</div>
-                  <Chip tone="success">Recommended · demonstrated</Chip>
-                </div>
-                <div className="st-table-row st-compare-grid">
-                  <div className="st-cell-title">Public contract token<span>Transparency baseline</span></div>
-                  <div>Public</div><div>Public</div><div>Public</div>
-                  <div>Controlled issue &amp; redeem</div>
-                  <Chip tone="accent">Demonstrated</Chip>
-                </div>
-                <div className="st-table-row st-compare-grid">
-                  <div className="st-cell-title">Native token<span>UTXO-level</span></div>
-                  <div>Public</div><div>Public</div><div>Public</div>
-                  <div>Limited contract control</div>
-                  <Chip tone="neutral">Status page only</Chip>
-                </div>
-                <div className="st-table-row st-compare-grid">
-                  <div className="st-cell-title">Shielded UTXO token<span>Archived upstream</span></div>
-                  <div>Shielded</div><div>Shielded</div><div>Unreliable accounting</div>
-                  <div>No pause or freeze — no custom spend logic</div>
-                  <Chip tone="danger">Not custody-compatible</Chip>
-                </div>
-              </div>
-              <div className="st-note">
-                The shielded UTXO module is kept in <span className="mono">archive/</span> by its
-                maintainers — “archived until further notice, do not use in production” — citing
-                missing custom spend logic and unreliable total-supply accounting. It is shown here
-                so the trade-off is visible, not to recommend it.
+                {TOKEN_DEFS.map((t) => (
+                  <div key={t.id} className="st-table-row st-compare-grid">
+                    <div className="st-cell-title">{t.name}<span>{t.model}</span></div>
+                    <div>{t.id.includes('shielded') || t.id === 'contract-confidential' || t.id === 'contract-note' ? (t.id === 'contract-confidential' ? 'Encrypted' : 'Hidden') : 'Public'}</div>
+                    <div>{t.id === 'contract-confidential' ? 'Hidden' : t.id === 'zswap-shielded' || t.id === 'contract-note' ? 'Hidden' : 'Public'}</div>
+                    <div>{t.id === 'contract-confidential' ? 'Public (attestable)' : t.id === 'zswap-shielded' ? 'Not attestable' : t.id === 'contract-note' ? 'Design open' : 'Public'}</div>
+                    <div>{t.id.startsWith('contract') ? (t.id === 'contract-note' ? 'Contract-enforced (design)' : 'Mint · redeem · policy hooks') : 'None after mint'}</div>
+                    <div className="st-flag">{t.deployable ? 'Deploys from this studio' : t.id === 'contract-note' ? 'Placeholder' : 'Model runs; issuance flow pending'}</div>
+                  </div>
+                ))}
               </div>
               <div>
                 <button className="st-btn primary" onClick={() => setScreen('wizard')}>
-                  Back to product selection
+                  Choose a token type →
                 </button>
               </div>
             </div>
@@ -221,66 +240,51 @@ export default function Studio() {
                   </button>
                 );
               })}
-              <div className="st-rail-note">
-                Test assets on a {config.network === 'stagenet' ? 'public test network' : 'local development chain'}.
-                Nothing here moves real funds.
-              </div>
+              <div className="st-rail-note">Test assets on a test network — nothing here moves real funds.</div>
             </div>
 
             <div className="st-main">
               {stage === 1 && (
                 <div className="st-step">
                   <div className="st-head-block">
-                    <span className="st-overline">Step 1 of 6 · Financial product</span>
-                    <h1>What would you like to issue?</h1>
-                    <p>Start from the financial product. Privacy, controls, custody and network follow from it.</p>
+                    <span className="st-overline">Step 1 of 6 · Token type</span>
+                    <h1>Choose your token type</h1>
+                    <p>
+                      Midnight gives you two state models — UTXO and account — each in an
+                      unshielded and a shielded form. Pick the one your instrument needs; two
+                      deploy from this studio today.
+                    </p>
                   </div>
-                  <button
-                    className={`st-pick${config.product === 'deposit' ? ' selected' : ''}`}
-                    onClick={() => setConfig((c) => ({ ...c, product: 'deposit', assetName: PRODUCT_NAME.deposit.name, symbol: PRODUCT_NAME.deposit.symbol }))}
-                  >
-                    <span className="st-pick-head">
-                      <span className="st-radio" />
-                      <span className="st-pick-title">Confidential deposit token</span>
-                      <Chip tone="accent">Recommended</Chip>
-                      <Chip tone="success">Demonstrated on localnet</Chip>
-                    </span>
-                    <span className="st-pick-desc">
-                      Private commercial-bank money for institutional payments, settlement and on-chain liquidity.
-                    </span>
-                    <span className="st-pick-meta">
-                      Private balances · private transfer values · controlled issue &amp; redeem · public-network settlement
-                    </span>
-                  </button>
-                  <button
-                    className={`st-pick${config.product === 'mmf' ? ' selected' : ''}`}
-                    onClick={() => setConfig((c) => ({ ...c, product: 'mmf', assetName: PRODUCT_NAME.mmf.name, symbol: PRODUCT_NAME.mmf.symbol }))}
-                  >
-                    <span className="st-pick-head">
-                      <span className="st-radio" />
-                      <span className="st-pick-title">Tokenised money-market fund</span>
-                      <Chip tone="neutral">Designed — not built yet</Chip>
-                    </span>
-                    <span className="st-pick-desc">
-                      Private investor positions with issuance, redemption, eligibility and collateral controls.
-                    </span>
-                  </button>
-                  <button
-                    className={`st-pick${config.product === 'custom' ? ' selected' : ''}`}
-                    onClick={() => setConfig((c) => ({ ...c, product: 'custom', assetName: PRODUCT_NAME.custom.name, symbol: PRODUCT_NAME.custom.symbol }))}
-                  >
-                    <span className="st-pick-head">
-                      <span className="st-radio" />
-                      <span className="st-pick-title">Custom regulated asset</span>
-                      <Chip tone="neutral">Advanced path</Chip>
-                    </span>
-                    <span className="st-pick-desc">
-                      Configure a different financial instrument using Midnight&apos;s asset models.
-                    </span>
-                  </button>
+                  {TOKEN_DEFS.map((t) => (
+                    <button
+                      key={t.id}
+                      className={`st-pick token${config.token === t.id ? ' selected' : ''}${t.deployable ? '' : ' undeployable'}`}
+                      onClick={() =>
+                        setConfig((c) => ({ ...c, token: t.id, assetName: t.defaults.name, symbol: t.defaults.symbol }))
+                      }
+                    >
+                      <span className="st-pick-head">
+                        <span className="st-radio" />
+                        <span className="st-pick-title">{t.name}</span>
+                        {t.id === 'contract-confidential' && <span className="st-flag accent">Recommended for regulated assets</span>}
+                      </span>
+                      <span className="st-pick-model">{t.model}</span>
+                      <span className="st-pick-desc">{t.desc}</span>
+                      <span className="st-pick-meta"><strong>Useful for:</strong> {t.usefulFor}</span>
+                      <span className="st-pick-meta"><strong>Visibility:</strong> {t.visibility}</span>
+                      <span className={`st-flag${t.deployable ? ' ok' : ''}`}>{t.statusLine}</span>
+                    </button>
+                  ))}
+                  <div className="st-note">
+                    The two unshielded types make the UTXO-versus-account contrast concrete: the
+                    UTXO token is the chain&apos;s own money — simple, interoperable, uncontrolled.
+                    Moving to the account model puts a contract between holders and balances, and
+                    that contract is where issuer control lives. The shielded forms apply the same
+                    split to private state.
+                  </div>
                   <div>
                     <button className="st-btn ghost" onClick={() => setScreen('compare')}>
-                      Compare asset architectures →
+                      Compare token types →
                     </button>
                   </div>
                 </div>
@@ -289,46 +293,39 @@ export default function Studio() {
               {stage === 2 && (
                 <div className="st-step">
                   <div className="st-head-block">
-                    <span className="st-overline">Step 2 of 6 · Privacy &amp; disclosure</span>
-                    <h1>What must remain confidential?</h1>
+                    <span className="st-overline">Step 2 of 6 · Privacy overview</span>
+                    <h1>What this token keeps private</h1>
                     <p>
-                      Every choice shows exactly who can see what — and whether the mechanism exists
-                      today. The visibility profile on the right updates live.
+                      {selected.name}: {selected.visibility} The profile below is what the model
+                      enforces — fact by fact, audience by audience.
                     </p>
                   </div>
-                  {rows.map((r) => (
-                    <div key={r.id} className="st-card st-priv-row">
+                  {overview.map((r) => (
+                    <div key={r.fact} className="st-card st-priv-row">
                       <div className="st-priv-head">
                         <div className="st-priv-label">
-                          <div className="st-strong">{r.label}</div>
+                          <div className="st-strong">{r.fact}</div>
                           <div className="st-muted-sm">{r.desc}</div>
                         </div>
-                        <div className="st-priv-controls">
-                          <Chip tone={r.tone}>{r.status}</Chip>
-                          <div className="st-seg">
-                            <button
-                              className={r.on ? 'on' : ''}
-                              onClick={() => set('priv', { ...config.priv, [r.id]: true })}
-                            >
-                              Confidential
-                            </button>
-                            <button
-                              className={r.on ? '' : 'on'}
-                              onClick={() => set('priv', { ...config.priv, [r.id]: false })}
-                            >
-                              Public
-                            </button>
-                          </div>
-                        </div>
+                        <span className={`st-flag big ${r.state === 'Public' ? '' : r.state === 'Public by design' ? 'accent' : 'ok'}`}>
+                          {r.state}
+                        </span>
                       </div>
                       <div className="st-priv-who">
-                        <div><span className="st-who-k">Public</span>{r.pub}</div>
-                        <div><span className="st-who-k">Issuer</span>{r.iss}</div>
-                        <div><span className="st-who-k">Holder</span>{r.hold}</div>
-                        <div><span className="st-who-k">Authorised reviewer</span>{r.rev}</div>
+                        <div><span className="st-who-k">Public</span>{r.who.pub}</div>
+                        <div><span className="st-who-k">Issuer</span>{r.who.iss}</div>
+                        <div><span className="st-who-k">Holder</span>{r.who.hold}</div>
+                        <div><span className="st-who-k">Authorised reviewer</span>{r.who.rev}</div>
                       </div>
                     </div>
                   ))}
+                  {config.token === 'contract-confidential' && (
+                    <div className="st-note">
+                      Values are private; participation is not. Sender and recipient identifiers —
+                      and therefore the transaction graph — are public in this model. Full graph
+                      privacy is what the note-based shielded contract token is being designed for.
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -337,13 +334,7 @@ export default function Studio() {
                   <div className="st-head-block">
                     <span className="st-overline">Step 3 of 6 · Issuer controls</span>
                     <h1>Issuer and compliance controls</h1>
-                    <p>Each control carries its implementation status. Nothing is presented as live unless it runs today.</p>
-                  </div>
-                  <div className="st-legend">
-                    <span><strong>Demonstrated</strong> — runs on localnet today</span>
-                    <span><strong>Designed</strong> — specified, not built</span>
-                    <span><strong>Requires extension</strong> — needs a module extension</span>
-                    <span><strong>Not implemented</strong> — cannot be selected</span>
+                    <p>Controlled issue and redeem run today. Everything else you enable becomes part of your target configuration.</p>
                   </div>
                   {CONTROL_DEFS.map((c) => {
                     const locked = c.status === 'Not implemented';
@@ -363,15 +354,10 @@ export default function Studio() {
                           <div className="st-strong">{c.label}</div>
                           <div className="st-muted-sm">{c.desc}</div>
                         </div>
-                        <Chip tone={c.tone}>{c.status}</Chip>
+                        <span className={`st-flag ${c.tone === 'success' ? 'ok' : c.tone === 'danger' ? 'err' : c.tone === 'warning' ? 'warn' : ''}`}>{c.status}</span>
                       </div>
                     );
                   })}
-                  <div className="st-muted-sm">
-                    Enabling a designed control records it in your target configuration; it does not
-                    make it live. The current demonstration enforces controlled issue and redeem
-                    under a single issuer authority.
-                  </div>
                 </div>
               )}
 
@@ -379,8 +365,8 @@ export default function Studio() {
                 <div className="st-step">
                   <div className="st-head-block">
                     <span className="st-overline">Step 4 of 6 · Custody &amp; approvals</span>
-                    <h1>How should sensitive operations be approved?</h1>
-                    <p>Choose the approval model your institution expects. These are distinct models, not interchangeable labels.</p>
+                    <h1>How sensitive operations get approved</h1>
+                    <p>Pick the approval model your institution runs. These are distinct mechanisms — an HSM, an MPC quorum and a multisig protect different things.</p>
                   </div>
                   {CUSTODY_DEFS.map((k) => (
                     <button
@@ -394,41 +380,21 @@ export default function Studio() {
                           <span className="st-strong">{k.label}</span>
                           <span className="st-muted-sm">{k.desc}</span>
                         </span>
-                        <Chip tone={k.tone}>{k.status}</Chip>
+                        <span className={`st-flag ${k.tone === 'success' ? 'ok' : k.tone === 'warning' ? 'warn' : ''}`}>{k.status}</span>
                       </span>
                     </button>
                   ))}
                   {config.custody !== 'demo' && (
-                    <div className="st-warnbox">
-                      Recorded as your target approval policy. Deployments from this studio authorise
-                      with the demonstration issuer key until custody integration lands.
+                    <div className="st-note">
+                      Recorded as your target approval policy. Studio deployments authorise with the
+                      demonstration issuer key; the custody integration programme delivers the rest.
                     </div>
                   )}
-                  <div className="st-two">
-                    <div className="st-card st-stack">
-                      <Chip tone="success">What runs today</Chip>
-                      <div className="st-strong">Current demonstration</div>
-                      <div className="st-body-sm">
-                        A single issuer authority (<span className="mono">Ownable</span>). Every
-                        sensitive operation is authorised by one demonstration key.
-                      </div>
-                    </div>
-                    <div className="st-card st-stack">
-                      <Chip tone="neutral">Designed</Chip>
-                      <div className="st-strong">Institutional target architecture</div>
-                      <div className="st-body-sm">
-                        Integration with established custody, HSM, MPC, multisig and
-                        threshold-approval environments — shaped through extensive technical
-                        feedback from institutional custodians.
-                      </div>
-                    </div>
-                  </div>
                   <div className="st-card raised st-stack">
-                    <span className="st-overline">How authorisation works here</span>
-                    <div className="st-qa"><div>What authorises asset movement</div><p>Issuer operations are authorised by the issuer key. Transfers are authorised by the holder&apos;s key, with a zero-knowledge proof validating the confidential state transition.</p></div>
-                    <div className="st-qa"><div>Signature-based or proof-based</div><p>Both. Signatures establish authority; proofs validate state. Custody integration therefore concerns keys and witness material, not just signatures.</p></div>
-                    <div className="st-qa"><div>What must be protected</div><p>The issuer secret, each holder&apos;s key, and the witness material used to build proofs.</p></div>
-                    <div className="st-qa"><div>Where proofs are generated</div><p>Locally, by a proof server on the operator&apos;s machine — witness data never leaves it. A hosted prover is configurable but not wired to a real provider.</p></div>
+                    <span className="st-overline">How authorisation works</span>
+                    <div className="st-qa"><div>What authorises asset movement</div><p>Issuer operations carry the issuer key&apos;s authority. Transfers carry the holder&apos;s, with a zero-knowledge proof validating the state transition.</p></div>
+                    <div className="st-qa"><div>What must be protected</div><p>The issuer secret, each holder&apos;s key, and the witness material behind every proof — which is why custody integration covers more than signatures.</p></div>
+                    <div className="st-qa"><div>Where proofs are generated</div><p>On the operator&apos;s own machine. Witness data never leaves it.</p></div>
                   </div>
                 </div>
               )}
@@ -437,8 +403,8 @@ export default function Studio() {
                 <div className="st-step">
                   <div className="st-head-block">
                     <span className="st-overline">Step 5 of 6 · Network &amp; assurance</span>
-                    <h1>Select a network and review assurance</h1>
-                    <p>Read the assurance summary before deploying. It states what is verified, what is pending, and where trust boundaries sit.</p>
+                    <h1>Select a network</h1>
+                    <p>The assurance summary states exactly what is verified where, and where the trust boundaries sit.</p>
                   </div>
                   <div className="st-two">
                     <button
@@ -448,12 +414,11 @@ export default function Studio() {
                       <span className="st-pick-head">
                         <span className="st-radio" />
                         <span className="st-pick-title">Stagenet</span>
-                        <Chip tone="accent">Public test network</Chip>
                       </span>
-                      <span className="st-body-sm">Shared public ledger. Test assets only. The right place to evaluate public-network behaviour.</span>
+                      <span className="st-body-sm">Midnight&apos;s public test network — the place to evaluate real public-network behaviour. Test assets only.</span>
                       <span className="st-verify">
-                        <span className="ok">Verified — wallet connectivity</span>
-                        <span className="warn">Not yet verified — issue, transfer and redeem lifecycle (funding is captcha-gated)</span>
+                        <span className="ok">Wallet connectivity verified · first-time funding and DUST setup automated</span>
+                        <span className="muted">Token lifecycle runs after faucet funding (one captcha per wallet)</span>
                       </span>
                     </button>
                     <button
@@ -463,25 +428,24 @@ export default function Studio() {
                       <span className="st-pick-head">
                         <span className="st-radio" />
                         <span className="st-pick-title">Local development</span>
-                        <Chip tone="neutral">Runs from source</Chip>
                       </span>
-                      <span className="st-body-sm">Requires the local Midnight stack. Chain state resets between sessions. Intended for engineering and testing.</span>
+                      <span className="st-body-sm">The full Midnight stack on your machine. Pre-funded wallets, instant start, fresh chain per session.</span>
                       <span className="st-verify">
-                        <span className="ok">Verified — full lifecycle: deploy, issue, transfer, redeem</span>
-                        <span className="muted">State may reset; every session starts a fresh chain</span>
+                        <span className="ok">Full lifecycle verified: deploy, issue, transfer, redeem</span>
+                        <span className="muted">Requires yarn localnet:up</span>
                       </span>
                     </button>
                   </div>
                   <div className="st-table">
                     <div className="st-table-title">
                       <span>Assurance summary</span>
-                      <span className="st-muted-sm">Statuses reflect the implementation, not intent</span>
+                      <span className="st-muted-sm">Statuses come from the implementation</span>
                     </div>
-                    {assuranceRows(config.network).map((a) => (
+                    {assuranceRows(config.network, config.token).map((a) => (
                       <div key={a.k} className="st-table-row st-assur-grid">
                         <div className="st-kcell">{a.k}</div>
                         <div>{a.v}</div>
-                        <Chip tone={a.tone}>{a.chip}</Chip>
+                        <span className="st-flag">{a.chip}</span>
                       </div>
                     ))}
                   </div>
@@ -493,8 +457,14 @@ export default function Studio() {
                   <div className="st-head-block">
                     <span className="st-overline">Step 6 of 6 · Review &amp; deploy</span>
                     <h1>Review and deploy</h1>
-                    <p>A concise deployment brief. Everything below is editable by going back.</p>
+                    <p>The deployment brief. Every line is editable by going back.</p>
                   </div>
+                  {!selected.deployable && (
+                    <div className="st-warnbox">
+                      {selected.name} does not deploy from this studio yet — {selected.statusLine.toLowerCase()} Choose
+                      the unshielded contract token or the confidential contract token to deploy today.
+                    </div>
+                  )}
                   <div className="st-namegrid">
                     <label className="st-field">
                       <span>Asset name</span>
@@ -513,9 +483,9 @@ export default function Studio() {
                       </div>
                     ))}
                   </div>
-                  {wantsStagenet && networkMatches && (
+                  {wantsStagenet && networkMatches && selected.deployable && (
                     <div className="st-card st-stack">
-                      <span className="st-overline">Stagenet wallets — developer/test entry</span>
+                      <span className="st-overline">Stagenet wallets</span>
                       <div className="naming">
                         <StagenetSeeds
                           disabled={chain.busy}
@@ -529,18 +499,18 @@ export default function Studio() {
                         />
                       </div>
                       <div className="st-muted-sm">
-                        Each wallet must hold NIGHT before deployment — the deploy screen shows a
-                        faucet hand-off per wallet and designates DUST automatically when funds arrive.
+                        Fund each address from the faucet — the deploy screen hands you a per-wallet
+                        faucet link and sets up DUST automatically when funds arrive.
                       </div>
                     </div>
                   )}
-                  {deployNote && <div className="st-warnbox">{deployNote}</div>}
+                  {deployNote && <div className="st-note">{deployNote}</div>}
                   <div className="st-deployrow">
-                    <button className="st-btn accent lg" onClick={() => void startDeploy()}>
+                    <button className="st-btn accent lg" onClick={() => void startDeploy()} disabled={!selected.deployable}>
                       Deploy test asset →
                     </button>
                     <span className="st-muted-sm">
-                      Deploys to {netLabel}. Test assets only — no real funds.
+                      Deploys to {netLabel}. Test assets only.
                       {!networkMatches && ' Switching networks reloads the page and returns here.'}
                     </span>
                   </div>
@@ -563,31 +533,13 @@ export default function Studio() {
               </div>
             </div>
 
-            {stage >= 2 && stage <= 5 && (
-              <div className="st-profile">
-                <div className="st-overline">Visibility profile</div>
-                {profile.list.map((audience) => (
-                  <div key={audience.aud} className="st-profile-card">
-                    <div className="st-strong-sm">{audience.aud}</div>
-                    {audience.lines.map((line) => (
-                      <div key={line} className="st-profile-line">{line}</div>
-                    ))}
-                  </div>
-                ))}
-                {profile.warn && <div className="st-warnbox sm">{profile.warn}</div>}
-                <div className="st-muted-xs">
-                  Updates live as you choose. The same profile powers the visibility inspector after
-                  deployment.
-                </div>
-              </div>
-            )}
           </div>
         )}
       </div>
     );
   }
 
-  // ---- Deploy (REAL steps completing live) ------------------------------------------
+  // ---- Deploy (real steps completing live) --------------------------------------------
 
   if (screen === 'deploy') {
     const failed = chain.deploySteps.some((s) => s.state === 'failed');
@@ -616,19 +568,20 @@ export default function Studio() {
               ))}
             </div>
             <div className="st-muted-sm">
-              Every step above is a real operation completing live — a proved call takes ~18 s
-              (proving ~0.3 s, block inclusion the rest). Raw detail stays under Technical details.
+              Live operations on the connected chain — a proved call takes ~18 s: proving ~0.3 s on
+              this machine, block inclusion the rest.
             </div>
             {chain.opErr && <div className="st-errbox">{chain.opErr}</div>}
             {wantsStagenet &&
               (['acme', 'alice', 'bob'] as const).map((who) => {
-                const session = chain.sessions[who];
-                return session ? (
+                const wallet = chain.walletOf(who);
+                const address = chain.walletAddress(who);
+                return wallet && address ? (
                   <FaucetSetup
                     key={who}
                     label={PERSONA_LABEL[who]}
-                    wallet={session.wallet}
-                    address={session.unshieldedAddress}
+                    wallet={wallet}
+                    address={address}
                     say={(m) => setDeployNote(m)}
                   />
                 ) : null;
@@ -650,17 +603,9 @@ export default function Studio() {
     );
   }
 
-  // ---- Success ------------------------------------------------------------------------
+  // ---- Success --------------------------------------------------------------------------
 
   if (screen === 'success') {
-    const nextSteps: readonly { label: string; tab: string }[] = [
-      { label: 'Issue the first units', tab: 'issue' },
-      { label: 'Review participants', tab: 'participants' },
-      { label: 'Make a test transfer', tab: 'issue' },
-      { label: 'Inspect who can see what', tab: 'visibility' },
-      { label: 'Test redemption', tab: 'issue' },
-      { label: 'Explore composability', tab: 'compose' },
-    ];
     return (
       <div className="st-page">
         {header}
@@ -669,23 +614,13 @@ export default function Studio() {
             <span className="st-successmark">✓</span>
             <h1>Asset deployed</h1>
             <p className="st-body-sm">
-              {config.assetName} ({config.symbol}) is live on {netLabel} as a test asset.
+              {config.assetName} ({config.symbol}) is live on {netLabel}.
             </p>
             <div className="st-table">
               <div className="st-table-row st-brief-grid"><div className="st-kcell muted">Contract address</div><div className="mono st-copy" title="click to copy" onClick={() => chain.address && void navigator.clipboard.writeText(chain.address)}>{chain.address}</div></div>
               <div className="st-table-row st-brief-grid"><div className="st-kcell muted">Network</div><div>{netLabel}</div></div>
-              <div className="st-table-row st-brief-grid"><div className="st-kcell muted">Standard</div><div>Confidential fungible token + public-supply extension (OpenZeppelin Compact)</div></div>
-              <div className="st-table-row st-brief-grid"><div className="st-kcell muted">Privacy profile</div><div>Balances encrypted · transfer values hidden · identifiers, graph and supply public</div></div>
-            </div>
-            <div className="st-nextsteps">
-              <span className="st-overline">Recommended next steps</span>
-              {nextSteps.map((n, i) => (
-                <button key={n.label} className="st-nextstep" onClick={() => setScreen('dashboard')}>
-                  <span className="st-rail-num accent">0{i + 1}</span>
-                  <span className="st-grow st-left">{n.label}</span>
-                  <span>→</span>
-                </button>
-              ))}
+              <div className="st-table-row st-brief-grid"><div className="st-kcell muted">Standard</div><div>{confidential ? 'Confidential fungible token + public-supply extension (OpenZeppelin Compact)' : 'FungibleToken + Ownable in public contract state (OpenZeppelin Compact)'}</div></div>
+              <div className="st-table-row st-brief-grid"><div className="st-kcell muted">Privacy profile</div><div>{confidential ? 'Balances encrypted · transfer values hidden · identifiers, graph and supply public' : 'Fully public — every holder, balance and transfer is enumerable'}</div></div>
             </div>
             <div>
               <button className="st-btn accent" onClick={() => setScreen('dashboard')}>
@@ -698,7 +633,7 @@ export default function Studio() {
     );
   }
 
-  // ---- Dashboard --------------------------------------------------------------------------
+  // ---- Dashboard ----------------------------------------------------------------------------
 
   return (
     <div className="st-page">

@@ -1,12 +1,9 @@
 /**
- * The asset dashboard — post-deployment management surface.
- *
- * Real data contract: supply and registration state come from the indexer;
- * holder balances are the sessions' wallet-side plaintext (labelled as such);
- * activity rows carry real transaction ids and measured durations; the
- * infrastructure cards are live probes. Participants are the REAL demo cast —
- * the studio does not fabricate addable participants, because a participant
- * without a funded wallet cannot register on this model.
+ * The asset dashboard — post-deployment management surface for BOTH deployable
+ * token kinds. Supply, holders and registration state come off the indexer;
+ * confidential holder balances are the sessions' wallet-side plaintext
+ * (labelled as such); activity rows carry real transaction ids and measured
+ * durations; the infrastructure cards are live probes.
  */
 
 import { useEffect, useState } from 'react';
@@ -14,8 +11,8 @@ import { useEffect, useState } from 'react';
 import { getProvingObserver, probeAll, type InfraStatus } from '@mra/lab-shell';
 
 import Chip from './Chip.tsx';
-import { assuranceRows, CONTROL_DEFS, type StudioConfig } from './config.ts';
-import { hex, PERSONA_LABEL, type PersonaId, type StudioChain } from './useStudioChain.ts';
+import { assuranceRows, CONTROL_DEFS, tokenDef, type StudioConfig } from './config.ts';
+import { PERSONA_LABEL, type StudioChain } from './useStudioChain.ts';
 
 type Tab =
   | 'overview' | 'issue' | 'participants' | 'policy' | 'custody'
@@ -53,6 +50,7 @@ export default function StudioDashboard({
   readonly custodyName: string;
   readonly onToggleCtl: (id: keyof StudioConfig['ctl'], value: boolean) => void;
 }) {
+  const confidential = chain.kind === 'confidential';
   const [tab, setTab] = useState<Tab>('overview');
   const [persona, setPersona] = useState<'public' | 'issuer' | 'alice' | 'bob' | 'auditor'>('public');
   const [forms, setForms] = useState({
@@ -82,16 +80,10 @@ export default function StudioDashboard({
   const supply = view?.totalSupply ?? 0n;
   const symbol = view?.symbol ?? config.symbol;
   const busy = chain.busy;
-  const holders: readonly PersonaId[] = ['alice', 'bob'];
+  const holders = ['alice', 'bob'] as const;
   const goTab = (t: Tab) => () => {
     chain.clearOp();
     setTab(t);
-  };
-
-  const registeredIds = new Set((view?.registered ?? []).map(hex));
-  const isRegistered = (who: PersonaId) => {
-    const session = chain.sessions[who];
-    return !!session && registeredIds.has(hex(session.tokenWallet.id));
   };
 
   const matrixRows = (() => {
@@ -101,9 +93,22 @@ export default function StudioDashboard({
       no: ['Not visible', 'warning'], ni: ['Not implemented', 'danger'],
     };
     const R = (f: string, k: Key, note: string) => ({ f, chip: chip[k][0], tone: chip[k][1], note });
+    if (!confidential) {
+      // The transparency baseline: identical full view for every perspective.
+      return [
+        R('Asset identity', 'vis', `${config.assetName} (${symbol}) — address and standard are public`),
+        R('Total supply', 'vis', `${fmt(supply)} ${symbol} — read live from the indexer`),
+        R('Holder identity', 'vis', 'Account identifiers are public'),
+        R('Individual balance', 'vis', 'Every balance is public contract state — anyone can enumerate the full holder map'),
+        R('Transfer value', 'vis', 'Every amount is public'),
+        R('Sender & recipient', 'vis', 'Both identifiers are public on every transfer'),
+        R('Transaction graph', 'vis', 'Fully observable'),
+        R('Policy state', 'vis', 'Issuer control state is public'),
+      ];
+    }
     const base = [
       R('Asset identity', 'vis', `${config.assetName} (${symbol}) — address and standard are public`),
-      R('Total supply', 'vis', `${fmt(supply)} ${symbol} — via the public-supply extension (read live from the indexer)`),
+      R('Total supply', 'vis', `${fmt(supply)} ${symbol} — via the public-supply extension, read live from the indexer`),
       R('Holder identity', 'vis', 'Account identifiers appear on the public ledger'),
       R('Individual balance', 'enc', 'Ciphertext only — plaintext is unreadable'),
       R('Transfer value', 'enc', 'Amounts are hidden in every transfer'),
@@ -117,7 +122,6 @@ export default function StudioDashboard({
     if (persona === 'issuer') {
       m[3] = R('Individual balance', 'no', 'No issuer viewing mechanism exists in the current module');
       m[4] = R('Transfer value', 'own', 'Issue and redeem amounts only — holder transfers stay hidden');
-      m[8] = R('Policy state', 'vis', 'Administered by the issuer key');
       return m;
     }
     if (persona === 'alice' || persona === 'bob') {
@@ -128,15 +132,15 @@ export default function StudioDashboard({
       return m;
     }
     m[3] = R('Individual balance', 'ni', 'No privileged view — the reviewer sees ciphertext, like the public');
-    m[4] = R('Transfer value', 'ni', 'No disclosure mechanism exists in the pinned module');
+    m[4] = R('Transfer value', 'ni', 'Viewing-key disclosure is on the roadmap, not in the pinned module');
     return m;
   })();
 
   const personaDesc: Record<typeof persona, string> = {
-    public: 'Anyone on the network — an exchange, an analyst, a competitor. Sees the ledger; cannot read confidential state.',
-    issuer: 'ACME Bank, the issuing institution. Controls issue and redeem; cannot read holder balances.',
-    alice: 'A participant. Sees her own wallet state and nothing of anyone else’s.',
-    bob: 'A participant. Sees his own wallet state and nothing of anyone else’s.',
+    public: 'Anyone on the network — an exchange, an analyst, a competitor.',
+    issuer: 'ACME Bank, the issuing institution. Controls issue and redeem.',
+    alice: 'A participant. Sees her own wallet state.',
+    bob: 'A participant. Sees his own wallet state.',
     auditor: 'A regulator or auditor with a legal right to inspect.',
   };
 
@@ -149,18 +153,15 @@ export default function StudioDashboard({
             <span>{label}</span>
           </button>
         ))}
-        <div className="st-rail-note">
-          Demonstration asset. Lifecycle verified on localnet; Stagenet lifecycle pending.
-        </div>
       </div>
 
       <div className="st-dashmain">
         <div className="st-dashhead">
           <div className="st-dashtitle">
             <h1>{config.assetName}</h1>
-            <Chip tone="inverse">{symbol}</Chip>
-            <Chip tone="neutral">OZ confidential fungible token</Chip>
-            <Chip tone="success" dot>Active</Chip>
+            <span className="st-flag mono">{symbol}</span>
+            <span className="st-flag">{tokenDef(config.token).name}</span>
+            <span className="st-flag ok">Active</span>
           </div>
           <div
             className="st-mono-xs st-copy"
@@ -174,7 +175,6 @@ export default function StudioDashboard({
             <button className="st-btn outline sm" onClick={goTab('issue')} disabled={busy}>Redeem</button>
             <button className="st-btn outline sm" onClick={goTab('issue')} disabled={busy}>Transfer</button>
             <button className="st-btn ghost sm" onClick={goTab('participants')}>Participants</button>
-            <button className="st-btn ghost sm" onClick={goTab('policy')}>Controls</button>
             <button className="st-btn ghost sm" onClick={goTab('visibility')}>Inspect visibility</button>
           </div>
         </div>
@@ -198,7 +198,11 @@ export default function StudioDashboard({
                 <div className="st-tile"><span>Circulating supply <em>· public</em></span><strong>{fmt(supply)} <small>{symbol}</small></strong></div>
                 <div className="st-tile"><span>Issued this session</span><strong>{fmt(chain.issuedTotal)}</strong></div>
                 <div className="st-tile"><span>Redeemed this session</span><strong>{fmt(chain.redeemedTotal)}</strong></div>
-                <div className="st-tile"><span>Registered participants <em>· public</em></span><strong>{view?.registered.length ?? 0}</strong></div>
+                {confidential ? (
+                  <div className="st-tile"><span>Registered participants <em>· public</em></span><strong>{view?.registeredCount ?? 0}</strong></div>
+                ) : (
+                  <div className="st-tile"><span>Holders <em>· public</em></span><strong>{view?.holders?.length ?? 0}</strong></div>
+                )}
               </div>
               {supply === 0n && (
                 <div className="st-card st-cta">
@@ -212,23 +216,17 @@ export default function StudioDashboard({
               <div className="st-two">
                 <div className="st-card st-stack">
                   <div className="st-kcell muted">Privacy profile</div>
-                  <div className="st-body-sm">Balances encrypted · transfer values hidden<br />Identifiers, transaction graph and supply public</div>
+                  <div className="st-body-sm">
+                    {confidential
+                      ? <>Balances encrypted · transfer values hidden<br />Identifiers, transaction graph and supply public</>
+                      : <>Fully public — every holder, balance and transfer is enumerable.<br />The transparency baseline.</>}
+                  </div>
                   <button className="st-btn ghost sm st-left" onClick={goTab('visibility')}>Inspect who can see what →</button>
                 </div>
                 <div className="st-card st-stack">
                   <div className="st-kcell muted">Custody &amp; approvals</div>
-                  <div className="st-inline"><span className="st-body-sm">Single demonstration issuer key</span><Chip tone="warning">Demonstration</Chip></div>
-                  <div className="st-muted-sm">Target: {custodyName} — designed, not yet integrated.</div>
-                </div>
-                <div className="st-card st-stack">
-                  <div className="st-kcell muted">Disclosure</div>
-                  <div className="st-inline"><span className="st-body-sm">Authorised-reviewer view</span><Chip tone="danger">Not implemented</Chip></div>
-                  <div className="st-muted-sm">No privileged disclosure mechanism exists in the pinned module. A reviewer sees the public view.</div>
-                </div>
-                <div className="st-card st-stack">
-                  <div className="st-kcell muted">Outstanding assurance gaps</div>
-                  <div className="st-body-sm">Stagenet lifecycle not yet verified<br />Custody integration designed, not built<br />Standard is pre-audit (0.3.0-alpha.2, patched)</div>
-                  <button className="st-btn ghost sm st-left" onClick={goTab('assurance')}>Full assurance summary →</button>
+                  <div className="st-body-sm">Demonstration issuer key</div>
+                  <div className="st-muted-sm">Target: {custodyName} — delivered by the custody integration programme.</div>
                 </div>
               </div>
               <div className="st-table">
@@ -251,10 +249,9 @@ export default function StudioDashboard({
           {tab === 'issue' && (
             <div className="st-step">
               <div className="st-note">
-                This demonstration operates every party — issuer, Alice and Bob — so the full
-                lifecycle can be exercised end to end. Issuance and incoming transfers land as
-                pending and are swept to spendable by the recipient — a separate, real proved
-                transaction the activity log shows explicitly.
+                {confidential
+                  ? 'This demonstration operates every party, so the full lifecycle runs end to end. Incoming funds land as pending and the recipient sweeps them spendable — a separate real transaction the activity log shows explicitly.'
+                  : 'This demonstration operates every party, so the full lifecycle runs end to end. On this token every amount and balance is public the moment it confirms.'}
               </div>
               <div className="st-three">
                 <div className="st-card st-stack">
@@ -269,13 +266,11 @@ export default function StudioDashboard({
                   </label>
                   <button
                     className="st-btn accent sm"
-                    disabled={busy || parseUnits(forms.issueAmt) === 0n || !isRegistered(forms.issueTo)}
-                    title={isRegistered(forms.issueTo) ? undefined : 'Recipient is not registered on-chain yet'}
+                    disabled={busy || parseUnits(forms.issueAmt) === 0n || (confidential && !chain.registered(forms.issueTo))}
                     onClick={() => void chain.issue(forms.issueTo, parseUnits(forms.issueAmt))}
                   >
                     Issue
                   </button>
-                  <div className="st-muted-xs">Mint under issuer authority — each issue amount is visible as a public supply delta.</div>
                 </div>
                 <div className="st-card st-stack">
                   <div className="st-strong">Transfer</div>
@@ -299,7 +294,7 @@ export default function StudioDashboard({
                   >
                     Transfer
                   </button>
-                  <div className="st-muted-xs">Value hidden on the public ledger; identifiers visible.</div>
+                  <div className="st-muted-xs">{confidential ? 'Value hidden on the public ledger.' : 'Amount public on the ledger.'}</div>
                 </div>
                 <div className="st-card st-stack">
                   <div className="st-strong">Redeem</div>
@@ -318,29 +313,32 @@ export default function StudioDashboard({
                   >
                     Redeem
                   </button>
-                  <div className="st-muted-xs">Burn units returned to the issuer — the supply delta is public.</div>
                 </div>
               </div>
               <div className="st-card raised st-stack st-holderview">
-                <div className="st-kcell muted">Holder view — wallet-side plaintext, private to each holder</div>
+                <div className="st-kcell muted">
+                  {confidential
+                    ? 'Holder view — wallet-side plaintext, private to each holder'
+                    : 'Holder balances — public contract state, read from the indexer'}
+                </div>
                 {holders.map((h) => {
-                  const session = chain.sessions[h];
-                  if (!session) return null;
-                  const w = session.tokenWallet;
+                  const balance = chain.balances[h];
+                  const pendingUnits = chain.pending[h] ?? 0n;
+                  if (balance === undefined) return null;
                   return (
                     <div key={h} className="st-inline spread">
                       <span className="st-body-sm">{PERSONA_LABEL[h]}</span>
                       <span className="st-strong mono">
-                        {fmt(w.spendable)} {symbol}
-                        {w.pending > 0n && <em className="st-muted-xs"> (+{fmt(w.pending)} pending)</em>}
+                        {fmt(balance)} {symbol}
+                        {confidential && pendingUnits > 0n && <em className="st-muted-xs"> (+{fmt(pendingUnits)} pending)</em>}
                       </span>
                     </div>
                   );
                 })}
                 <div className="st-muted-xs">
-                  On the public ledger these balances are ciphertexts. They are readable here because
-                  the demonstration holds every party&apos;s wallet — and every proof the chain
-                  accepted verified them against those ciphertexts.
+                  {confidential
+                    ? 'On the public ledger these balances are ciphertexts. They are readable here because the demonstration holds every party’s wallet — and every accepted proof verified them against those ciphertexts.'
+                    : 'Anyone on the network can read these — no wallet or key required. That is the point of this token type.'}
                 </div>
               </div>
             </div>
@@ -349,29 +347,27 @@ export default function StudioDashboard({
           {tab === 'participants' && (
             <div className="st-step">
               <div className="st-note">
-                Participants are the demonstration cast, with their REAL on-chain identities and
-                registration state. Arbitrary participants are not addable here: on this model a
-                participant needs a funded wallet to register an encryption key, and the studio
-                does not fabricate records. On-chain allowlist enforcement is designed, not
-                implemented.
+                The demonstration cast, with real on-chain identities.{' '}
+                {confidential
+                  ? 'On this token a participant registers an encryption key before receiving — registration state below is public chain data.'
+                  : 'On this token anyone can hold — there is no registration step and no gatekeeping.'}
               </div>
               <div className="st-table">
-                <div className="st-table-head st-part-grid"><div>Name</div><div>Role</div><div>Account id (public)</div><div>Registration</div></div>
+                <div className="st-table-head st-part-grid"><div>Name</div><div>Role</div><div>Account id (public)</div><div>{confidential ? 'Registration' : 'Holding'}</div></div>
                 {(['acme', 'alice', 'bob'] as const).map((who) => {
-                  const session = chain.sessions[who];
-                  const registered = who === 'acme' ? null : isRegistered(who);
+                  const id = chain.accountIdHex(who);
                   return (
                     <div key={who} className="st-table-row st-part-grid">
                       <div className="st-strong">{PERSONA_LABEL[who]}</div>
                       <div>{who === 'acme' ? 'Issuer' : 'Participant'}</div>
-                      <div className="st-mono-xs">{session ? `${hex(session.tokenWallet.id).slice(0, 20)}…` : '—'}</div>
-                      {registered === null ? (
-                        <Chip tone="neutral">Issuer key</Chip>
-                      ) : registered ? (
-                        <Chip tone="success">Registered on-chain</Chip>
-                      ) : (
-                        <Chip tone="warning">Not registered</Chip>
-                      )}
+                      <div className="st-mono-xs">{id ? `${id.slice(0, 20)}…` : '—'}</div>
+                      <div className="st-flag">
+                        {who === 'acme'
+                          ? 'Issuer key'
+                          : confidential
+                            ? chain.registered(who) ? 'Registered on-chain' : 'Not registered'
+                            : 'No registration required'}
+                      </div>
                     </div>
                   );
                 })}
@@ -382,8 +378,8 @@ export default function StudioDashboard({
           {tab === 'policy' && (
             <div className="st-step">
               <div className="st-note">
-                Toggling a designed control updates the target configuration only. Live today:
-                controlled issue and redeem under the issuer key.
+                Live today: controlled issue and redeem under the issuer key. Toggling a designed
+                control updates the target configuration.
               </div>
               {CONTROL_DEFS.map((c) => {
                 const locked = c.status === 'Not implemented';
@@ -403,7 +399,7 @@ export default function StudioDashboard({
                       <div className="st-strong">{c.label}</div>
                       <div className="st-muted-sm">{c.desc}</div>
                     </div>
-                    <Chip tone={c.tone}>{c.status}</Chip>
+                    <span className={`st-flag ${c.tone === 'success' ? 'ok' : c.tone === 'danger' ? 'err' : c.tone === 'warning' ? 'warn' : ''}`}>{c.status}</span>
                   </div>
                 );
               })}
@@ -414,20 +410,20 @@ export default function StudioDashboard({
             <div className="st-step">
               <div className="st-two">
                 <div className="st-card st-stack">
-                  <Chip tone="success">What runs today</Chip>
+                  <span className="st-flag ok">What runs today</span>
                   <div className="st-strong">Current demonstration</div>
                   <div className="st-body-sm">A single issuer authority (<span className="mono">Ownable</span>). Every sensitive operation on this asset is authorised by one demonstration key.</div>
                 </div>
                 <div className="st-card st-stack">
-                  <Chip tone="neutral">Designed</Chip>
-                  <div className="st-strong">Institutional target architecture</div>
-                  <div className="st-body-sm">Your selected policy: <strong>{custodyName}</strong>. Integration with established custody, HSM, MPC, multisig and threshold-approval environments is designed, not built.</div>
+                  <span className="st-flag">Target architecture</span>
+                  <div className="st-strong">Institutional custody</div>
+                  <div className="st-body-sm">Your selected policy: <strong>{custodyName}</strong>. Integration with established custody, HSM, MPC, multisig and threshold-approval environments — shaped through extensive technical feedback from institutional custodians.</div>
                 </div>
               </div>
               <div className="st-card raised st-stack">
-                <div className="st-qa"><div>What authorises asset movement</div><p>Issuer operations: the issuer key. Transfers: the holder&apos;s key plus a zero-knowledge proof of the confidential state transition.</p></div>
-                <div className="st-qa"><div>What must be protected</div><p>The issuer secret, holder keys, and proof witness material.</p></div>
-                <div className="st-qa"><div>Proving trust boundary</div><p>Proofs are generated by a local proof server — witness data never leaves the operator&apos;s machine. A hosted prover is configurable but not wired to a real provider.</p></div>
+                <div className="st-qa"><div>What authorises asset movement</div><p>Issuer operations: the issuer key. Transfers: the holder&apos;s key{confidential ? ' plus a zero-knowledge proof of the confidential state transition' : ''}.</p></div>
+                <div className="st-qa"><div>What must be protected</div><p>The issuer secret, holder keys{confidential ? ', and proof witness material' : ''}.</p></div>
+                <div className="st-qa"><div>Proving trust boundary</div><p>Proofs are generated on the operator&apos;s machine — witness data never leaves it.</p></div>
               </div>
             </div>
           )}
@@ -436,23 +432,28 @@ export default function StudioDashboard({
             <div className="st-step">
               <div className="st-head-block tight">
                 <h2>Who can see what?</h2>
-                <p className="st-body-sm">Switch perspective. Field-level visibility reflects the current implementation of the confidential fungible token — not aspiration.</p>
+                <p className="st-body-sm">
+                  {confidential
+                    ? 'Switch perspective — field-level visibility, exactly as the deployed contract enforces it.'
+                    : 'On this token every perspective sees the same thing: everything. That symmetry is what the shielded types change.'}
+                </p>
               </div>
-              <div className="st-personas">
-                {(['public', 'issuer', 'alice', 'bob', 'auditor'] as const).map((p) => (
-                  <button key={p} className={`st-tag${persona === p ? ' active' : ''}`} onClick={() => setPersona(p)}>
-                    {{ public: 'Public observer', issuer: 'Issuer', alice: 'Alice', bob: 'Bob', auditor: 'Authorised auditor' }[p]}
-                  </button>
-                ))}
-              </div>
-              {persona === 'auditor' && (
-                <div className="st-errbox">
-                  No authorised-reviewer disclosure mechanism exists in the current implementation. A
-                  reviewer today sees only the public view. Viewing-key disclosure is on the platform
-                  roadmap.
+              {confidential && (
+                <div className="st-personas">
+                  {(['public', 'issuer', 'alice', 'bob', 'auditor'] as const).map((p) => (
+                    <button key={p} className={`st-tag${persona === p ? ' active' : ''}`} onClick={() => setPersona(p)}>
+                      {{ public: 'Public observer', issuer: 'Issuer', alice: 'Alice', bob: 'Bob', auditor: 'Authorised auditor' }[p]}
+                    </button>
+                  ))}
                 </div>
               )}
-              <div className="st-body-sm">{personaDesc[persona]}</div>
+              {confidential && persona === 'auditor' && (
+                <div className="st-note">
+                  A reviewer today sees the public view. Viewing-key disclosure for authorised
+                  reviewers is on the platform roadmap.
+                </div>
+              )}
+              {confidential && <div className="st-body-sm">{personaDesc[persona]}</div>}
               <div className="st-table">
                 {matrixRows.map((m) => (
                   <div key={m.f} className="st-table-row st-matrix-grid">
@@ -461,10 +462,6 @@ export default function StudioDashboard({
                     <div>{m.note}</div>
                   </div>
                 ))}
-              </div>
-              <div className="st-muted-xs">
-                The public can observe ciphertexts, account identifiers and the transaction graph —
-                but cannot read plaintext balances or transfer values.
               </div>
             </div>
           )}
@@ -492,9 +489,8 @@ export default function StudioDashboard({
                     ))}
                   </div>
                   <div className="st-muted-xs">
-                    Transfer values in this log are visible because the demonstration operates every
-                    party. On the public ledger they are hidden. Every id is a real transaction on
-                    the connected chain; durations are measured, not scripted.
+                    Every id is a real transaction on the connected chain; durations are measured.
+                    {confidential && ' Transfer values appear in this log only because the demonstration operates every party — the public ledger hides them.'}
                   </div>
                 </>
               )}
@@ -503,42 +499,36 @@ export default function StudioDashboard({
 
           {tab === 'compose' && (
             <div className="st-step">
-              <blockquote className="st-quote">Privacy and institutional control should follow the asset into the applications where it is used.</blockquote>
+              <blockquote className="st-quote">Privacy and institutional control follow the asset into the applications where it is used.</blockquote>
               <h2>What can this asset do next?</h2>
               <div className="st-two">
-                <div className="st-card st-stack"><div className="st-inline spread"><span className="st-strong-sm">Redeem through the issuer</span><Chip tone="success">Demonstrated</Chip></div><div className="st-muted-sm">Burn against the issuer — runs today, exercisable in Issue &amp; redeem.</div></div>
-                <div className="st-card st-stack"><div className="st-inline spread"><span className="st-strong-sm">Settle an approved transfer</span><Chip tone="success">Demonstrated</Chip></div><div className="st-muted-sm">Value-private transfer between participants on public infrastructure.</div></div>
-                <div className="st-card st-stack"><div className="st-inline spread"><span className="st-strong-sm">Subscribe to a regulated fund</span><Chip tone="neutral">Planned</Chip></div><div className="st-muted-sm">The tokenised money-market fund composition is designed; this deposit token is its cash leg.</div></div>
-                <div className="st-card st-stack"><div className="st-inline spread"><span className="st-strong-sm">Post as collateral</span><Chip tone="neutral">Planned</Chip></div><div className="st-muted-sm">Collateral designation for a fund or security position.</div></div>
-                <div className="st-card st-stack"><div className="st-inline spread"><span className="st-strong-sm">Private delivery versus payment</span><Chip tone="neutral">Planned</Chip></div><div className="st-muted-sm">Offers-based atomic settlement — cash leg and asset leg, private quantities, approved counterparties.</div></div>
-                <div className="st-card st-stack"><div className="st-inline spread"><span className="st-strong-sm">Integrate with an approved application</span><Chip tone="warning">Requires integration</Chip></div><div className="st-muted-sm">Contract-to-contract composability currently carries unshielded data only — no value movement across calls.</div></div>
+                <div className="st-card st-stack"><div className="st-inline spread"><span className="st-strong-sm">Redeem through the issuer</span><span className="st-flag ok">Runs today</span></div><div className="st-muted-sm">Burn against the issuer — exercisable in Issue &amp; redeem.</div></div>
+                <div className="st-card st-stack"><div className="st-inline spread"><span className="st-strong-sm">Settle a transfer</span><span className="st-flag ok">Runs today</span></div><div className="st-muted-sm">{confidential ? 'Value-private transfer on public infrastructure.' : 'Public transfer on public infrastructure.'}</div></div>
+                <div className="st-card st-stack"><div className="st-inline spread"><span className="st-strong-sm">Subscribe to a regulated fund</span><span className="st-flag">Planned</span></div><div className="st-muted-sm">The tokenised money-market fund composition; this token is its cash leg.</div></div>
+                <div className="st-card st-stack"><div className="st-inline spread"><span className="st-strong-sm">Post as collateral</span><span className="st-flag">Planned</span></div><div className="st-muted-sm">Collateral designation for a fund or security position.</div></div>
+                <div className="st-card st-stack"><div className="st-inline spread"><span className="st-strong-sm">Private delivery versus payment</span><span className="st-flag">Planned</span></div><div className="st-muted-sm">Offers-based atomic settlement — private quantities, approved counterparties.</div></div>
+                <div className="st-card st-stack"><div className="st-inline spread"><span className="st-strong-sm">Integrate with an application</span><span className="st-flag warn">Requires integration</span></div><div className="st-muted-sm">Contract-to-contract calls carry unshielded data today — no value movement across calls.</div></div>
               </div>
-              <div className="st-muted-xs">No integration shown here is faked. Statuses come from the project roadmap.</div>
             </div>
           )}
 
           {tab === 'assurance' && (
             <div className="st-step">
               <div className="st-table">
-                <div className="st-table-title"><span>Assurance summary</span><span className="st-muted-sm">Statuses reflect the implementation, not intent</span></div>
-                {assuranceRows(config.network).map((a) => (
+                <div className="st-table-title"><span>Assurance summary</span><span className="st-muted-sm">Statuses come from the implementation</span></div>
+                {assuranceRows(config.network, config.token).map((a) => (
                   <div key={a.k} className="st-table-row st-assur-grid">
                     <div className="st-kcell">{a.k}</div>
                     <div>{a.v}</div>
-                    <Chip tone={a.tone}>{a.chip}</Chip>
+                    <span className="st-flag">{a.chip}</span>
                   </div>
                 ))}
-              </div>
-              <div className="st-muted-xs">
-                OpenZeppelin is designing and auditing the standards. A specific implementation is
-                labelled audited only when an applicable audit is complete — none is yet.
               </div>
             </div>
           )}
 
           {tab === 'tech' && (
             <div className="st-step">
-              <div className="st-note">Deliberately outside the primary journey. Everything an operator needs; nothing a product owner has to see first.</div>
               <div className="st-three">
                 {(['node', 'indexer', 'proof'] as const).map((k) => {
                   const s = infra?.[k];
@@ -553,7 +543,7 @@ export default function StudioDashboard({
                       <div className="st-muted-sm">
                         {k === 'node' && (infra?.node.chain ? `${infra.node.chain} · best #${infra.node.best?.toLocaleString('en-US')}` : 'probing…')}
                         {k === 'indexer' && (infra?.indexer.indexed !== undefined ? `indexed #${infra.indexer.indexed.toLocaleString('en-US')} · ${infra.indexer.lag !== undefined && infra.indexer.lag <= 1 ? 'in step' : `${infra?.indexer.lag ?? '—'} blocks behind`}` : 'GraphQL, version-scoped path (api/v4)')}
-                        {k === 'proof' && 'Local by default — witness data never leaves this machine'}
+                        {k === 'proof' && 'Local — witness data never leaves this machine'}
                       </div>
                     </div>
                   );
@@ -561,10 +551,9 @@ export default function StudioDashboard({
               </div>
               <div className="st-table">
                 <div className="st-table-title"><span>Configuration</span></div>
-                <div className="st-table-row st-brief-grid"><div className="st-kcell muted">Endpoints</div><div>Defined once, in <span className="mono">packages/network</span> — nowhere else</div></div>
+                <div className="st-table-row st-brief-grid"><div className="st-kcell muted">Endpoints</div><div>Defined once, in <span className="mono">packages/network</span></div></div>
                 <div className="st-table-row st-brief-grid"><div className="st-kcell muted">Pinned stack</div><div>RC3 set moves together — <span className="mono">ops/versions.lock.json</span></div></div>
-                <div className="st-table-row st-brief-grid"><div className="st-kcell muted">Compiler</div><div>Pinned <span className="mono">compactc</span>; this contract compiles WITHOUT <span className="mono">--feature-zkir-v3</span> (documented compiler issue)</div></div>
-                <div className="st-table-row st-brief-grid"><div className="st-kcell muted">Module</div><div><span className="mono">@openzeppelin/compact-contracts 0.3.0-alpha.2</span> — patched (typed Jubjub scalars, Compact 0.25)</div></div>
+                <div className="st-table-row st-brief-grid"><div className="st-kcell muted">Module</div><div><span className="mono">@openzeppelin/compact-contracts 0.3.0-alpha.2</span>{confidential ? ' — patched (typed Jubjub scalars, Compact 0.25)' : ''}</div></div>
               </div>
               <div>
                 <button className="st-btn ghost sm" onClick={() => setLogsOpen((v) => !v)}>
