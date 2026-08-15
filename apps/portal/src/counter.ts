@@ -10,7 +10,7 @@ import { deployContract, findDeployedContract } from '@midnight-ntwrk/midnight-j
 import { CompiledContract } from '@midnight-ntwrk/midnight-js-protocol/compact-js';
 import type { MidnightProviders } from '@midnight-ntwrk/midnight-js-types';
 import { LOCALNET_GENESIS_SEEDS } from '@mra/network';
-import { currentNetwork } from './network.ts';
+import { currentNetwork } from '@mra/lab-shell';
 import {
   configureNetworkId,
   createWalletFromSeed,

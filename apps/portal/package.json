@@ -17,6 +17,7 @@
     "@mra/app-counter": "workspace:^",
     "@mra/app-tokenised-deposit": "workspace:^",
     "@mra/asset-models": "workspace:^",
+    "@mra/lab-shell": "workspace:^",
     "@mra/network": "workspace:^",
     "@mra/wallet": "workspace:^",
     "react": "^19.2.8",

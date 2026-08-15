@@ -1,36 +1,73 @@
 /**
- * The site shell: three pages behind a deliberately tiny router.
+ * The portal: six primary sections over a deliberately tiny router.
  *
- *   /                   the front door — Learn or Try
- *   /learn              the architecture, in four chapters
- *   /learn/topic        one chapter (selected by #hash), article + interactive model
- *   /examples           the live examples index
- *   /counter            the toolchain proof (dashboard)
- *   /unshielded-token   the unshielded contract token (tokenised-deposit design option 1)
+ *   /                         institutional homepage
+ *   /why                      Why Midnight
+ *   /compare                  Compare asset models (registry-driven)
+ *   /learn                    Learn & Try index (labs + status pages + concepts)
+ *   /learn/topic#<chapter>    architecture concepts (interactive teaching models)
+ *   /labs/public-token        guided lab — transparency baseline (real lifecycle)
+ *   /labs/confidential-token  guided lab — the CFT (real lifecycle)
+ *   /models/<id>              honest status pages for models without lifecycles
+ *   /solutions[/…]            product compositions
+ *   /standards                Standards & assurance
+ *   /build                    runbook; /build/counter — the counter diagnostic
  *
- * Unknown paths fall back to the front door.
+ * Old paths redirect so no link ever breaks.
  */
 
+import { useEffect } from 'react';
+
+import { navigate, Router } from '@mra/lab-shell';
+
 import CounterPage from './CounterPage.tsx';
-import PublicTokenPage from './deposit/PublicTokenPage.tsx';
-import Home from './Home.tsx';
-import Landing from './Landing.tsx';
+import ConfidentialTokenLab from './labs/ConfidentialTokenLab.tsx';
+import PublicTokenLab from './labs/PublicTokenLab.tsx';
 import Learn from './learn/Learn.tsx';
 import LearnTopic from './learn/LearnTopic.tsx';
-import { Router } from './router.tsx';
+import BuildPage from './pages/BuildPage.tsx';
+import Compare from './pages/Compare.tsx';
+import Home from './pages/Home.tsx';
+import ModelStatusPage from './pages/ModelStatusPage.tsx';
+import Solutions from './pages/Solutions.tsx';
+import SolutionDeposits from './pages/SolutionDeposits.tsx';
+import SolutionRwa from './pages/SolutionRwa.tsx';
+import Standards from './pages/Standards.tsx';
+import Why from './pages/Why.tsx';
+
+function Redirect({ to }: { readonly to: string }) {
+  useEffect(() => {
+    // Preserve query and hash: /counter?autorun must land as /build/counter?autorun.
+    navigate(to + location.search + location.hash);
+  }, [to]);
+  return null;
+}
 
 export default function App() {
   return (
     <Router
       routes={{
-        '/': <Landing />,
+        '/': <Home />,
+        '/why': <Why />,
+        '/compare': <Compare />,
         '/learn': <Learn />,
         '/learn/topic': <LearnTopic />,
-        '/examples': <Home />,
-        '/counter': <CounterPage />,
-        '/unshielded-token': <PublicTokenPage />,
-        // Old link kept working; the page was briefly published under this path.
-        '/deposit': <PublicTokenPage />,
+        '/labs/public-token': <PublicTokenLab />,
+        '/labs/confidential-token': <ConfidentialTokenLab />,
+        '/models/native-unshielded': <ModelStatusPage id="native-unshielded" />,
+        '/models/native-shielded': <ModelStatusPage id="native-shielded" />,
+        '/models/shielded-contract-token': <ModelStatusPage id="shielded-contract-token" />,
+        '/solutions': <Solutions />,
+        '/solutions/tokenised-deposits': <SolutionDeposits />,
+        '/solutions/rwa': <SolutionRwa />,
+        '/standards': <Standards />,
+        '/build': <BuildPage />,
+        '/build/counter': <CounterPage />,
+        // Legacy paths — published in earlier iterations; keep them working.
+        '/counter': <Redirect to="/build/counter" />,
+        '/unshielded-token': <Redirect to="/labs/public-token" />,
+        '/deposit': <Redirect to="/labs/public-token" />,
+        '/examples': <Redirect to="/learn" />,
       }}
     />
   );

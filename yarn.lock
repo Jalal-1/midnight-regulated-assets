@@ -528,6 +528,17 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@mra/lab-shell@workspace:^, @mra/lab-shell@workspace:packages/lab-shell":
+  version: 0.0.0-use.local
+  resolution: "@mra/lab-shell@workspace:packages/lab-shell"
+  dependencies:
+    "@mra/asset-models": "workspace:^"
+    "@mra/network": "workspace:^"
+    "@types/react": "npm:^19.2.18"
+    react: "npm:^19.2.8"
+  languageName: unknown
+  linkType: soft
+
 "@mra/ledger-mock@workspace:packages/ledger-mock":
   version: 0.0.0-use.local
   resolution: "@mra/ledger-mock@workspace:packages/ledger-mock"
@@ -557,6 +568,7 @@ __metadata:
     "@mra/app-counter": "workspace:^"
     "@mra/app-tokenised-deposit": "workspace:^"
     "@mra/asset-models": "workspace:^"
+    "@mra/lab-shell": "workspace:^"
     "@mra/network": "workspace:^"
     "@mra/wallet": "workspace:^"
     "@types/react": "npm:^19.2.18"

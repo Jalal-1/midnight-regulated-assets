@@ -732,3 +732,34 @@ circuit. Witness notes that matter:
   minted to or paid — and registering is a transaction, so on this composition
   every participant needs a funded wallet, unlike the public token where a
   recipient was just an account id.
+
+## 2026-08-15 · The portal: repo restructure and the truthfulness registry
+
+`apps/counter/web` became `apps/portal` — the portal owns the public experience
+(`yarn ui`); the counter keeps its contract and Node script as a diagnostic and
+exports bindings as `@mra/app-counter/contract`. Two real packages appeared:
+
+- **`packages/asset-models`** — the single authoritative registry of all five
+  asset models. Comparison tables, badges, homepage cards, lab framing, and
+  solution pages render FROM it; every status value must be backed by code,
+  tests, or these notes. HSM / MPC / multisig / threshold-policy claims are
+  kept per-mechanism and never conflated.
+- **`packages/lab-shell`** — the shared walkthrough machinery (nav, ops/timing,
+  infra panels, router/theme, the visibility matrix, the 13-step lab layout).
+
+The persona cast renamed to ACME Bank / Alice / Bob / Eve (+ Regulator only
+where a real mechanism exists — for the CFT that is "Not implemented"). The
+identity-derivation strings did NOT change, so accounts stay stable.
+
+The CFT got its browser lab. One design decision worth recording: wallet-side
+plaintext balances live in page memory ONLY — they are the very data the model
+protects, so they are never persisted (not even localStorage). Consequence: an
+instance deployed in an earlier session is read-only in the lab (Eve's view
+still works — it needs no secrets); deploy a fresh instance to run the
+lifecycle. The circuits verify every plaintext claim, so lost tracking can only
+fail proofs, never corrupt state.
+
+Verified after the restructure: counter autorun e2e, both CLI lifecycles, both
+browser labs end-to-end (public: holders enumerable at 250.00/250.00; CFT:
+supply 500.00 public, 4 ciphertext cells unreadable, wallet-side 250.00/250.00),
+16 routes × 2 viewports + 4 legacy redirects (`apps/portal/e2e-portal.mjs`).

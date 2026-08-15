@@ -17,7 +17,7 @@
  */
 
 
-import { currentNetwork } from './network.ts';
+import { currentNetwork } from '@mra/lab-shell';
 
 const STORAGE_KEY = 'mra.counter.contracts.v1';
 const MAX_ENTRIES = 50;

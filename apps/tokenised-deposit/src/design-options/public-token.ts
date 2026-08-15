@@ -4,9 +4,9 @@
  * Runs the deposit lifecycle on the owner-controlled public token
  * (contract/public-token.compact — OZ FungibleToken gated by OZ Ownable):
  *
- *   issue     Meridian (the issuer) mints deposits to Alice
+ *   issue     ACME Bank (the issuer) mints deposits to Alice
  *   transfer  Alice pays Bob
- *   redeem    Meridian burns Alice's remaining deposit
+ *   redeem    ACME Bank burns Alice's remaining deposit
  *
  * and then makes the point of this design option: EVE — who has no wallet, no
  * keys, and no relationship with anyone involved — reads every balance, the
@@ -66,11 +66,11 @@ type CircuitId = 'mint' | 'burn' | 'transfer' | 'balanceOf' | 'totalSupply' | 'o
 
 // --- Personas -----------------------------------------------------------------
 //
-// Meridian (issuer) and Alice submit transactions, so they get funded wallets
+// ACME Bank (issuer) and Alice submit transactions, so they get funded wallets
 // from the localnet genesis seeds. Bob receives without a wallet. Eve reads
 // without so much as a key.
 
-const PERSONAS = { meridian: 0, alice: 1 } as const;
+const PERSONAS = { acme: 0, alice: 1 } as const;
 
 /**
  * A persona's token secret key, derived from their wallet seed.
@@ -162,18 +162,18 @@ async function main(): Promise<void> {
 
   // Identities first — they exist before any chain interaction.
   const keys = {
-    meridian: tokenSecretKey(LOCALNET_GENESIS_SEEDS[PERSONAS.meridian]),
+    acme: tokenSecretKey(LOCALNET_GENESIS_SEEDS[PERSONAS.acme]),
     alice: tokenSecretKey(LOCALNET_GENESIS_SEEDS[PERSONAS.alice]),
     bob: tokenSecretKey('bob-needs-no-wallet-to-receive'),
   };
   const ids = {
-    meridian: asAccount(accountId(keys.meridian)),
+    acme: asAccount(accountId(keys.acme)),
     alice: asAccount(accountId(keys.alice)),
     bob: asAccount(accountId(keys.bob)),
   };
 
   const wallets: MidnightWallet[] = [];
-  const sessionFor = async (persona: 'meridian' | 'alice') => {
+  const sessionFor = async (persona: 'acme' | 'alice') => {
     const seed = LOCALNET_GENESIS_SEEDS[PERSONAS[persona]];
     const wallet = await createWalletFromSeed(seed, network);
     wallets.push(wallet);
@@ -190,22 +190,22 @@ async function main(): Promise<void> {
   };
 
   try {
-    console.log('building wallets (Meridian issues, Alice pays; Bob and Eve need none)…');
-    const meridian = await sessionFor('meridian');
+    console.log('building wallets (ACME Bank issues, Alice pays; Bob and Eve need none)…');
+    const acme = await sessionFor('acme');
     const alice = await sessionFor('alice');
 
-    // Deploy as Meridian, who is also the initial owner.
-    let done = step(meter, 'deploy public-token (Meridian is owner)');
-    const deployed = await deployContract(meridian, {
-      compiledContract: compiledFor(keys.meridian),
-      args: ['Meridian Deposit Token', 'mUSD', 2n, ids.meridian],
+    // Deploy as ACME Bank, who is also the initial owner.
+    let done = step(meter, 'deploy public-token (ACME Bank is owner)');
+    const deployed = await deployContract(acme, {
+      compiledContract: compiledFor(keys.acme),
+      args: ['ACME Deposit Token', 'mUSD', 2n, ids.acme],
     });
     done();
     const address = deployed.deployTxData.public.contractAddress;
     console.log(`  address ${address}`);
 
     // ISSUE — mint 1,000.00 mUSD to Alice against the (mocked) core-ledger liability.
-    done = step(meter, `issue: Meridian mints ${fmt(100_000n)} to Alice`);
+    done = step(meter, `issue: ACME Bank mints ${fmt(100_000n)} to Alice`);
     await deployed.callTx.mint(ids.alice, 100_000n);
     done();
 
@@ -218,8 +218,8 @@ async function main(): Promise<void> {
     await aliceToken.callTx.transfer(ids.bob, 25_000n);
     done();
 
-    // REDEEM — Meridian burns 500.00 mUSD of Alice's deposit (core ledger credits her).
-    done = step(meter, `redeem: Meridian burns ${fmt(50_000n)} from Alice`);
+    // REDEEM — ACME Bank burns 500.00 mUSD of Alice's deposit (core ledger credits her).
+    done = step(meter, `redeem: ACME Bank burns ${fmt(50_000n)} from Alice`);
     await deployed.callTx.burn(ids.alice, 50_000n);
     done();
 
@@ -230,7 +230,7 @@ async function main(): Promise<void> {
       const hex = Buffer.from(key).toString('hex');
       if (hex === Buffer.from(ids.alice.left).toString('hex')) return 'Alice   ';
       if (hex === Buffer.from(ids.bob.left).toString('hex')) return 'Bob     ';
-      if (hex === Buffer.from(ids.meridian.left).toString('hex')) return 'Meridian';
+      if (hex === Buffer.from(ids.acme.left).toString('hex')) return 'ACME Bank';
       return `${hex.slice(0, 8)}…`;
     };
     const seen = new Map<string, bigint>();
@@ -239,7 +239,7 @@ async function main(): Promise<void> {
       seen.set(Buffer.from(account.left).toString('hex'), balance);
     }
     console.log(`  supply   ${fmt(eve._totalSupply)}`);
-    console.log(`  owner    ${Buffer.from(eve._owner.left).toString('hex').slice(0, 16)}… (Meridian)`);
+    console.log(`  owner    ${Buffer.from(eve._owner.left).toString('hex').slice(0, 16)}… (ACME Bank)`);
     console.log('\nEve did not query balances she knew about — she ENUMERATED the map.');
     console.log('On this composition the public sees what the regulator sees, holder');
     console.log('list included. That is the checklist failure.');

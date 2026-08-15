@@ -4,7 +4,7 @@
  * Runs the deposit lifecycle on the OZ ConfidentialFungibleToken (+ PublicSupply
  * + Ownable) composition:
  *
- *   deploy (Meridian owns) → Alice & Bob register encryption keys →
+ *   deploy (ACME Bank owns) → Alice & Bob register encryption keys →
  *   issue 1,000.00 to Alice → Alice sweeps → Alice pays Bob 250.00 →
  *   Bob sweeps → Alice redeems 500.00 → Eve reads
  *
@@ -31,7 +31,7 @@
  *
  * Run:  node --experimental-strip-types apps/tokenised-deposit/src/design-options/confidential-token.ts
  * Needs: localnet up + `yarn redeploy`. Stagenet: set MRA_NETWORK=stagenet and
- *        MRA_CFT_SEED_MERIDIAN / _ALICE / _BOB to faucet-funded seeds.
+ *        MRA_CFT_SEED_ACME / _ALICE / _BOB to faucet-funded seeds.
  */
 
 import { randomBytes } from 'node:crypto';
@@ -164,12 +164,12 @@ async function main(): Promise<void> {
   const seeds =
     network.networkId === 'undeployed'
       ? {
-          meridian: LOCALNET_GENESIS_SEEDS[0],
+          acme: LOCALNET_GENESIS_SEEDS[0],
           alice: LOCALNET_GENESIS_SEEDS[1],
           bob: LOCALNET_GENESIS_SEEDS[2],
         }
       : {
-          meridian: process.env.MRA_CFT_SEED_MERIDIAN ?? '',
+          acme: process.env.MRA_CFT_SEED_ACME ?? '',
           alice: process.env.MRA_CFT_SEED_ALICE ?? '',
           bob: process.env.MRA_CFT_SEED_BOB ?? '',
         };
@@ -180,15 +180,15 @@ async function main(): Promise<void> {
   }
 
   console.log(`network ${network.networkId} · prover ${network.proofServer}`);
-  console.log('building wallets (Meridian = issuer, Alice + Bob = customers)…');
+  console.log('building wallets (ACME Bank = issuer, Alice + Bob = customers)…');
 
   const cast = {
-    meridian: new TokenWallet('Meridian', seeds.meridian),
+    acme: new TokenWallet('ACME Bank', seeds.acme),
     alice: new TokenWallet('Alice', seeds.alice),
     bob: new TokenWallet('Bob', seeds.bob),
   };
 
-  const sessions = {} as Record<'meridian' | 'alice' | 'bob', Awaited<ReturnType<typeof buildSession>>>;
+  const sessions = {} as Record<'acme' | 'alice' | 'bob', Awaited<ReturnType<typeof buildSession>>>;
   async function buildSession(who: keyof typeof cast) {
     const midnightWallet = await createWalletFromSeed(seeds[who], network);
     await midnightWallet.wallet.waitForSyncedState();
@@ -202,7 +202,7 @@ async function main(): Promise<void> {
     });
     return { wallet: midnightWallet, providers, tokenWallet: cast[who] };
   }
-  for (const who of ['meridian', 'alice', 'bob'] as const) {
+  for (const who of ['acme', 'alice', 'bob'] as const) {
     const t = Date.now();
     sessions[who] = await buildSession(who);
     console.log(`  ${who} wallet synced in ${elapsed(t)}`);
@@ -222,12 +222,12 @@ async function main(): Promise<void> {
   };
 
   try {
-    console.log('\ndeploying confidential token (Meridian is owner)…');
+    console.log('\ndeploying confidential token (ACME Bank is owner)…');
     let address = '';
     await run('deployed', async () => {
-      const deployed = await deployContract(sessions.meridian.providers, {
-        compiledContract: compiledFor(cast.meridian),
-        args: ['Meridian Confidential Deposit', 'cmUSD', 2n, asOwner(cast.meridian.id)],
+      const deployed = await deployContract(sessions.acme.providers, {
+        compiledContract: compiledFor(cast.acme),
+        args: ['ACME Confidential Deposit', 'cmUSD', 2n, asOwner(cast.acme.id)],
       });
       address = deployed.deployTxData.public.contractAddress;
     });
@@ -245,9 +245,9 @@ async function main(): Promise<void> {
     await run('Alice registered', () => aliceToken.callTx.register());
     await run('Bob registered', () => bobToken.callTx.register());
 
-    console.log('\nissue: Meridian mints 1,000.00 cmUSD to Alice (amount public ONLY via supply delta)…');
-    const meridianToken = await attach('meridian');
-    await run('minted', () => meridianToken.callTx.mint(cast.alice.id, 100_000n));
+    console.log('\nissue: ACME Bank mints 1,000.00 cmUSD to Alice (amount public ONLY via supply delta)…');
+    const acmeToken = await attach('acme');
+    await run('minted', () => acmeToken.callTx.mint(cast.alice.id, 100_000n));
     cast.alice.pending += 100_000n;
 
     console.log('\nAlice sweeps her incoming funds into her spendable balance…');
@@ -270,14 +270,14 @@ async function main(): Promise<void> {
 
     // ---- Eve: no wallet, no keys — what does the chain actually serve? -------
     console.log('\nEve (public observer) reads the contract state off the indexer:');
-    const state = await sessions.meridian.providers.publicDataProvider.queryContractState(address);
+    const state = await sessions.acme.providers.publicDataProvider.queryContractState(address);
     if (!state) throw new Error('no contract state');
     const decoded = ledger(state.data);
     console.log(`  token          ${decoded._name} (${decoded._symbol})`);
     console.log(`  totalSupply    ${fmt(decoded._totalSupply)} — PUBLIC by design (issuer attests circulating supply)`);
     console.log(`  registered     ${decoded._encryptionKeys.size()} accounts (ids + encryption keys are public)`);
     for (const [id, ct] of decoded._balances) {
-      const who = [cast.meridian, cast.alice, cast.bob].find((w) => hex(w.id) === hex(id));
+      const who = [cast.acme, cast.alice, cast.bob].find((w) => hex(w.id) === hex(id));
       console.log(
         `  balance[${(who?.label ?? hex(id).slice(0, 8)).padEnd(8)}] = ElGamal ciphertext (c1.x=${ct.c1.x.toString(16).slice(0, 12)}…) — NOT a number Eve can read`,
       );

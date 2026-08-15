@@ -14,7 +14,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 
-import { currentNetwork } from './network.ts';
+import { currentNetwork } from '@mra/lab-shell';
 import { formatDust, formatNight } from '@mra/wallet';
 
 import Contracts from './Contracts.tsx';
@@ -26,12 +26,12 @@ import {
   remember,
   type CheckedContract,
 } from './history.ts';
-import Infrastructure from './Infrastructure.tsx';
-import LogoMark from './Logo.tsx';
-import NetPill from './NetPill.tsx';
-import { OpBar, useOps } from './ops.tsx';
-import { Link } from './router.tsx';
-import { useTheme } from './theme.ts';
+import { Infrastructure } from '@mra/lab-shell';
+import { LogoMark } from '@mra/lab-shell';
+import { NetPill } from '@mra/lab-shell';
+import { OpBar, useOps } from '@mra/lab-shell';
+import { Link } from '@mra/lab-shell';
+import { useTheme } from '@mra/lab-shell';
 
 /** Personas map onto the four localnet genesis seeds. */
 const PERSONAS = ['Alice', 'Bob', 'Eve', 'Dana'] as const;

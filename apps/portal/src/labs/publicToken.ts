@@ -29,7 +29,7 @@ import {
   type Ledger,
 } from '@mra/app-tokenised-deposit/contract';
 import { LOCALNET_GENESIS_SEEDS } from '@mra/network';
-import { currentNetwork } from '../network.ts';
+import { currentNetwork } from '@mra/lab-shell';
 import { configureNetworkId, createWalletFromSeed, type MidnightWallet } from '@mra/wallet';
 import { createBrowserProviders } from '@mra/wallet/providers/browser';
 
@@ -44,12 +44,12 @@ export type Account = Either<Uint8Array, ContractAddress>;
 
 // --- Personas -------------------------------------------------------------------
 //
-// Meridian (issuer) and Alice submit transactions, so they get funded wallets
+// ACME Bank (issuer) and Alice submit transactions, so they get funded wallets
 // from the localnet genesis seeds. Bob receives without a wallet — a recipient
 // is just an account id. Eve reads without so much as a key.
 
 export const TOKEN_PERSONAS = {
-  meridian: { label: 'Meridian', seedIndex: 0 },
+  acme: { label: 'ACME Bank', seedIndex: 0 },
   alice: { label: 'Alice', seedIndex: 1 },
 } as const;
 
@@ -83,18 +83,18 @@ export const hex = (bytes: Uint8Array): string => {
  * The demo cast's identities, derivable with no chain interaction at all.
  * On Stagenet pass the user's own seeds; localnet defaults to the genesis ones.
  */
-export async function tokenIdentities(seeds?: { meridian: string; alice: string }) {
-  const meridianSk = await tokenSecretKey(
-    seeds?.meridian ?? LOCALNET_GENESIS_SEEDS[TOKEN_PERSONAS.meridian.seedIndex]!,
+export async function tokenIdentities(seeds?: { acme: string; alice: string }) {
+  const acmeSk = await tokenSecretKey(
+    seeds?.acme ?? LOCALNET_GENESIS_SEEDS[TOKEN_PERSONAS.acme.seedIndex]!,
   );
   const aliceSk = await tokenSecretKey(
     seeds?.alice ?? LOCALNET_GENESIS_SEEDS[TOKEN_PERSONAS.alice.seedIndex]!,
   );
   const bobSk = await tokenSecretKey('bob-needs-no-wallet-to-receive');
   return {
-    keys: { meridian: meridianSk, alice: aliceSk, bob: bobSk },
+    keys: { acme: acmeSk, alice: aliceSk, bob: bobSk },
     ids: {
-      meridian: asAccount(accountId(meridianSk)),
+      acme: asAccount(accountId(acmeSk)),
       alice: asAccount(accountId(aliceSk)),
       bob: asAccount(accountId(bobSk)),
     },
@@ -149,7 +149,7 @@ async function bestBlock(node: string): Promise<number> {
  * block of patience after wallet start removes the race — measured, not
  * assumed: the rejection is in the node log without this wait.
  */
-async function waitForNextBlock(node: string): Promise<void> {
+export async function waitForNextBlock(node: string): Promise<void> {
   const start = await bestBlock(node);
   for (let i = 0; i < 40; i += 1) {
     await new Promise((resolve) => setTimeout(resolve, 500));

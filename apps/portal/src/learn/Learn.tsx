@@ -1,65 +1,90 @@
 /**
- * Learn — the contents page. Four chapters in the site's numbered-list
- * pattern; each opens the topic page at its chapter anchor.
+ * Learn & Try — the section index. Guided application walkthroughs first
+ * (that is the point of the section); honest status pages for models without
+ * lifecycles; the architecture concepts as supporting reading.
  */
 
 import { useEffect } from 'react';
 
-import LogoMark from '../Logo.tsx';
-import { Link } from '../router.tsx';
+import { labModels, statusPageModels } from '@mra/asset-models';
+import { Link, LogoMark, SiteNav, StatusBadge } from '@mra/lab-shell';
+
 import { TOPICS } from './topics.ts';
 
 export default function Learn() {
   useEffect(() => {
-    document.title = 'Learn — token architecture on Midnight';
+    document.title = 'Learn & Try — Midnight regulated assets';
   }, []);
 
   return (
-    <div className="learn">
+    <div className="portal-page">
+      <SiteNav />
       <div className="home-glow" />
-      <div className="learn-inner">
-        <header className="learn-head">
-          <div className="learn-nav">
-            <Link to="/" className="muted-link">
-              ← Home
-            </Link>
-            <Link to="/examples" className="muted-link right">
-              Try the examples →
-            </Link>
-          </div>
+      <div className="portal-inner">
+        <header className="portal-hero left">
           <LogoMark className="learn-logo" />
-          <span className="overline">Learn</span>
-          <h1>Token architecture on Midnight</h1>
+          <span className="overline">Learn &amp; Try</span>
+          <h1>Guided walkthroughs on the real stack</h1>
           <p className="home-sub">
-            How regulated assets are built here. Each chapter pairs a short explanation with an
-            interactive model you can operate yourself.
+            Every lab drives real wallets, real contracts, and real proofs, and walks the same
+            cast — ACME Bank issues, Alice and Bob transact, Eve observes — through issue
+            1,000.00, transfer 250.00, redeem 500.00. Each states exactly what stayed public and
+            what stayed private.
           </p>
-          <span className="muted small">
-            4 chapters · about ten minutes · read in order or jump in anywhere
-          </span>
-          <div className="home-divider" />
         </header>
 
-        <section className="learn-list">
-          {TOPICS.map((topic, i) => (
-            <Link key={topic.id} to={`/learn/topic#${topic.id}`} className="learn-row">
-              <span className="card-n">0{i + 1}</span>
-              <strong>{topic.title}</strong>
-              <span className="card-desc">{topic.summary}</span>
-              <span className="card-arrow">→</span>
-            </Link>
-          ))}
+        <section className="portal-section">
+          <h2>The labs</h2>
+          <div className="model-cards">
+            {labModels().map((m) => (
+              <Link key={m.id} to={m.route} className="model-card">
+                <div className="model-card-head">
+                  <strong>{m.plainName}</strong>
+                  <StatusBadge status={m.verification} />
+                </div>
+                <span className="card-desc">{m.summary}</span>
+                <span className="landing-cta">Open the lab →</span>
+              </Link>
+            ))}
+          </div>
         </section>
 
-        <footer>
+        <section className="portal-section">
+          <h2>Models without a lifecycle yet</h2>
           <p className="muted small">
-            Interactive models are illustrations of the mechanics — the{' '}
-            <Link to="/examples" className="inline-link">
-              hosted examples
-            </Link>{' '}
-            run the real thing.
+            Honest status pages — intended properties and real gaps, no fake buttons.
           </p>
-        </footer>
+          <div className="model-cards">
+            {statusPageModels().map((m) => (
+              <Link key={m.id} to={m.route} className="model-card">
+                <div className="model-card-head">
+                  <strong>{m.plainName}</strong>
+                  <StatusBadge status={m.verification} />
+                </div>
+                <span className="card-desc">{m.summary}</span>
+                <span className="landing-cta">Read the status →</span>
+              </Link>
+            ))}
+          </div>
+        </section>
+
+        <section className="portal-section">
+          <h2>The architecture, in four chapters</h2>
+          <p className="muted small">
+            Supporting reading with interactive teaching models — illustrations of the mechanics;
+            the labs above run the real thing.
+          </p>
+          <div className="learn-list">
+            {TOPICS.map((topic, i) => (
+              <Link key={topic.id} to={`/learn/topic#${topic.id}`} className="learn-row">
+                <span className="card-n">0{i + 1}</span>
+                <strong>{topic.title}</strong>
+                <span className="card-desc">{topic.summary}</span>
+                <span className="card-arrow">→</span>
+              </Link>
+            ))}
+          </div>
+        </section>
       </div>
     </div>
   );

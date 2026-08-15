@@ -10,7 +10,7 @@
  */
 
 
-import { currentNetwork } from '../network.ts';
+import { currentNetwork } from '@mra/lab-shell';
 
 import { getGenesisHash } from '../history.ts';
 import { readPublicView, type PublicView } from './publicToken.ts';

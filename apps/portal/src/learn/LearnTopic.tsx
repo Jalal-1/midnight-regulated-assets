@@ -9,7 +9,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 
-import { Link } from '../router.tsx';
+import { Link } from '@mra/lab-shell';
 import { TOPICS, type Topic } from './topics.ts';
 
 const hash8 = () =>

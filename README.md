@@ -20,7 +20,7 @@ The repo layout states that thesis directly: products live in `apps/`, the block
 
 ## Status
 
-**M0 and M1 are done on localnet; M2 is underway** — the unshielded contract token (OZ FungibleToken + Ownable) runs its full lifecycle on localnet: issue, transfer, redeem, and a keyless public read that enumerates every holder (`yarn workspace @mra/app-tokenised-deposit design-options:public`). Target network is **Stagenet** — a new chain with its own genesis, on the Ledger RC3 compatible stack; localnet mirrors that stack for development.
+**The repo is now a partner-facing portal** (`yarn ui` → http://localhost:5173): Why Midnight, a registry-driven comparison of five asset models, guided Learn & Try labs, solution pages, Standards & assurance, and a Build section. Two full token lifecycles run today — the public contract token and the account-based confidential fungible token (CFT) — each as a browser lab AND a Node reference script, verified on localnet. Target network is **Stagenet** — wallet connectivity is verified there; the token lifecycles are NOT yet (and are labelled accordingly).
 
 **Real and verified — the full loop works on localnet**
 
@@ -41,17 +41,24 @@ round after increment = 1
 - **The pin set is coherent.** The compiler self-reports `ledger-9.1.0.0-rc.3` and runtime `0.18.0-rc.1`, both matching the delivery note.
 - **`yarn check` is clean** and the lockfile is committed.
 
-**The browser UI** (`yarn ui` → http://localhost:5173) has a homepage routing to
-each live example: the counter dashboard (`/counter`) and the unshielded contract
-token (`/unshielded-token`) — wallets, live infrastructure panels, per-operation
-timing breakdowns (proving is ~0.3 s; block inclusion is the rest), and the
-keyless public view. Every value on every page is live chain state.
+**The portal** (`yarn ui` → http://localhost:5173) — sections: `/why`, `/compare`
+(driven by the `packages/asset-models` registry), `/learn` (guided labs +
+concepts), `/labs/public-token`, `/labs/confidential-token`, `/solutions/…`,
+`/standards`, `/build` (the counter diagnostic lives at `/build/counter`). Labs
+use a consistent cast — ACME Bank issues, Alice and Bob transact, Eve observes —
+and consistent amounts (issue 1,000.00 · transfer 250.00 · redeem 500.00), with
+live infrastructure panels and measured per-operation timing (proving ~0.3 s;
+block inclusion the rest). Every interactive example uses the real node, wallet,
+proving and indexer stack; each states whether it is verified on localnet or
+Stagenet. Old routes redirect.
 
 **Not real yet**
 - **Nothing has run against Stagenet.** Everything above is localnet. The Stagenet endpoints are configured but untested, and the demo scripts are deliberately localnet-only because they use well-known genesis seeds.
 - `ops/redeploy.sh` compiles but does not deploy — deployment lives in each app's scripts.
-- `packages/contracts`, `packages/ui`, and `packages/ledger-mock` are still empty `export {}` with docblocks.
-- `apps/rwa-token` is empty and excluded from the root `tsconfig.json` references until it has source.
+- `packages/contracts`, `packages/ui`, and `packages/ledger-mock` are still empty `export {}` with docblocks (`packages/asset-models` and `packages/lab-shell` are real).
+- `apps/rwa-token` is empty and excluded from the root `tsconfig.json` references until it has source; the RWA solution page is design intent and says so.
+- No custody integration (HSM/MPC/multisig/2-of-3) is implemented — issuer control is single-secret `Ownable`; the portal states this on every relevant page.
+- No regulator viewing mechanism exists in the pinned CFT module; the portal shows "Not implemented" rather than a fabricated view.
 
 Every non-obvious thing that cost time on the way here is written up in **[docs/field-notes.md](docs/field-notes.md)** — 14 entries so far, and it is the most useful file in the repo right now. The wallet-bridge entry alone will save a day.
 
@@ -61,8 +68,8 @@ Both previously-unconfirmed values are now resolved: the Compact language versio
 |---|---|---|
 | **M0** | Scaffold, pinned RC3 stack, localnet compose, redeploy runbook | **done** |
 | **M1** | Counter + thin wallet wrapper on localnet; field notes | **done (localnet)** |
-| **M2** | Deposit design options: native + unshielded contract token, multi-party view | **unshielded contract token done**; native + view next |
-| **M3** | Design options: account-based CFT — deposit design page complete | **runs on localnet** (OZ patched for language 0.25 — see field notes 2026-08-15); Stagenet pending faucet funding |
+| **M2** | Deposit design options: native + unshielded contract token, multi-party view | **unshielded token done (lab + CLI)**; multi-party visibility matrix done (registry-driven); native token = honest status page, lifecycle pending |
+| **M3** | Design options: account-based CFT — deposit design page complete | **runs on localnet, lab + CLI** (OZ patched for language 0.25 — see field notes 2026-08-15); Stagenet pending faucet funding |
 | **M4** | Deposit lifecycle: issue, transfer, audit, redeem | not started |
 | **M5** | RWA token product + site complete | not started |
 | **M6** | Shielded UTXO design option — built last, see below | not started |
@@ -92,23 +99,28 @@ Named but **not built** — see `docs/roadmap`: private digital cash (ZSwap bear
 
 ```
 midnight-regulated-assets/
-├── docs/                    # the site: overview, products, roadmap, build, field notes
+├── docs/                    # overview, products, roadmap, build, field notes
 ├── apps/
-│   ├── counter/             # toolchain proof — start here
-│   ├── tokenised-deposit/   # design-options / issue / transfer / audit / redeem
-│   └── rwa-token/           # the recomposition + lifecycle
+│   ├── portal/              # THE PUBLIC EXPERIENCE — all portal pages and labs
+│   ├── counter/             # toolchain diagnostic (contract + Node deploy script)
+│   ├── tokenised-deposit/   # contracts + lifecycle scripts (public + confidential)
+│   └── rwa-token/           # not built yet (the solution page says so)
 ├── packages/
+│   ├── asset-models/        # THE REGISTRY: every model's evidence-backed properties
+│   ├── lab-shell/           # shared walkthrough UI: nav, ops/timing, infra, visibility matrix
 │   ├── network/             # THE ONLY place endpoints live
-│   ├── wallet/              # thin Wallet SDK wrapper
-│   ├── contracts/           # THE BLOCKS: access, multisig, security, token, crypto
-│   ├── ui/                  # design system + multi-party view component
-│   └── ledger-mock/         # mock core-banking ledger
+│   ├── wallet/              # thin Wallet SDK wrapper (+ NIGHT/DUST units)
+│   ├── contracts/           # placeholder for shared blocks
+│   ├── ui/                  # placeholder
+│   └── ledger-mock/         # placeholder mock core-banking ledger
 └── ops/                     # localnet compose, redeploy.sh, setup-toolchain.sh, versions.lock.json
 ```
 
 | I want to… | Go to |
 |---|---|
-| Verify my toolchain works at all | `apps/counter` |
+| Compare the asset models | the portal `/compare` (data: `packages/asset-models`) |
+| Run a guided lifecycle | the portal `/labs/public-token` or `/labs/confidential-token` |
+| Verify my toolchain works at all | `apps/counter` + portal `/build/counter` |
 | Change an RPC or indexer endpoint | `packages/network` — nowhere else |
 | Understand the reusable primitives | `packages/contracts` |
 | See a product's full lifecycle | `apps/tokenised-deposit` |
