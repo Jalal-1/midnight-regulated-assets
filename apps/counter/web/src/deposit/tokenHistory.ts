@@ -9,7 +9,8 @@
  * browser remembers calling it.
  */
 
-import { getNetwork } from '@mra/network';
+
+import { currentNetwork } from '../network.ts';
 
 import { getGenesisHash } from '../history.ts';
 import { readPublicView, type PublicView } from './publicToken.ts';
@@ -52,7 +53,7 @@ function writeAll(entries: readonly StoredToken[]): void {
 }
 
 export function rememberToken(address: string, genesis: string): void {
-  const { networkId } = getNetwork();
+  const { networkId } = currentNetwork();
   const entries = readAll().filter((entry) => entry.address !== address);
   entries.push({ address, networkId, genesis, deployedAt: Date.now() });
   writeAll(entries);
@@ -64,7 +65,7 @@ export function forgetToken(address: string): void {
 
 /** Newest first, each checked against the current chain. */
 export async function loadCheckedTokens(): Promise<CheckedToken[]> {
-  const { networkId } = getNetwork();
+  const { networkId } = currentNetwork();
   const mine = readAll().filter((entry) => entry.networkId === networkId);
   if (mine.length === 0) return [];
 

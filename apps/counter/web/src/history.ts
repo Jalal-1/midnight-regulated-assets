@@ -16,7 +16,8 @@
  * Only `live` entries can be selected.
  */
 
-import { getNetwork } from '@mra/network';
+
+import { currentNetwork } from './network.ts';
 
 const STORAGE_KEY = 'mra.counter.contracts.v1';
 const MAX_ENTRIES = 50;
@@ -58,22 +59,31 @@ function writeAll(entries: readonly StoredContract[]): void {
   }
 }
 
-/** The genesis hash of the chain we are currently pointed at. */
+/**
+ * The identity of the chain INSTANCE we are pointed at.
+ *
+ * Not the genesis hash: the localnet dev preset's genesis is deterministic, so
+ * every fresh localnet has the SAME block-0 hash (verified 2026-08-15 — a
+ * `down -v` + recreate reproduced `0x635663c0…` exactly). Block 1 is produced
+ * at runtime and is unique per instance, so it is the discriminator. Throws
+ * for the first ~6 s of a brand-new chain (block 1 not yet made) — callers
+ * already treat "cannot identify the chain" conservatively.
+ */
 export async function getGenesisHash(): Promise<string> {
-  const { node } = getNetwork();
+  const { node } = currentNetwork();
   const response = await fetch(node, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'chain_getBlockHash', params: [0] }),
+    body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'chain_getBlockHash', params: [1] }),
   });
   const { result } = await response.json();
-  if (typeof result !== 'string') throw new Error('could not read genesis hash');
+  if (typeof result !== 'string') throw new Error('could not read chain instance id');
   return result;
 }
 
 /** Record a freshly deployed contract. Newest last. */
 export function remember(address: string, genesis: string): void {
-  const { networkId } = getNetwork();
+  const { networkId } = currentNetwork();
   const entries = readAll().filter((entry) => entry.address !== address);
   entries.push({ address, networkId, genesis, deployedAt: Date.now() });
   writeAll(entries);
@@ -97,7 +107,7 @@ export function forgetAll(): void {
 export async function loadChecked(
   readRound: (address: string) => Promise<bigint | null>,
 ): Promise<CheckedContract[]> {
-  const { networkId } = getNetwork();
+  const { networkId } = currentNetwork();
   const mine = readAll().filter((entry) => entry.networkId === networkId);
   if (mine.length === 0) return [];
 

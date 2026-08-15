@@ -28,7 +28,8 @@ import {
   type Either,
   type Ledger,
 } from '@mra/app-tokenised-deposit/contract';
-import { getNetwork, LOCALNET_GENESIS_SEEDS } from '@mra/network';
+import { LOCALNET_GENESIS_SEEDS } from '@mra/network';
+import { currentNetwork } from '../network.ts';
 import { configureNetworkId, createWalletFromSeed, type MidnightWallet } from '@mra/wallet';
 import { createBrowserProviders } from '@mra/wallet/providers/browser';
 
@@ -78,10 +79,17 @@ export const hex = (bytes: Uint8Array): string => {
   return out;
 };
 
-/** The demo cast's identities, derivable with no chain interaction at all. */
-export async function tokenIdentities() {
-  const meridianSk = await tokenSecretKey(LOCALNET_GENESIS_SEEDS[TOKEN_PERSONAS.meridian.seedIndex]!);
-  const aliceSk = await tokenSecretKey(LOCALNET_GENESIS_SEEDS[TOKEN_PERSONAS.alice.seedIndex]!);
+/**
+ * The demo cast's identities, derivable with no chain interaction at all.
+ * On Stagenet pass the user's own seeds; localnet defaults to the genesis ones.
+ */
+export async function tokenIdentities(seeds?: { meridian: string; alice: string }) {
+  const meridianSk = await tokenSecretKey(
+    seeds?.meridian ?? LOCALNET_GENESIS_SEEDS[TOKEN_PERSONAS.meridian.seedIndex]!,
+  );
+  const aliceSk = await tokenSecretKey(
+    seeds?.alice ?? LOCALNET_GENESIS_SEEDS[TOKEN_PERSONAS.alice.seedIndex]!,
+  );
   const bobSk = await tokenSecretKey('bob-needs-no-wallet-to-receive');
   return {
     keys: { meridian: meridianSk, alice: aliceSk, bob: bobSk },
@@ -149,12 +157,19 @@ async function waitForNextBlock(node: string): Promise<void> {
   }
 }
 
-/** Build a persona's wallet and providers. Localnet only: public genesis seeds. */
-export async function connectPersona(persona: TokenPersona): Promise<TokenSession> {
-  const network = getNetwork();
+/**
+ * Build a persona's wallet and providers. Localnet uses the public genesis
+ * seeds; Stagenet requires the caller to pass a faucet-funded seed (never
+ * hardcoded, never persisted).
+ */
+export async function connectPersona(persona: TokenPersona, seedHex?: string): Promise<TokenSession> {
+  const network = currentNetwork();
   await configureNetworkId(network);
 
-  const seed = LOCALNET_GENESIS_SEEDS[TOKEN_PERSONAS[persona].seedIndex]!;
+  if (network.networkId !== 'undeployed' && !seedHex) {
+    throw new Error('Stagenet needs a faucet-funded seed for each persona');
+  }
+  const seed = seedHex ?? LOCALNET_GENESIS_SEEDS[TOKEN_PERSONAS[persona].seedIndex]!;
   const wallet = await createWalletFromSeed(seed, network);
   const state = await wallet.wallet.waitForSyncedState();
   await waitForNextBlock(network.node);
@@ -246,7 +261,7 @@ export interface PublicView {
 }
 
 export async function readPublicView(address: string): Promise<PublicView | null> {
-  const network = getNetwork();
+  const network = currentNetwork();
   const publicData = indexerPublicDataProvider(network.indexer, network.indexerWs);
   const state = await publicData.queryContractState(address);
   if (!state) return null;

@@ -13,12 +13,14 @@
 
 import { useCallback, useEffect, useState } from 'react';
 
-import { getNetwork } from '@mra/network';
+
+import { currentNetwork } from '../network.ts';
 import { formatDust, formatNight } from '@mra/wallet';
 
 import { getGenesisHash } from '../history.ts';
 import Infrastructure from '../Infrastructure.tsx';
 import LogoMark from '../Logo.tsx';
+import NetPill from '../NetPill.tsx';
 import { OpBar, useOps } from '../ops.tsx';
 import { Link } from '../router.tsx';
 import { useTheme } from '../theme.ts';
@@ -53,6 +55,9 @@ const short = (value: string, head = 10, tail = 6) => `${value.slice(0, head)}�
 
 const STATE_LABEL = { live: 'live', 'not-found': 'no state', 'other-chain': 'previous chain' } as const;
 
+const normSeed = (raw: string) => raw.trim().toLowerCase().replace(/^0x/, '');
+const isSeed = (raw: string) => /^[0-9a-f]{64}$/.test(raw);
+
 const age = (at: number, now: number) => {
   const seconds = Math.round((now - at) / 1000);
   if (seconds < 60) return `${seconds}s ago`;
@@ -73,8 +78,11 @@ export default function PublicTokenPage() {
   const [logsOn, setLogsOn] = useState(false);
   const [tokenName, setTokenName] = useState('Meridian Deposit Token');
   const [tokenSymbol, setTokenSymbol] = useState('mUSD');
+  // Stagenet only: faucet-funded seeds, memory only, never persisted.
+  const [seedMeridian, setSeedMeridian] = useState('');
+  const [seedAlice, setSeedAlice] = useState('');
 
-  const network = getNetwork();
+  const network = currentNetwork();
   const isLocalnet = network.networkId === 'undeployed';
 
   useEffect(() => {
@@ -94,8 +102,9 @@ export default function PublicTokenPage() {
   }, []);
 
   useEffect(() => {
-    void tokenIdentities().then(setIds);
+    if (isLocalnet) void tokenIdentities().then(setIds);
     void refreshTokens();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once, on mount
   }, [refreshTokens]);
 
   /** The public view follows the ACTIVE token, polled so outside changes appear. */
@@ -118,14 +127,26 @@ export default function PublicTokenPage() {
   }, [active, refreshView]);
 
   const onConnect = async () => {
+    let seeds: { meridian: string; alice: string } | undefined;
+    if (!isLocalnet) {
+      seeds = { meridian: normSeed(seedMeridian), alice: normSeed(seedAlice) };
+      if (!isSeed(seeds.meridian) || !isSeed(seeds.alice)) {
+        ops.say(
+          'Stagenet needs TWO 64-hex faucet-funded seeds (Meridian and Alice) — fund them at faucet.stagenet.shielded.tools',
+          'error',
+        );
+        return;
+      }
+      setIds(await tokenIdentities(seeds));
+    }
     ops.setStatus('connecting');
     const meridian = await ops.step('Create wallet for Meridian (build + sync)', () =>
-      connectPersona('meridian'),
+      connectPersona('meridian', seeds?.meridian),
     );
     if (!meridian) return;
     setSessions((prev) => ({ ...prev, meridian }));
     const alice = await ops.step('Create wallet for Alice (build + sync)', () =>
-      connectPersona('alice'),
+      connectPersona('alice', seeds?.alice),
     );
     if (!alice) return;
     setSessions((prev) => ({ ...prev, alice }));
@@ -231,25 +252,7 @@ export default function PublicTokenPage() {
           </p>
         </div>
         <div className="topbar-right">
-          {isLocalnet ? (
-            <div
-              className="net-pill local"
-              title="Local development chain — disposable. A restart is a fresh chain; genesis seeds are public."
-            >
-              <span className="net-glyph" />
-              <span>Local chain</span>
-              <span className="net-meta">
-                {network.networkId}
-                {genesis ? ` · ${genesis.slice(0, 10)}…` : ''}
-              </span>
-            </div>
-          ) : (
-            <div className="net-pill stage">
-              <span className="net-glyph" />
-              <span>STAGENET</span>
-              <span className="net-meta">{network.networkId}</span>
-            </div>
-          )}
+          <NetPill chainId={genesis} />
           <span className="logs-indicator">{logsOn ? 'logs streaming' : 'logs off'}</span>
           <button className="theme-btn" onClick={toggleTheme}>
             {theme === 'dark' ? 'Light' : 'Dark'}
@@ -295,6 +298,34 @@ export default function PublicTokenPage() {
               </span>
             </div>
           </section>
+
+          {!isLocalnet && (
+            <section className="naming">
+              <label>
+                <span className="label">Meridian seed (issuer)</span>
+                <input
+                  className="mono seed-input"
+                  type="password"
+                  value={seedMeridian}
+                  onChange={(e) => setSeedMeridian(e.target.value)}
+                  disabled={busy || ready}
+                  placeholder="64 hex · faucet-funded"
+                />
+              </label>
+              <label>
+                <span className="label">Alice seed (customer)</span>
+                <input
+                  className="mono seed-input"
+                  type="password"
+                  value={seedAlice}
+                  onChange={(e) => setSeedAlice(e.target.value)}
+                  disabled={busy || ready}
+                  placeholder="64 hex · faucet-funded"
+                />
+              </label>
+              <span className="muted small naming-note">memory only — never persisted</span>
+            </section>
+          )}
 
           <section className="naming">
             <label>

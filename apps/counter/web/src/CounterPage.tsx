@@ -13,7 +13,8 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-import { getNetwork } from '@mra/network';
+
+import { currentNetwork } from './network.ts';
 import { formatDust, formatNight } from '@mra/wallet';
 
 import Contracts from './Contracts.tsx';
@@ -27,6 +28,7 @@ import {
 } from './history.ts';
 import Infrastructure from './Infrastructure.tsx';
 import LogoMark from './Logo.tsx';
+import NetPill from './NetPill.tsx';
 import { OpBar, useOps } from './ops.tsx';
 import { Link } from './router.tsx';
 import { useTheme } from './theme.ts';
@@ -55,9 +57,11 @@ export default function CounterPage() {
   const [contracts, setContracts] = useState<readonly CheckedContract[]>([]);
   const [genesis, setGenesis] = useState<string | null>(null);
   const [logsOn, setLogsOn] = useState(false);
+  // Stagenet only: the user's faucet-funded seed. Memory only — never persisted.
+  const [stagenetSeed, setStagenetSeed] = useState('');
 
   const session = sessions[persona] ?? null;
-  const network = getNetwork();
+  const network = currentNetwork();
   const isLocalnet = network.networkId === 'undeployed';
 
   useEffect(() => {
@@ -86,10 +90,12 @@ export default function CounterPage() {
   }, [refreshContracts]);
 
   const connectPersona = useCallback(
-    async (index: number) => {
+    async (index: number, seed?: string) => {
       setStatus('connecting');
-      const name = PERSONAS[index];
-      const next = await step(`Create wallet for ${name} (build + sync)`, () => connect(index));
+      const name = seed === undefined ? PERSONAS[index] : 'Stagenet wallet';
+      const next = await step(`Create wallet — ${name} (build + sync)`, () =>
+        connect(seed ?? index),
+      );
       if (!next) return;
       setSessions((prev) => ({ ...prev, [index]: next }));
       say(
@@ -104,7 +110,16 @@ export default function CounterPage() {
 
   const onConnect = async () => {
     if (session) return;
-    await connectPersona(persona);
+    if (isLocalnet) {
+      await connectPersona(persona);
+      return;
+    }
+    const seed = stagenetSeed.trim().toLowerCase().replace(/^0x/, '');
+    if (!/^[0-9a-f]{64}$/.test(seed)) {
+      say('Stagenet needs a 64-hex faucet-funded seed — fund one at faucet.stagenet.shielded.tools', 'error');
+      return;
+    }
+    await connectPersona(persona, seed);
   };
 
   /** Switching persona IS switching wallet: build it on the spot if it's new. */
@@ -276,28 +291,7 @@ export default function CounterPage() {
           </p>
         </div>
         <div className="topbar-right">
-          {isLocalnet ? (
-            <div
-              className="net-pill local"
-              title="Local development chain — disposable. A restart is a fresh chain; genesis seeds are public."
-            >
-              <span className="net-glyph" />
-              <span>Local chain</span>
-              <span className="net-meta">
-                {network.networkId}
-                {genesis ? ` · ${genesis.slice(0, 10)}…` : ''}
-              </span>
-            </div>
-          ) : (
-            <div
-              className="net-pill stage"
-              title="Stagenet — persistent public test network. State survives; keys are faucet-funded."
-            >
-              <span className="net-glyph" />
-              <span>STAGENET</span>
-              <span className="net-meta">{network.networkId}</span>
-            </div>
-          )}
+          <NetPill chainId={genesis} />
           <span className="logs-indicator">{logsOn ? 'logs streaming' : 'logs off'}</span>
           <button className="theme-btn" onClick={toggleTheme}>
             {theme === 'dark' ? 'Light' : 'Dark'}
@@ -328,7 +322,7 @@ export default function CounterPage() {
               <span className="value small">{address ? short(address) : 'not deployed'}</span>
             </div>
             <div className="card">
-              <span className="label">Wallet — {PERSONAS[persona]}</span>
+              <span className="label">Wallet — {isLocalnet ? PERSONAS[persona] : 'Stagenet'}</span>
               <span className="value small">
                 {session ? `${formatNight(session.unshieldedBalance)} NIGHT` : 'not created'}
               </span>
@@ -354,17 +348,29 @@ export default function CounterPage() {
           <section className="wallet-panel">
             <div className="wallet-head">
               <h2>Wallet</h2>
-              {PERSONAS.map((name, i) => (
-                <button
-                  key={name}
-                  className={i === persona ? 'persona active' : 'persona'}
-                  onClick={() => onPersona(i)}
-                >
-                  {name}
-                </button>
-              ))}
+              {isLocalnet ? (
+                PERSONAS.map((name, i) => (
+                  <button
+                    key={name}
+                    className={i === persona ? 'persona active' : 'persona'}
+                    onClick={() => onPersona(i)}
+                  >
+                    {name}
+                  </button>
+                ))
+              ) : (
+                <input
+                  className="seed-input mono"
+                  type="password"
+                  value={stagenetSeed}
+                  onChange={(e) => setStagenetSeed(e.target.value)}
+                  disabled={busy || !!session}
+                  placeholder="faucet-funded seed (64 hex) — kept in memory only"
+                  title="Fund an address at faucet.stagenet.shielded.tools, then paste the seed here. Never persisted by this app."
+                />
+              )}
               <span className="wallet-meta">
-                {isLocalnet ? `genesis seed #${persona} · public test seed` : 'faucet-funded seed'}
+                {isLocalnet ? `genesis seed #${persona} · public test seed` : 'faucet-funded seed · memory only'}
               </span>
             </div>
             {walletRows.map((row) => (

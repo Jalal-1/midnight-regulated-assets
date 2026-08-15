@@ -13,7 +13,8 @@
   "scripts": {
     "check": "tsc -b",
     "check:clean": "tsc -b --clean && tsc -b",
-    "localnet:up": "docker compose --env-file ops/localnet/env/rc3.env -f ops/localnet/compose.yml up -d --wait",
+    "localnet:up": "docker compose -f ops/localnet/compose.yml down -v --remove-orphans 2>/dev/null; docker compose --env-file ops/localnet/env/rc3.env -f ops/localnet/compose.yml up -d --wait --force-recreate",
+    "localnet:resume": "docker compose --env-file ops/localnet/env/rc3.env -f ops/localnet/compose.yml up -d --wait",
     "localnet:down": "docker compose -f ops/localnet/compose.yml down -v",
     "toolchain": "./ops/setup-toolchain.sh",
     "redeploy": "./ops/redeploy.sh",

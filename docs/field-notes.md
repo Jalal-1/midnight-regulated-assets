@@ -663,3 +663,16 @@ balance projects flat; a normal account's would grow between reads.
 
 Formatting lives in `packages/wallet/src/units.ts` so every surface renders
 the same number the same way.
+
+## 2026-08-15 · The dev genesis is deterministic — block 0 cannot identify a chain
+
+`CFG_PRESET=dev` produces the SAME genesis hash on every fresh chain
+(`0x635663c0…`, reproduced across `down -v` + `--force-recreate`). Any
+"is this the chain I deployed to?" check keyed on `chain_getBlockHash(0)`
+silently passes across a reset and offers dead contracts as live. Use
+**block 1** — produced at runtime, unique per instance. It does not exist for
+the first ~6 s of a new chain; treat that as "cannot identify", not "matches".
+
+Related: `yarn localnet:up` now ALWAYS starts a fresh chain (down -v first) —
+retained state across restarts confused everyone. `yarn localnet:resume`
+restarts the containers without wiping.

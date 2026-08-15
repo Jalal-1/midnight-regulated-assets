@@ -143,6 +143,9 @@ give them a terminal each.
 
 ```bash
 # 1. Infrastructure — node + indexer + proof server. Takes ~30s to report healthy.
+#    ALWAYS a fresh chain: previous chain state is wiped so every session starts
+#    clean (contracts from earlier runs show as "previous chain" in the UI).
+#    To restart the containers WITHOUT wiping the chain: yarn localnet:resume
 yarn localnet:up
 
 # 2. Log sidecar (terminal 2). Optional, but without it the log drawers in the
@@ -153,7 +156,7 @@ yarn logs
 yarn ui             # then open http://localhost:5173
 ```
 
-In the page: **Connect wallet** → **Deploy counter** → **increment()**. Each of
+In the page: **Create wallet** → **Deploy contract** → **increment()**. Each of
 the last two takes ~18 s, almost all of it waiting for block inclusion. The
 Infrastructure panel on the right shows the node, indexer, and proof server live,
 each with a `LOGS` drawer.

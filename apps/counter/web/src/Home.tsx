@@ -12,7 +12,8 @@
 
 import { useEffect, useState } from 'react';
 
-import { getNetwork } from '@mra/network';
+
+import { currentNetwork } from './network.ts';
 
 import { getProvingObserver, probeAll, type InfraStatus } from './infra.ts';
 import LogoMark from './Logo.tsx';
@@ -50,7 +51,7 @@ function StatusStrip() {
         className={`home-status-dot ${allUp ? 'up' : anyDown ? 'down' : 'unknown'}`}
         aria-label={allUp ? 'all components up' : anyDown ? 'a component is down' : 'probing'}
       />
-      {getNetwork().networkId === 'undeployed' ? 'localnet' : 'stagenet'}
+      {currentNetwork().networkId === 'undeployed' ? 'localnet' : 'stagenet'}
       {parts.map(([label, health]) => (
         <span key={label} className={health === 'down' ? 'down' : undefined}>
           · {label}

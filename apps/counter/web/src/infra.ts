@@ -15,7 +15,8 @@
  * node and indexer both support subscriptions if that ever stops being true.
  */
 
-import { getNetwork, meterProving, type ProvingMeter } from '@mra/network';
+import { meterProving, type ProvingMeter } from '@mra/network';
+import { currentNetwork } from './network.ts';
 
 export type { ProvingMeter };
 
@@ -67,7 +68,7 @@ const rpc = async (url: string, method: string): Promise<unknown> => {
 };
 
 async function probeNode(): Promise<NodeStatus> {
-  const { node } = getNetwork();
+  const { node } = currentNetwork();
   try {
     const [health, version, chain, header, pending] = await Promise.all([
       rpc(node, 'system_health') as Promise<{ peers: number; isSyncing: boolean }>,
@@ -95,7 +96,7 @@ async function probeNode(): Promise<NodeStatus> {
 /** Finalized height needs a second hop: hash, then header. Kept separate so a
  *  failure here does not blank out the rest of the node's status. */
 async function probeFinalized(): Promise<number | undefined> {
-  const { node } = getNetwork();
+  const { node } = currentNetwork();
   try {
     const hash = (await rpc(node, 'chain_getFinalizedHead')) as string;
     const response = await fetch(node, {
@@ -111,7 +112,7 @@ async function probeFinalized(): Promise<number | undefined> {
 }
 
 async function probeIndexer(nodeBest?: number): Promise<IndexerStatus> {
-  const { indexer } = getNetwork();
+  const { indexer } = currentNetwork();
   try {
     const response = await fetch(indexer, {
       method: 'POST',
@@ -132,7 +133,7 @@ async function probeIndexer(nodeBest?: number): Promise<IndexerStatus> {
 }
 
 async function probeProofServer(): Promise<Omit<ProofServerStatus, 'proving' | 'lastProofMs'>> {
-  const { proofServer } = getNetwork();
+  const { proofServer } = currentNetwork();
   try {
     const response = await fetch(`${proofServer}/version`);
     if (!response.ok) return { health: 'down', url: proofServer };
@@ -151,7 +152,7 @@ async function probeProofServer(): Promise<Omit<ProofServerStatus, 'proving' | '
  */
 let sharedObserver: ProvingMeter | undefined;
 export function getProvingObserver(): ProvingMeter {
-  sharedObserver ??= meterProving(getNetwork().proofServer);
+  sharedObserver ??= meterProving(currentNetwork().proofServer);
   return sharedObserver;
 }
 

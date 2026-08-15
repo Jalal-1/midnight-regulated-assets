@@ -9,7 +9,8 @@
 import { deployContract, findDeployedContract } from '@midnight-ntwrk/midnight-js-contracts';
 import { CompiledContract } from '@midnight-ntwrk/midnight-js-protocol/compact-js';
 import type { MidnightProviders } from '@midnight-ntwrk/midnight-js-types';
-import { getNetwork, LOCALNET_GENESIS_SEEDS } from '@mra/network';
+import { LOCALNET_GENESIS_SEEDS } from '@mra/network';
+import { currentNetwork } from './network.ts';
 import {
   configureNetworkId,
   createWalletFromSeed,
@@ -52,14 +53,18 @@ export interface Session {
 /**
  * Build a wallet and providers entirely in the browser.
  *
- * Localnet only: it uses the public genesis seeds. Stagenet needs a faucet-funded
- * seed, which must never be hardcoded here.
+ * On localnet the caller passes a genesis seed index; on Stagenet it passes a
+ * faucet-funded seed the USER typed — such a seed is never hardcoded and never
+ * persisted by this app.
  */
-export async function connect(seedIndex = 0): Promise<Session> {
-  const network = getNetwork();
+export async function connect(seedOrIndex: number | string = 0): Promise<Session> {
+  const network = currentNetwork();
   await configureNetworkId(network);
 
-  const seed = LOCALNET_GENESIS_SEEDS[seedIndex] ?? LOCALNET_GENESIS_SEEDS[0]!;
+  const seed =
+    typeof seedOrIndex === 'string'
+      ? seedOrIndex.trim().toLowerCase().replace(/^0x/, '')
+      : (LOCALNET_GENESIS_SEEDS[seedOrIndex] ?? LOCALNET_GENESIS_SEEDS[0]!);
   const wallet = await createWalletFromSeed(seed, network);
   const state = await wallet.wallet.waitForSyncedState();
 
