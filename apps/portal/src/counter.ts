@@ -19,7 +19,7 @@ import {
 } from '@mra/wallet';
 import { createBrowserProviders } from '@mra/wallet/providers/browser';
 
-import { Contract, ledger } from '../../contract/managed/counter/contract/index.js';
+import { Contract, ledger } from '@mra/app-counter/contract';
 
 /** Served by Vite from web/public/managed — see vite.config.ts. */
 const ZK_CONFIG_BASE_URL = `${globalThis.location.origin}/managed`;

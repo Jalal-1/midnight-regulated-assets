@@ -3,12 +3,32 @@
   "files": [],
   "include": [],
   "references": [
-    { "path": "packages/network" },
-    { "path": "packages/wallet" },
-    { "path": "packages/contracts" },
-    { "path": "packages/ui" },
-    { "path": "packages/ledger-mock" },
-    { "path": "apps/counter" },
-    { "path": "apps/tokenised-deposit" }
+    {
+      "path": "packages/network"
+    },
+    {
+      "path": "packages/wallet"
+    },
+    {
+      "path": "packages/contracts"
+    },
+    {
+      "path": "packages/ui"
+    },
+    {
+      "path": "packages/ledger-mock"
+    },
+    {
+      "path": "apps/counter"
+    },
+    {
+      "path": "apps/tokenised-deposit"
+    },
+    {
+      "path": "packages/asset-models"
+    },
+    {
+      "path": "apps/portal"
+    }
   ]
 }

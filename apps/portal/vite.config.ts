@@ -13,11 +13,9 @@ import { nodePolyfills } from 'vite-plugin-node-polyfills';
  * Top-level await needs no plugin: `build.target: 'esnext'` supports it natively,
  * and vite-plugin-top-level-await additionally requires rollup to be installed.
  *
- * The compiler's managed/ output is served from web/public/managed (symlinked by
- * `yarn ui:assets`) so FetchZkConfigProvider can fetch proving keys over HTTP.
+ * The compiler's managed/ output is served from public/managed (a committed symlink) so FetchZkConfigProvider can fetch proving keys over HTTP.
  */
 export default defineConfig({
-  root: 'web',
   plugins: [
     react(),
     wasm(),
@@ -63,5 +61,5 @@ export default defineConfig({
     },
   },
   optimizeDeps: { exclude: ['@midnightntwrk/ledger-v9'], include: ['bn.js'] },
-  build: { target: 'esnext', outDir: '../dist-web', emptyOutDir: true },
+  build: { target: 'esnext', outDir: 'dist', emptyOutDir: true },
 });
