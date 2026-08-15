@@ -58,7 +58,7 @@ proving and indexer stack; each states whether it is verified on localnet or
 Stagenet. Old routes redirect.
 
 **Not real yet**
-- **Nothing has run against Stagenet.** Everything above is localnet. The Stagenet endpoints are configured but untested, and the demo scripts are deliberately localnet-only because they use well-known genesis seeds.
+- **Token lifecycles have not run against Stagenet.** Wallet connectivity IS verified there (live sync, correct address encoding, first-time DUST setup path built); the lifecycles await captcha-gated faucet funding and are labelled accordingly. Localnet demo scripts use well-known genesis seeds by design.
 - `ops/redeploy.sh` compiles but does not deploy — deployment lives in each app's scripts.
 - `packages/contracts`, `packages/ui`, and `packages/ledger-mock` are still empty `export {}` with docblocks (`packages/asset-models` and `packages/lab-shell` are real).
 - `apps/rwa-token` is empty and excluded from the root `tsconfig.json` references until it has source; the RWA solution page is design intent and says so.
@@ -67,7 +67,7 @@ Stagenet. Old routes redirect.
 
 Every non-obvious thing that cost time on the way here is written up in **[docs/field-notes.md](docs/field-notes.md)** — 14 entries so far, and it is the most useful file in the repo right now. The wallet-bridge entry alone will save a day.
 
-Both previously-unconfirmed values are now resolved: the Compact language version is **0.25.0** (the compiler reports it), and Stagenet's NetworkId is **`stagenet`**, taken from the wallet SDK's own `NetworkId.StageNet` enum value — still unverified against a live Stagenet sync.
+Both previously-unconfirmed values are now resolved: the Compact language version is **0.25.0** (the compiler reports it), and Stagenet's NetworkId is **`stagenet`**, taken from the wallet SDK's own `NetworkId.StageNet` enum value — verified against a live Stagenet sync (2026-08-15).
 
 | Milestone | Deliverable | State |
 |---|---|---|
