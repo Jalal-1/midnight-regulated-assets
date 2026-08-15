@@ -30,6 +30,7 @@ import Compare from './pages/Compare.tsx';
 import Home from './pages/Home.tsx';
 import ModelStatusPage from './pages/ModelStatusPage.tsx';
 import Solutions from './pages/Solutions.tsx';
+import Studio from './studio/Studio.tsx';
 import SolutionDeposits from './pages/SolutionDeposits.tsx';
 import SolutionRwa from './pages/SolutionRwa.tsx';
 import Standards from './pages/Standards.tsx';
@@ -47,7 +48,8 @@ export default function App() {
   return (
     <Router
       routes={{
-        '/': <Home />,
+        '/': <Studio />,
+        '/portal': <Home />,
         '/why': <Why />,
         '/compare': <Compare />,
         '/learn': <Learn />,

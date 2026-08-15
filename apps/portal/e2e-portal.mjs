@@ -8,7 +8,8 @@ import { firefox } from 'playwright';
 
 const BASE = process.env.UI_URL ?? 'http://localhost:5173';
 const ROUTES = [
-  ['/', 'Regulated assets on Midnight'],
+  ['/', 'What would you like to issue?'],
+  ['/portal', 'Regulated assets on Midnight'],
   ['/why', 'Privacy you can configure'],
   ['/compare', 'Five ways to represent'],
   ['/learn', 'Guided walkthroughs'],

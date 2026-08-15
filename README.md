@@ -41,7 +41,12 @@ round after increment = 1
 - **The pin set is coherent.** The compiler self-reports `ledger-9.1.0.0-rc.3` and runtime `0.18.0-rc.1`, both matching the delivery note.
 - **`yarn check` is clean** and the lockfile is committed.
 
-**The portal** (`yarn ui` → http://localhost:5173) — sections: `/why`, `/compare`
+**The portal** (`yarn ui` → http://localhost:5173) — the front door is the
+**Midnight Asset Studio**: a product-first guided issuance wizard (product →
+privacy → controls → custody → network → review) that deploys a REAL
+confidential token and flows into an asset-management dashboard whose every
+number is chain state and whose deployment steps complete live. The
+institutional portal sections remain: `/portal`, `/why`, `/compare`
 (driven by the `packages/asset-models` registry), `/learn` (guided labs +
 concepts), `/labs/public-token`, `/labs/confidential-token`, `/solutions/…`,
 `/standards`, `/build` (the counter diagnostic lives at `/build/counter`). Labs
