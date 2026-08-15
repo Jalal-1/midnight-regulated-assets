@@ -400,37 +400,109 @@ export default function Studio() {
                 <div className="st-step">
                   <div className="st-head-block">
                     <span className="st-overline">Step 4 of 6 · Custody &amp; approvals</span>
-                    <h1>How sensitive operations get approved</h1>
-                    <p>Pick the approval model your institution runs. These are distinct mechanisms — an HSM, an MPC quorum and a multisig protect different things.</p>
+                    <h1>
+                      {config.token.startsWith('contract')
+                        ? 'How sensitive operations get approved'
+                        : config.token === 'utxo-unshielded'
+                          ? 'Custody is your existing key stack'
+                          : 'Custody means protecting note secrets'}
+                    </h1>
+                    <p>
+                      {config.token.startsWith('contract')
+                        ? 'Pick the approval model your institution runs for issuer operations. These are distinct mechanisms — an HSM, an MPC quorum and a multisig protect different things.'
+                        : config.token === 'utxo-unshielded'
+                          ? 'Coins move under holder signatures alone — the exact case HSMs, MPC quorums, multisigs and threshold policies were built for. They apply directly, at the key layer, with no adaptation.'
+                          : 'Spending a shielded coin is proof-based: the sensitive material is the note secret a local prover consumes, not a conventional signing key. Custody here means protecting witness material.'}
+                    </p>
                   </div>
-                  {CUSTODY_DEFS.map((k) => (
-                    <button
-                      key={k.id}
-                      className={`st-pick slim${config.custody === k.id ? ' selected' : ''}`}
-                      onClick={() => set('custody', k.id)}
-                    >
-                      <span className="st-pick-head">
-                        <span className="st-radio" />
-                        <span className="st-grow st-left">
-                          <span className="st-strong">{k.label}</span>
-                          <span className="st-muted-sm">{k.desc}</span>
-                        </span>
-                        <span className={`st-flag ${k.tone === 'success' ? 'ok' : k.tone === 'warning' ? 'warn' : ''}`}>{k.status}</span>
-                      </span>
-                    </button>
-                  ))}
-                  {config.custody !== 'demo' && (
-                    <div className="st-note">
-                      Recorded as your target approval policy. Studio deployments authorise with the
-                      demonstration issuer key; the custody integration programme delivers the rest.
-                    </div>
+                  {config.token.startsWith('contract') ? (
+                    <>
+                      {CUSTODY_DEFS.map((k) => (
+                        <button
+                          key={k.id}
+                          className={`st-pick slim${config.custody === k.id ? ' selected' : ''}`}
+                          onClick={() => set('custody', k.id)}
+                        >
+                          <span className="st-pick-head">
+                            <span className="st-radio" />
+                            <span className="st-grow st-left">
+                              <span className="st-strong">{k.label}</span>
+                              <span className="st-muted-sm">{k.desc}</span>
+                            </span>
+                            <span className={`st-flag ${k.tone === 'success' ? 'ok' : k.tone === 'warning' ? 'warn' : ''}`}>{k.status}</span>
+                          </span>
+                        </button>
+                      ))}
+                      {config.custody !== 'demo' && (
+                        <div className="st-note">
+                          Recorded as your target approval policy. Studio deployments authorise with the
+                          demonstration issuer key; the custody integration programme delivers the rest.
+                        </div>
+                      )}
+                      <div className="st-card raised st-stack">
+                        <span className="st-overline">How authorisation works</span>
+                        <div className="st-qa"><div>What authorises asset movement</div><p>Issuer operations carry the issuer key&apos;s authority. Transfers carry the holder&apos;s, with a zero-knowledge proof validating the state transition.</p></div>
+                        <div className="st-qa"><div>What must be protected</div><p>The issuer secret, each holder&apos;s key, and the witness material behind every proof — which is why custody integration covers more than signatures.</p></div>
+                        <div className="st-qa"><div>Where proofs are generated</div><p>On the operator&apos;s own machine. Witness data never leaves it.</p></div>
+                      </div>
+                    </>
+                  ) : config.token === 'utxo-unshielded' ? (
+                    <>
+                      <div className="st-two">
+                        <div className="st-card st-stack">
+                          <span className="st-flag ok">Applies directly</span>
+                          <div className="st-strong">Holder-side key custody</div>
+                          <div className="st-body-sm">
+                            Signature-based authorisation over conventional keys: HSM-backed keys,
+                            MPC / threshold signing, multisig and 2-of-3 approval policies all work
+                            at the key layer, exactly as your institution runs them today.
+                          </div>
+                        </div>
+                        <div className="st-card st-stack">
+                          <span className="st-flag">Nothing to configure</span>
+                          <div className="st-strong">No issuer approvals</div>
+                          <div className="st-body-sm">
+                            After mint there are no privileged operations on this token — no pause,
+                            no freeze, no controlled redemption — so there is no approval policy for
+                            the studio to record.
+                          </div>
+                        </div>
+                      </div>
+                      <div className="st-note">
+                        If issuer operations need approval workflows, that is a contract-token
+                        property — choose one in step 1.
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="st-two">
+                        <div className="st-card st-stack">
+                          <span className="st-flag warn">Adaptation area</span>
+                          <div className="st-strong">What must be protected</div>
+                          <div className="st-body-sm">
+                            Note secrets and the witness material a proof consumes. A conventional
+                            HSM signs data; it does not feed a prover — so shielded-UTXO custody is
+                            an integration exercise, not a drop-in.
+                          </div>
+                        </div>
+                        <div className="st-card st-stack">
+                          <span className="st-flag">Nothing to configure</span>
+                          <div className="st-strong">No issuer approvals</div>
+                          <div className="st-body-sm">
+                            Bearer instrument: there are no privileged operations after mint, so no
+                            approval policy applies.
+                          </div>
+                        </div>
+                      </div>
+                      <div className="st-card raised st-stack">
+                        <span className="st-overline">Proving trust boundary</span>
+                        <div className="st-body-sm">
+                          Proofs are generated on the operator&apos;s own machine — note secrets and
+                          witness data never leave it.
+                        </div>
+                      </div>
+                    </>
                   )}
-                  <div className="st-card raised st-stack">
-                    <span className="st-overline">How authorisation works</span>
-                    <div className="st-qa"><div>What authorises asset movement</div><p>Issuer operations carry the issuer key&apos;s authority. Transfers carry the holder&apos;s, with a zero-knowledge proof validating the state transition.</p></div>
-                    <div className="st-qa"><div>What must be protected</div><p>The issuer secret, each holder&apos;s key, and the witness material behind every proof — which is why custody integration covers more than signatures.</p></div>
-                    <div className="st-qa"><div>Where proofs are generated</div><p>On the operator&apos;s own machine. Witness data never leaves it.</p></div>
-                  </div>
                 </div>
               )}
 
