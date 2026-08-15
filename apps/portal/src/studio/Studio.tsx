@@ -333,31 +333,66 @@ export default function Studio() {
                 <div className="st-step">
                   <div className="st-head-block">
                     <span className="st-overline">Step 3 of 6 · Issuer controls</span>
-                    <h1>Issuer and compliance controls</h1>
-                    <p>Controlled issue and redeem run today. Everything else you enable becomes part of your target configuration.</p>
+                    <h1>{config.token.startsWith('contract') ? 'Issuer and compliance controls' : 'This token has no issuer controls'}</h1>
+                    <p>
+                      {config.token.startsWith('contract')
+                        ? 'Issuer control is the account model’s defining feature: the contract that holds balances is the thing that enforces policy. Controlled issue and redeem run today; everything else you enable becomes part of your target configuration.'
+                        : 'UTXO tokens are bearer instruments: coins belong to whoever holds the keys, and nothing sits between holders and their funds.'}
+                    </p>
                   </div>
-                  {CONTROL_DEFS.map((c) => {
-                    const locked = c.status === 'Not implemented';
-                    const on = config.ctl[c.id];
-                    return (
-                      <div key={c.id} className={`st-card st-ctl-row${locked ? ' locked' : ''}`}>
-                        <button
-                          className={`st-switch${on ? ' on' : ''}`}
-                          role="switch"
-                          aria-checked={on}
-                          disabled={locked}
-                          onClick={() => set('ctl', { ...config.ctl, [c.id]: !on })}
-                        >
-                          <span />
-                        </button>
-                        <div className="st-grow">
-                          <div className="st-strong">{c.label}</div>
-                          <div className="st-muted-sm">{c.desc}</div>
+                  {config.token.startsWith('contract') ? (
+                    <>
+                      {CONTROL_DEFS.map((c) => {
+                        const locked = c.status === 'Not implemented';
+                        const on = config.ctl[c.id];
+                        return (
+                          <div key={c.id} className={`st-card st-ctl-row${locked ? ' locked' : ''}`}>
+                            <button
+                              className={`st-switch${on ? ' on' : ''}`}
+                              role="switch"
+                              aria-checked={on}
+                              disabled={locked}
+                              onClick={() => set('ctl', { ...config.ctl, [c.id]: !on })}
+                            >
+                              <span />
+                            </button>
+                            <div className="st-grow">
+                              <div className="st-strong">{c.label}</div>
+                              <div className="st-muted-sm">{c.desc}</div>
+                            </div>
+                            <span className={`st-flag ${c.tone === 'success' ? 'ok' : c.tone === 'danger' ? 'err' : c.tone === 'warning' ? 'warn' : ''}`}>{c.status}</span>
+                          </div>
+                        );
+                      })}
+                    </>
+                  ) : (
+                    <>
+                      <div className="st-card st-stack">
+                        <div className="st-strong">Why there is nothing to configure here</div>
+                        <div className="st-body-sm">
+                          Pause, freeze, allowlists, transfer restrictions and controlled redemption
+                          are all contract behaviours — they exist because a contract holds the
+                          balances and can refuse an operation. A UTXO token has no such contract:
+                          once minted, coins move under their holders&apos; signatures alone, and
+                          contract control of UTXO assets is not yet available on Midnight.
                         </div>
-                        <span className={`st-flag ${c.tone === 'success' ? 'ok' : c.tone === 'danger' ? 'err' : c.tone === 'warning' ? 'warn' : ''}`}>{c.status}</span>
                       </div>
-                    );
-                  })}
+                      <div className="st-card st-stack">
+                        <div className="st-strong">What that buys you instead</div>
+                        <div className="st-body-sm">
+                          Bearer simplicity: no policy layer to administer, no issuer key to
+                          protect after mint, and the widest interoperability — every wallet and
+                          exchange integration speaks this model natively.
+                        </div>
+                      </div>
+                      <div className="st-note">
+                        If your instrument needs issuer control — and most regulated instruments do
+                        — choose a contract token in step 1. The unshielded contract token adds
+                        control with full transparency; the confidential token adds control with
+                        private balances.
+                      </div>
+                    </>
+                  )}
                 </div>
               )}
 
