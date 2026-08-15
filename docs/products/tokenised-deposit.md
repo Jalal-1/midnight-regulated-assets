@@ -23,12 +23,12 @@ Note it needs the `ConfidentialFungibleTokenPublicSupply` extension, not just th
 base module: the base does not track total supply, and proving 1:1 backing
 requires it.
 
-**Status (2026-08-14):** the unshielded contract token option is built and runs the
-full lifecycle on localnet (`apps/tokenised-deposit/src/design-options/`). The
-confidential token does **not compile on the pinned RC3 toolchain** — OZ
-0.3.0-alpha.2 predates language 0.25's curve-type renames (`CurvePoint` →
-`JubjubPoint`, EC scalars). The rename is mechanical; the choice is to patch the
-vendored modules or wait for the next OZ alpha. See field notes, 2026-08-14.
+**Status (2026-08-15):** both built options run the full lifecycle on localnet
+(`apps/tokenised-deposit/src/design-options/`). The confidential token compiles
+via a documented mechanical patch to OZ 0.3.0-alpha.2 (typed Jubjub scalars for
+language 0.25 — `.yarn/patches/`, field notes 2026-08-15) and demonstrates its
+disclosure profile live: encrypted balances, hidden transfer amounts, public
+supply and counterparty graph. Stagenet run pending faucet-funded seeds.
 
 **Shielded UTXO is demonstrated last and does not pass.** It is not
 custody-compatible: OpenZeppelin keeps this module in `archive/`, marked

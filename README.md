@@ -62,7 +62,7 @@ Both previously-unconfirmed values are now resolved: the Compact language versio
 | **M0** | Scaffold, pinned RC3 stack, localnet compose, redeploy runbook | **done** |
 | **M1** | Counter + thin wallet wrapper on localnet; field notes | **done (localnet)** |
 | **M2** | Deposit design options: native + unshielded contract token, multi-party view | **unshielded contract token done**; native + view next |
-| **M3** | Design options: account-based CFT — deposit design page complete | **blocked on OZ**: alpha.2 predates language 0.25's curve renames (see field notes) |
+| **M3** | Design options: account-based CFT — deposit design page complete | **runs on localnet** (OZ patched for language 0.25 — see field notes 2026-08-15); Stagenet pending faucet funding |
 | **M4** | Deposit lifecycle: issue, transfer, audit, redeem | not started |
 | **M5** | RWA token product + site complete | not started |
 | **M6** | Shielded UTXO design option — built last, see below | not started |
