@@ -7,14 +7,23 @@
  * inside a running page would leave half the stack on the old chain. A reload
  * makes the switch atomic.
  *
- * Localnet is the default. Stagenet is the hosted public test network — real
- * endpoints from packages/network; the proof server stays LOCAL either way
- * (witness data never leaves this machine).
+ * The default is environment-aware: a page served from localhost defaults to
+ * localnet (the developer loop); a hosted page defaults to Stagenet — the only
+ * network a cold visitor can reach. The proof server stays LOCAL either way
+ * (witness data never leaves the viewer's machine).
  */
 
 import { getNetwork, networks, type NetworkConfig, type NetworkName } from '@mra/network';
 
 const KEY = 'mra.network.v1';
+
+/** True when this page is served from somewhere other than the viewer's machine. */
+export function isHostedPage(): boolean {
+  return (
+    typeof location !== 'undefined' &&
+    !['localhost', '127.0.0.1', '[::1]'].includes(location.hostname)
+  );
+}
 
 export function currentNetworkName(): NetworkName {
   try {
@@ -23,7 +32,7 @@ export function currentNetworkName(): NetworkName {
   } catch {
     /* private browsing */
   }
-  return 'localnet';
+  return isHostedPage() ? 'stagenet' : 'localnet';
 }
 
 export function currentNetwork(): NetworkConfig {

@@ -11,6 +11,8 @@
  * switch reload; seeds and wallet material never appear here.
  */
 
+import { isHostedPage } from '@mra/lab-shell';
+
 export type TokenType =
   | 'utxo-unshielded'
   | 'contract-unshielded'
@@ -129,7 +131,7 @@ export interface StudioConfig {
 export const DEFAULT_CONFIG: StudioConfig = {
   token: 'contract-confidential',
   sponsored: true,
-  network: 'local',
+  network: isHostedPage() ? 'stagenet' : 'local',
   ctl: { mint: true, redeem: true, pause: true, freeze: false, allowlist: true, restrict: false, recovery: false, clawback: false, supplyCap: false, roles: true },
   custody: 'demo',
   assetName: 'Confidential deposit token',

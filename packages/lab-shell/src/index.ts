@@ -7,7 +7,7 @@
 export { default as LogoMark } from './Logo.tsx';
 export { Link, Router, navigate, usePath } from './router.tsx';
 export { useTheme } from './theme.ts';
-export { currentNetwork, currentNetworkName, switchNetwork } from './network.ts';
+export { currentNetwork, currentNetworkName, isHostedPage, switchNetwork } from './network.ts';
 export { default as NetPill } from './NetPill.tsx';
 export { OpBar, TimingBar, useOps, OP_PHASES } from './ops.tsx';
 export type { LogLine as OpsLogLine, Operation, Status as OpsStatus } from './ops.tsx';
