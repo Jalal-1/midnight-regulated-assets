@@ -134,15 +134,17 @@ function buildConfiguration(network: NetworkConfig): DefaultConfiguration {
  * The HD wallet's key material is cleared as soon as the three secret keys are
  * derived, matching upstream's own initialisation sequence.
  *
- * @param seedHex 64 hex characters. On localnet use LOCALNET_GENESIS_SEEDS;
- *                on Stagenet use a faucet-funded seed supplied at runtime.
+ * @param seedHex 64 hex characters (raw 32-byte seed, e.g. LOCALNET_GENESIS_SEEDS)
+ *                or 128 hex characters (the BIP-39 master seed a wallet app
+ *                derives from a 24-word phrase via mnemonicToSeedSync — use
+ *                this form when the wallet must be restorable from its words).
  */
 export async function createWalletFromSeed(
   seedHex: string,
   network: NetworkConfig = getNetwork(),
 ): Promise<MidnightWallet> {
-  if (!/^[0-9a-f]{64}$/i.test(seedHex)) {
-    throw new Error('seed must be 64 hex characters');
+  if (!/^(?:[0-9a-f]{64}|[0-9a-f]{128})$/i.test(seedHex)) {
+    throw new Error('seed must be 64 or 128 hex characters');
   }
 
   const hd = HDWallet.fromSeed(Buffer.from(seedHex, 'hex'));
@@ -191,3 +193,4 @@ export async function createWalletFromSeed(
 
 export * from './units.ts';
 export * from './dust.ts';
+export * from './txStages.ts';

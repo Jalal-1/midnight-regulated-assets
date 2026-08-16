@@ -1087,6 +1087,24 @@ a.model-card:hover { border-color: var(--blue-text); box-shadow: 0 0 28px rgba(7
 /* --- Seed entry with generation (Stagenet) -------------------------------------------------- */
 .seed-wrap { display: flex; align-items: center; gap: 6px; }
 .seed-controls { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.st-sublog { margin-top: 8px; }
+.st-sublog summary {
+  cursor: pointer; font-size: 12px; color: var(--text-muted);
+  list-style: none; user-select: none;
+}
+.st-sublog summary::before { content: '▸ '; }
+.st-sublog[open] summary::before { content: '▾ '; }
+.st-sublog summary::-webkit-details-marker { display: none; }
+.st-sublog-lines {
+  margin-top: 6px; padding: 8px 12px; border-left: 2px solid var(--border-subtle);
+  display: grid; gap: 3px; font-size: 11.5px; line-height: 1.5; color: var(--text-muted);
+  max-height: 220px; overflow-y: auto;
+}
+.st-sublog-lines .live { color: var(--text-primary); }
+.seed-mnemonic {
+  display: block; margin-top: 6px; font-size: 12px; line-height: 1.6;
+  color: var(--text-muted); word-break: normal; overflow-wrap: break-word; max-width: 640px;
+}
 .seed-generate {
   font-size: 12px; font-weight: 500; padding: 5px 14px;
   border-radius: var(--radius-pill); cursor: pointer; white-space: nowrap;

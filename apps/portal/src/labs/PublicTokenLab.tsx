@@ -58,7 +58,7 @@ const short = (value: string, head = 10, tail = 6) => `${value.slice(0, head)}â€
 const STATE_LABEL = { live: 'live', 'not-found': 'no state', 'other-chain': 'previous chain' } as const;
 
 const normSeed = (raw: string) => raw.trim().toLowerCase().replace(/^0x/, '');
-const isSeed = (raw: string) => /^[0-9a-f]{64}$/.test(raw);
+const isSeed = (raw: string) => /^(?:[0-9a-f]{64}|[0-9a-f]{128})$/.test(raw);
 
 const age = (at: number, now: number) => {
   const seconds = Math.round((now - at) / 1000);

@@ -117,8 +117,8 @@ export default function CounterPage() {
       return;
     }
     const seed = stagenetSeed.trim().toLowerCase().replace(/^0x/, '');
-    if (!/^[0-9a-f]{64}$/.test(seed)) {
-      say('Stagenet needs a 64-hex faucet-funded seed — fund one at faucet.stagenet.shielded.tools', 'error');
+    if (!/^(?:[0-9a-f]{64}|[0-9a-f]{128})$/.test(seed)) {
+      say('Stagenet needs a faucet-funded seed (64 or 128 hex) — fund one at faucet.stagenet.shielded.tools', 'error');
       return;
     }
     await connectPersona(persona, seed);

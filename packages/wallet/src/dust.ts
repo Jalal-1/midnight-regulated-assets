@@ -19,6 +19,7 @@
 import type { UtxoWithMeta } from '@midnightntwrk/wallet-sdk-facade';
 
 import type { MidnightWallet } from './index.ts';
+import { formatDust, formatNight } from './units.ts';
 
 /** The native (NIGHT) token type: 64 zero hex chars. */
 const NIGHT_TOKEN = '0'.repeat(64);
@@ -104,4 +105,70 @@ export async function ensureDustGeneration(
   say(`DUST registration submitted (tx ${String(txId).slice(0, 18)}…) — generation begins on inclusion`);
 
   return { outcome: 'registered', txId: String(txId), utxos: unregistered.length };
+}
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/**
+ * Block until this wallet holds NIGHT — the faucet hand-off gate. Polls a
+ * fresh sync; returns the balance (stars) once non-zero.
+ */
+export async function waitForNightFunds(
+  mw: MidnightWallet,
+  options: { onProgress?: (message: string) => void; pollMs?: number; timeoutMs?: number } = {},
+): Promise<bigint> {
+  const say = options.onProgress ?? (() => {});
+  const deadline = Date.now() + (options.timeoutMs ?? 15 * 60_000);
+  for (;;) {
+    const state = await mw.wallet.waitForSyncedState();
+    const stars = BigInt(state.unshielded.balances?.[NIGHT_TOKEN] ?? 0n);
+    if (stars > 0n) {
+      say(`funds arrived — ${formatNight(stars)} NIGHT`);
+      return stars;
+    }
+    if (Date.now() > deadline) throw new Error('timed out waiting for faucet funds');
+    say('waiting for faucet funds — fund this wallet via its faucet row');
+    await sleep(options.pollMs ?? 5000);
+  }
+}
+
+/**
+ * Block until spendable DUST reaches `minSpecks`. Freshly registered NIGHT
+ * accrues DUST over minutes; transactions fail to balance until enough exists.
+ */
+export async function waitForSpendableDust(
+  mw: MidnightWallet,
+  minSpecks: bigint,
+  options: { onProgress?: (message: string) => void; pollMs?: number; timeoutMs?: number } = {},
+): Promise<bigint> {
+  const say = options.onProgress ?? (() => {});
+  const deadline = Date.now() + (options.timeoutMs ?? 15 * 60_000);
+  for (;;) {
+    const state = await mw.wallet.waitForSyncedState();
+    const specks = state.dust.balance(new Date());
+    if (specks >= minSpecks) {
+      say(`DUST ready — ${formatDust(specks)} DUST spendable`);
+      return specks;
+    }
+    if (Date.now() > deadline) throw new Error('timed out waiting for DUST to accrue');
+    say(`DUST accruing — ${formatDust(specks)} of ${formatDust(minSpecks)} DUST needed for fees`);
+    await sleep(options.pollMs ?? 5000);
+  }
+}
+
+/**
+ * The whole first-time gate for a hosted-network wallet, in order: wait for
+ * faucet NIGHT, register DUST generation (idempotent), wait until enough DUST
+ * accrued to actually pay for a transaction. Localnet never needs this — its
+ * genesis wallets arrive funded and registered.
+ */
+export async function prepareHostedWallet(
+  mw: MidnightWallet,
+  options: { onProgress?: (message: string) => void; minDustSpecks?: bigint } = {},
+): Promise<void> {
+  await waitForNightFunds(mw, options);
+  await ensureDustGeneration(mw, options);
+  // 1 DUST covers a deploy or call with room to spare (a DUST registration
+  // fee measures ~0.21 DUST on this stack).
+  await waitForSpendableDust(mw, options.minDustSpecks ?? 10n ** 15n, options);
 }

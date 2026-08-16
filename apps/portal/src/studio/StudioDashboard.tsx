@@ -216,7 +216,7 @@ export default function StudioDashboard({
         {chain.opErr && <div className="st-errbox inpage">{chain.opErr}</div>}
         {busy && (
           <div className="st-workbox inpage">
-            Working — a proved call takes ~18 s (proving ~0.3 s, block inclusion the rest). Do not reload.
+            {chain.opStage ?? 'Working — a proved call takes ~18 s (proving ~0.3 s, block inclusion the rest). Do not reload.'}
           </div>
         )}
         {!busy && chain.lastOp && (

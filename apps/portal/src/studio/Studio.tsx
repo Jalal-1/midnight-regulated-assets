@@ -39,7 +39,7 @@ import { PERSONA_LABEL, useStudioChain, type PersonaId, type TokenKind } from '.
 type Screen = 'landing' | 'wizard' | 'compare' | 'deploy' | 'success' | 'dashboard';
 
 const normSeed = (raw: string) => raw.trim().toLowerCase().replace(/^0x/, '');
-const isSeed = (raw: string) => /^[0-9a-f]{64}$/.test(raw);
+const isSeed = (raw: string) => /^(?:[0-9a-f]{64}|[0-9a-f]{128})$/.test(raw);
 
 const kindOf = (config: StudioConfig): TokenKind =>
   config.token === 'utxo-unshielded'
@@ -96,7 +96,7 @@ export default function Studio() {
     if (wantsStagenet) {
       const typed = { acme: normSeed(seeds.acme), alice: normSeed(seeds.alice), bob: normSeed(seeds.bob) };
       if (!isSeed(typed.acme) || !isSeed(typed.alice) || !isSeed(typed.bob)) {
-        setDeployNote('Stagenet needs three 64-hex funded seeds — generate them below, fund each address, then deploy.');
+        setDeployNote('Stagenet needs three funded seeds — generate them below, fund each address, then deploy.');
         return;
       }
     }
@@ -684,6 +684,22 @@ export default function Studio() {
                   <div className="st-grow">
                     <div className="st-strong">{d.label}</div>
                     <div className="st-mono-xs">{d.detail ?? d.tech}</div>
+                    {d.sub.length > 0 && (
+                      // key includes state so the dropdown re-mounts open while
+                      // running and closed once settled — user toggles freely.
+                      <details key={`${d.id}-${d.state}`} className="st-sublog" open={d.state === 'running'}>
+                        <summary>
+                          {d.state === 'running' ? 'live transaction stages' : `transaction stages (${d.sub.length})`}
+                        </summary>
+                        <div className="st-sublog-lines mono">
+                          {d.sub.map((line, i) => (
+                            <div key={i} className={i === d.sub.length - 1 && d.state === 'running' ? 'live' : ''}>
+                              {line}
+                            </div>
+                          ))}
+                        </div>
+                      </details>
+                    )}
                   </div>
                 </div>
               ))}
@@ -703,6 +719,7 @@ export default function Studio() {
                     label={PERSONA_LABEL[who]}
                     wallet={wallet}
                     address={address}
+                    autoDust={false}
                     say={(m) => setDeployNote(m)}
                   />
                 ) : null;

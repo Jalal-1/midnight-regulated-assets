@@ -34,6 +34,9 @@ import {
 import type { NetworkConfig, ProofServerConfig } from '@mra/network';
 
 import type { MidnightWallet } from './index.ts';
+import { emitTxStage } from './txStages.ts';
+
+const took = (t0: number) => `${((Date.now() - t0) / 1000).toFixed(1)} s`;
 
 const DEFAULT_TTL_MS = 15 * 60 * 1000;
 
@@ -91,15 +94,27 @@ export async function createBrowserProviders<
         .asString(),
     // Balance, then finalise: midnight-js wants one step, the SDK gives two.
     balanceTx: async (tx: Parameters<typeof wallet.balanceUnboundTransaction>[0], ttl?: Date) => {
+      emitTxStage('balancing — wallet selects coins to cover outputs and DUST for the fee');
+      let t0 = Date.now();
       const recipe = await wallet.balanceUnboundTransaction(tx, secretKeys, {
         ttl: ttl ?? new Date(Date.now() + DEFAULT_TTL_MS),
       });
-      return wallet.finalizeRecipe(recipe);
+      emitTxStage(`balanced in ${took(t0)} — finalising (binding + signatures)`);
+      t0 = Date.now();
+      const finalized = await wallet.finalizeRecipe(recipe);
+      emitTxStage(`finalised in ${took(t0)}`);
+      return finalized;
     },
   };
 
   const midnightProvider = {
-    submitTx: (tx: Parameters<typeof wallet.submitTransaction>[0]) => wallet.submitTransaction(tx),
+    submitTx: async (tx: Parameters<typeof wallet.submitTransaction>[0]) => {
+      emitTxStage('submitting to the node');
+      const t0 = Date.now();
+      const txId = await wallet.submitTransaction(tx);
+      emitTxStage(`accepted by the node in ${took(t0)} — waiting for block inclusion (indexer confirmation)`);
+      return txId;
+    },
   };
 
   // Second arg is an OPTIONS OBJECT, not a fetch function — passing a bare
@@ -114,10 +129,21 @@ export async function createBrowserProviders<
     zkConfigProvider,
     // Auth headers and timeout come from the resolved proof-server config, so a
     // hosted (TEE) prover works here with no change to callers. Never log these.
-    proofProvider: httpClientProofProvider(proofServer.url, zkConfigProvider, {
-      headers: proofServer.headers,
-      timeout: proofServer.timeoutMs,
-    }),
+    proofProvider: (() => {
+      const base = httpClientProofProvider(proofServer.url, zkConfigProvider, {
+        headers: proofServer.headers,
+        timeout: proofServer.timeoutMs,
+      });
+      return {
+        proveTx: async (...args: Parameters<typeof base.proveTx>) => {
+          emitTxStage('constructed — proving: generating the zero-knowledge proof');
+          const t0 = Date.now();
+          const proved = await base.proveTx(...args);
+          emitTxStage(`proof generated in ${took(t0)}`);
+          return proved;
+        },
+      };
+    })(),
     privateStateProvider: levelPrivateStateProvider({
       privateStateStoreName,
       accountId,

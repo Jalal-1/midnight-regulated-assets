@@ -34,9 +34,15 @@ export interface FaucetSetupProps {
   /** bech32m unshielded address — what the faucet wants. */
   readonly address: string;
   readonly say: (message: string, kind?: 'info' | 'ok' | 'error') => void;
+  /**
+   * Run the one-time DUST registration here when funds arrive (default). Pass
+   * false when the caller's own pipeline performs it — two concurrent
+   * registrations would race to submit the same UTXOs.
+   */
+  readonly autoDust?: boolean;
 }
 
-export default function FaucetSetup({ label, wallet, address, say }: FaucetSetupProps) {
+export default function FaucetSetup({ label, wallet, address, say, autoDust = true }: FaucetSetupProps) {
   const [status, setStatus] = useState<DustSetupStatus | null>(null);
   const [registering, setRegistering] = useState(false);
   const [expanded, setExpanded] = useState(false);
@@ -61,7 +67,7 @@ export default function FaucetSetup({ label, wallet, address, say }: FaucetSetup
         setStatus(next);
         // Funds just arrived and nothing is generating: designate the DUST
         // address (itself) and register — the one-time first-wallet step.
-        if (next.unregistered > 0 && !registered.current) {
+        if (autoDust && next.unregistered > 0 && !registered.current) {
           registered.current = true;
           setRegistering(true);
           say(`${label}: NIGHT arrived — designating DUST address (one-time registration)…`);
@@ -89,7 +95,7 @@ export default function FaucetSetup({ label, wallet, address, say }: FaucetSetup
       live = false;
       clearInterval(timer);
     };
-  }, [label, say, wallet, wrongNetwork]);
+  }, [autoDust, label, say, wallet, wrongNetwork]);
 
   // After the hooks (rules of hooks): a mismatched address gets a warning row,
   // never a faucet hand-off the faucet would reject.

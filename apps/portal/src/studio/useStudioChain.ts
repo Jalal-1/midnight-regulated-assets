@@ -26,7 +26,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { currentNetwork } from '@mra/lab-shell';
-import { formatDust, formatNight } from '@mra/wallet';
+import { formatDust, formatNight, onTxStage, prepareHostedWallet } from '@mra/wallet';
 
 import {
   connectCftPersona,
@@ -41,6 +41,7 @@ import {
   type CftSession,
 } from '../labs/confidentialToken.ts';
 import {
+  awaitSpendableUtxo,
   connectUtxoPersona,
   deployUtxoToken,
   mintUtxo,
@@ -84,9 +85,11 @@ export interface DeployStep {
   readonly tech: string;
   readonly state: StepState;
   readonly detail?: string;
+  /** Live sub-stage log — every line is emitted by the code doing that work. */
+  readonly sub: readonly string[];
 }
 
-const STEPS: Record<TokenKind, readonly Omit<DeployStep, 'state' | 'detail'>[]> = {
+const STEPS: Record<TokenKind, readonly Omit<DeployStep, 'state' | 'detail' | 'sub'>[]> = {
   confidential: [
     { id: 'wallets', label: 'Preparing issuer environment', tech: 'wallets built from seeds · roles derived · DUST available' },
     { id: 'deploy', label: 'Deploying the asset contract', tech: 'proved locally · submitted · block inclusion' },
@@ -141,6 +144,8 @@ export interface StudioChain {
   readonly deploySteps: readonly DeployStep[];
   readonly busy: boolean;
   readonly opErr: string | null;
+  /** Live sub-stage of the operation in flight (proving, balancing, …). */
+  readonly opStage: string | null;
   readonly lastOp: { label: string; tx: string; ms: number } | null;
   readonly issuedTotal: bigint;
   readonly redeemedTotal: bigint;
@@ -171,8 +176,9 @@ export function useStudioChain(): StudioChain {
   const [registeredIds, setRegisteredIds] = useState<readonly string[]>([]);
   const [activity, setActivity] = useState<readonly ActivityEvent[]>([]);
   const [deploySteps, setDeploySteps] = useState<readonly DeployStep[]>(
-    STEPS.confidential.map((s) => ({ ...s, state: 'pending' as const })),
+    STEPS.confidential.map((s) => ({ ...s, state: 'pending' as const, sub: [] })),
   );
+  const [opStage, setOpStage] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [opErr, setOpErr] = useState<string | null>(null);
   const [lastOp, setLastOp] = useState<{ label: string; tx: string; ms: number } | null>(null);
@@ -245,6 +251,11 @@ export function useStudioChain(): StudioChain {
     setDeploySteps((prev) => prev.map((s) => (s.id === id ? { ...s, state, detail } : s)));
   }, []);
 
+  const subStep = useCallback((id: string, message: string) => {
+    const line = `${now()}  ${message}`;
+    setDeploySteps((prev) => prev.map((s) => (s.id === id ? { ...s, sub: [...s.sub, line] } : s)));
+  }, []);
+
   const runDeployment = useCallback(
     async (
       deployKind: TokenKind,
@@ -256,11 +267,20 @@ export function useStudioChain(): StudioChain {
       setKind(deployKind);
       sessionsRef.current = { kind: deployKind, cft: {}, pub: {}, utxo: {}, tokenType: null };
       setUtxoBalances({});
-      setDeploySteps(STEPS[deployKind].map((s) => ({ ...s, state: 'pending' as const })));
+      setDeploySteps(STEPS[deployKind].map((s) => ({ ...s, state: 'pending' as const, sub: [] })));
+      // Route the providers' live stage events into whichever step is active.
+      let activeStep = 'wallets';
+      const offStages = onTxStage((m) => {
+        step(activeStep, 'running', m);
+        subStep(activeStep, m);
+      });
       try {
         step('wallets', 'running');
         for (const persona of ['acme', 'alice', 'bob'] as const) {
-          const progress = (m: string) => step('wallets', 'running', m);
+          const progress = (m: string) => {
+            step('wallets', 'running', `${PERSONA_LABEL[persona]}: ${m}`);
+            subStep('wallets', `${PERSONA_LABEL[persona]}: ${m}`);
+          };
           if (deployKind === 'confidential') {
             sessionsRef.current.cft[persona] = await connectCftPersona(persona, seeds?.[persona], progress);
           } else if (deployKind === 'public') {
@@ -268,6 +288,28 @@ export function useStudioChain(): StudioChain {
           } else {
             sessionsRef.current.utxo[persona] = await connectUtxoPersona(deployKind, persona, seeds?.[persona], progress);
           }
+          subStep('wallets', `${PERSONA_LABEL[persona]}: wallet ready`);
+        }
+        if (currentNetwork().networkId !== 'undeployed') {
+          // Hosted network: nothing works until each wallet is faucet-funded,
+          // DUST-registered, and holds enough DUST to pay fees. Gate here — in
+          // parallel, so all three faucet rows can be handled in one sitting.
+          step('wallets', 'running', 'waiting for faucet funds — fund each address in the rows below');
+          subStep('wallets', 'waiting for faucet funds on all three wallets — fund each address below');
+          const sessionOf = (persona: PersonaId) =>
+            deployKind === 'confidential'
+              ? sessionsRef.current.cft[persona]!
+              : deployKind === 'public'
+                ? sessionsRef.current.pub[persona]!
+                : sessionsRef.current.utxo[persona]!;
+          await Promise.all(
+            (['acme', 'alice', 'bob'] as const).map((persona) =>
+              prepareHostedWallet(sessionOf(persona).wallet, {
+                onProgress: (m) => subStep('wallets', `${PERSONA_LABEL[persona]}: ${m}`),
+              }),
+            ),
+          );
+          subStep('wallets', 'all three wallets funded, DUST-registered and fee-ready');
         }
         const issuer =
           deployKind === 'confidential'
@@ -281,6 +323,7 @@ export function useStudioChain(): StudioChain {
           `issuer holds ${formatNight(issuer.unshieldedBalance)} NIGHT · ${formatDust(issuer.dustBalance(new Date()))} DUST`,
         );
 
+        activeStep = 'deploy';
         step('deploy', 'running');
         let t = Date.now();
         let deployed: string;
@@ -300,6 +343,7 @@ export function useStudioChain(): StudioChain {
         if (deployKind === 'confidential') {
           for (const persona of ['alice', 'bob'] as const) {
             const id = persona === 'alice' ? 'registerAlice' : 'registerBob';
+            activeStep = id;
             step(id, 'running');
             t = Date.now();
             const tx = await registerCft(sessionsRef.current.cft[persona]!, deployed);
@@ -322,15 +366,18 @@ export function useStudioChain(): StudioChain {
         setOpErr(`Deployment failed: ${message}`);
         setBusy(false);
         return false;
+      } finally {
+        offStages();
       }
     },
-    [log, refreshView, step],
+    [log, refreshView, step, subStep],
   );
 
   const run = useCallback(
     async (label: string, note: string, fn: () => Promise<{ txId: string }>): Promise<boolean> => {
       setBusy(true);
       setOpErr(null);
+      const offStages = onTxStage((m) => setOpStage(m));
       const t = Date.now();
       try {
         const tx = await fn();
@@ -345,6 +392,8 @@ export function useStudioChain(): StudioChain {
         setLastOp(null);
         return false;
       } finally {
+        offStages();
+        setOpStage(null);
         setBusy(false);
       }
     },
@@ -428,17 +477,19 @@ export function useStudioChain(): StudioChain {
         );
       } else {
         if (!s.utxo[from] || !s.utxo[to] || !s.tokenType) return;
-        const have = await utxoBalanceOf(s.kind as 'utxo' | 'zswap', s.utxo[from]!, s.tokenType);
-        if (units > have) {
-          setOpErr(`Insufficient balance — ${PERSONA_LABEL[from]} holds ${fmtUnits(have)} ${sym}.`);
-          return;
-        }
+        const kind = s.kind as 'utxo' | 'zswap';
         await run(
           `Transferred ${fmtUnits(units)} ${sym} — ${PERSONA_LABEL[from]} → ${PERSONA_LABEL[to]}`,
-          s.kind === 'utxo'
+          kind === 'utxo'
             ? 'wallet-to-wallet, no contract involved — amount and parties are public'
             : 'wallet-to-wallet through the shielded pool — amount, sender and recipient hidden',
-          () => walletTransferUtxo(s.kind as 'utxo' | 'zswap', s.utxo[from]!, s.tokenType!, s.utxo[to]!, units),
+          async () => {
+            const have = await awaitSpendableUtxo(kind, s.utxo[from]!, s.tokenType!, units);
+            if (units > have) {
+              throw new Error(`insufficient balance — ${PERSONA_LABEL[from]} holds ${fmtUnits(have)} ${sym}`);
+            }
+            return walletTransferUtxo(kind, s.utxo[from]!, s.tokenType!, s.utxo[to]!, units);
+          },
         );
       }
     },
@@ -471,17 +522,19 @@ export function useStudioChain(): StudioChain {
         );
       } else {
         if (!s.utxo.acme || !s.utxo[from] || !s.tokenType) return;
-        const have = await utxoBalanceOf(s.kind as 'utxo' | 'zswap', s.utxo[from]!, s.tokenType);
-        if (units > have) {
-          setOpErr(`Insufficient balance — ${PERSONA_LABEL[from]} holds ${fmtUnits(have)} ${sym}.`);
-          return;
-        }
+        const kind = s.kind as 'utxo' | 'zswap';
         await run(
           `Returned ${fmtUnits(units)} ${sym} to the issuer — from ${PERSONA_LABEL[from]}`,
-          s.kind === 'utxo'
+          kind === 'utxo'
             ? 'bearer coins have no burn — redemption is a public transfer back to the issuer'
             : 'bearer coins have no burn — redemption is a shielded transfer back to the issuer',
-          () => walletTransferUtxo(s.kind as 'utxo' | 'zswap', s.utxo[from]!, s.tokenType!, s.utxo.acme!, units),
+          async () => {
+            const have = await awaitSpendableUtxo(kind, s.utxo[from]!, s.tokenType!, units);
+            if (units > have) {
+              throw new Error(`insufficient balance — ${PERSONA_LABEL[from]} holds ${fmtUnits(have)} ${sym}`);
+            }
+            return walletTransferUtxo(kind, s.utxo[from]!, s.tokenType!, s.utxo.acme!, units);
+          },
         );
       }
     },
@@ -541,7 +594,8 @@ export function useStudioChain(): StudioChain {
     setView(null);
     setRegisteredIds([]);
     setActivity([]);
-    setDeploySteps(STEPS.confidential.map((s) => ({ ...s, state: 'pending' as const })));
+    setDeploySteps(STEPS.confidential.map((s) => ({ ...s, state: 'pending' as const, sub: [] })));
+    setOpStage(null);
     setOpErr(null);
     setLastOp(null);
     setIssuedTotal(0n);
@@ -556,6 +610,7 @@ export function useStudioChain(): StudioChain {
     deploySteps,
     busy,
     opErr,
+    opStage,
     lastOp,
     issuedTotal,
     redeemedTotal,

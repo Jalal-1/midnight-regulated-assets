@@ -174,7 +174,7 @@ async function main(): Promise<void> {
           bob: process.env.MRA_CFT_SEED_BOB ?? '',
         };
   for (const [who, seed] of Object.entries(seeds)) {
-    if (!/^[0-9a-f]{64}$/i.test(seed)) {
+    if (!/^(?:[0-9a-f]{64}|[0-9a-f]{128})$/i.test(seed)) {
       throw new Error(`missing/invalid seed for ${who} — on Stagenet set MRA_CFT_SEED_${who.toUpperCase()} to a faucet-funded seed`);
     }
   }

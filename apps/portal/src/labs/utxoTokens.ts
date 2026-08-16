@@ -34,7 +34,7 @@ import {
 } from '@mra/app-tokenised-deposit/contract-zswap';
 import { currentNetwork } from '@mra/lab-shell';
 import { LOCALNET_GENESIS_SEEDS } from '@mra/network';
-import { configureNetworkId, createWalletFromSeed, type MidnightWallet } from '@mra/wallet';
+import { configureNetworkId, createWalletFromSeed, emitTxStage, type MidnightWallet } from '@mra/wallet';
 import { createBrowserProviders } from '@mra/wallet/providers/browser';
 
 import { waitForNextBlock } from './publicToken.ts';
@@ -214,9 +214,53 @@ export async function utxoBalanceOf(
   session: UtxoSession,
   tokenType: string,
 ): Promise<bigint> {
+  return (await utxoBalancesOf(kind, session, tokenType)).spendable;
+}
+
+/**
+ * Spendable AND pending, separately. Right after an outgoing transfer the
+ * sender's change coin is pending until block inclusion — during that window
+ * the spendable balance honestly reads low.
+ */
+export async function utxoBalancesOf(
+  kind: UtxoKind,
+  session: UtxoSession,
+  tokenType: string,
+): Promise<{ spendable: bigint; pending: bigint }> {
   const state = await session.wallet.wallet.waitForSyncedState();
-  const balances = kind === 'utxo' ? state.unshielded.balances : state.shielded.balances;
-  return BigInt(balances?.[tokenType] ?? 0n);
+  const pool = kind === 'utxo' ? state.unshielded : state.shielded;
+  const spendable = BigInt(pool.balances?.[tokenType] ?? 0n);
+  let pending = 0n;
+  for (const coin of (pool.pendingCoins ?? []) as readonly unknown[]) {
+    const c = coin as { type?: unknown; value?: unknown; utxo?: { type?: unknown; value?: unknown } };
+    const type = String(c.type ?? c.utxo?.type ?? '');
+    if (type === tokenType) pending += BigInt((c.value ?? c.utxo?.value ?? 0n) as bigint);
+  }
+  return { spendable, pending };
+}
+
+/**
+ * Wait out settling change before a spend: if pending coins cover the
+ * shortfall, poll until they become spendable. Returns the spendable balance —
+ * still short only when the wallet genuinely cannot cover `need`.
+ */
+export async function awaitSpendableUtxo(
+  kind: UtxoKind,
+  session: UtxoSession,
+  tokenType: string,
+  need: bigint,
+  timeoutMs = 120_000,
+): Promise<bigint> {
+  const deadline = Date.now() + timeoutMs;
+  for (;;) {
+    const { spendable, pending } = await utxoBalancesOf(kind, session, tokenType);
+    if (spendable >= need) return spendable;
+    if (spendable + pending < need || Date.now() > deadline) return spendable;
+    emitTxStage(
+      `waiting for change to settle — ${(Number(pending) / 100).toFixed(2)} pending from the previous transfer`,
+    );
+    await new Promise((resolve) => setTimeout(resolve, 4000));
+  }
 }
 
 export interface UtxoView {

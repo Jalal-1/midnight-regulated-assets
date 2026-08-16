@@ -52,12 +52,21 @@ for (const K of KINDS) {
     await cards.nth(2).getByRole('button', { name: 'Return', exact: true }).click();
     await ok.filter({ hasText: K.okRet }).waitFor({ timeout: 180_000 });
 
-    // Balances: Alice 250, Bob 250 (issue 1000 − transfer 250 − return 500)
+    // Balances: Alice 250, Bob 250 (issue 1000 − transfer 250 − return 500).
+    // Poll: right after the return, the sender's change UTXO can still be
+    // pending in her own wallet view — the dashboard's 5 s poll self-corrects.
     const holderView = page.locator('.st-holderview');
-    await page.waitForTimeout(6_000); // one poll cycle for wallet balances
-    const text = (await holderView.innerText()).replace(/\s+/g, ' ');
-    if (!/Alice 250\.00/.test(text)) fail(`Alice balance wrong: ${text}`);
-    if (!/Bob 250\.00/.test(text)) fail(`Bob balance wrong: ${text}`);
+    let text = '';
+    const deadline = Date.now() + 90_000;
+    for (;;) {
+      text = (await holderView.innerText()).replace(/\s+/g, ' ');
+      if (/Alice 250\.00/.test(text) && /Bob 250\.00/.test(text)) break;
+      if (Date.now() > deadline) {
+        fail(`balances never settled at Alice 250 / Bob 250: ${text}`);
+        break;
+      }
+      await page.waitForTimeout(5_000);
+    }
 
     // Overview: total issued stays 1,000.00 (mint-only supply), returned 500
     await page.locator('.st-rail-item', { hasText: 'Overview' }).click();
