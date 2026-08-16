@@ -2,10 +2,16 @@
  * The studio's chain bridge — every number and hash the studio shows comes
  * through here, and none of it is simulated.
  *
- * Two deployable token kinds, both real:
+ * Four deployable token kinds, all real:
+ *   'utxo'          — the unshielded UTXO token: the contract mints NATIVE
+ *                     coins; every movement after that is wallet-level and
+ *                     fully public.
  *   'public'        — the unshielded contract token (FungibleToken + Ownable):
  *                     balances in public contract state, read straight off the
  *                     indexer.
+ *   'zswap'         — the ZSwap shielded UTXO token: the contract mints into
+ *                     the shielded pool; the chain sees commitments, and
+ *                     transfers hide amount, sender and recipient.
  *   'confidential'  — the CFT: encrypted balances, hidden amounts, public
  *                     supply; wallet-side plaintext tracked in memory and
  *                     verified by every proof.
@@ -13,7 +19,8 @@
  * The deployment pipeline's steps are actual transactions completing live;
  * issue/transfer/redeem carry real ids and measured durations. On the
  * confidential token, the recipient's required sweep runs as its own real,
- * logged transaction.
+ * logged transaction. On the UTXO kinds, "redeem" is a wallet transfer BACK to
+ * the issuer — bearer instruments have no burn, and the studio says so.
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -34,6 +41,15 @@ import {
   type CftSession,
 } from '../labs/confidentialToken.ts';
 import {
+  connectUtxoPersona,
+  deployUtxoToken,
+  mintUtxo,
+  readUtxoView,
+  utxoBalanceOf,
+  walletTransferUtxo,
+  type UtxoSession,
+} from '../labs/utxoTokens.ts';
+import {
   accountId,
   asAccount,
   burn as burnPublic,
@@ -45,7 +61,7 @@ import {
   type TokenSession,
 } from '../labs/publicToken.ts';
 
-export type TokenKind = 'public' | 'confidential';
+export type TokenKind = 'utxo' | 'public' | 'zswap' | 'confidential';
 export type PersonaId = 'acme' | 'alice' | 'bob';
 export const PERSONA_LABEL: Record<PersonaId, string> = {
   acme: 'ACME Bank treasury',
@@ -81,7 +97,17 @@ const STEPS: Record<TokenKind, readonly Omit<DeployStep, 'state' | 'detail'>[]> 
     { id: 'wallets', label: 'Preparing issuer environment', tech: 'wallets built from seeds · roles derived · DUST available' },
     { id: 'deploy', label: 'Deploying the asset contract', tech: 'proved locally · submitted · block inclusion' },
   ],
+  utxo: [
+    { id: 'wallets', label: 'Preparing issuer environment', tech: 'wallets built from seeds · roles derived · DUST available' },
+    { id: 'deploy', label: 'Deploying the mint contract', tech: 'proved locally · submitted · block inclusion — coins it mints are ledger-native' },
+  ],
+  zswap: [
+    { id: 'wallets', label: 'Preparing issuer environment', tech: 'wallets built from seeds · roles derived · DUST available' },
+    { id: 'deploy', label: 'Deploying the shielded mint contract', tech: 'proved locally · submitted · block inclusion — coins it mints live in the shielded pool' },
+  ],
 };
+
+const isUtxoKind = (k: TokenKind): k is 'utxo' | 'zswap' => k === 'utxo' || k === 'zswap';
 
 const now = () => new Date().toTimeString().slice(0, 8);
 const shortTx = (tx: string) => `${tx.slice(0, 10)}…`;
@@ -102,6 +128,9 @@ interface AnySessions {
   kind: TokenKind;
   cft: Partial<Record<PersonaId, CftSession>>;
   pub: Partial<Record<PersonaId, TokenSession>>;
+  utxo: Partial<Record<PersonaId, UtxoSession>>;
+  /** UTXO kinds only: the raw token type minted by the deployed contract. */
+  tokenType: string | null;
 }
 
 export interface StudioChain {
@@ -150,7 +179,10 @@ export function useStudioChain(): StudioChain {
   const [issuedTotal, setIssuedTotal] = useState(0n);
   const [redeemedTotal, setRedeemedTotal] = useState(0n);
   const [, setTick] = useState(0);
-  const sessionsRef = useRef<AnySessions>({ kind: 'confidential', cft: {}, pub: {} });
+  const [utxoBalances, setUtxoBalances] = useState<Partial<Record<'alice' | 'bob', bigint>>>({});
+  // Poll results can resolve out of order; only the newest read may write.
+  const balSeqRef = useRef(0);
+  const sessionsRef = useRef<AnySessions>({ kind: 'confidential', cft: {}, pub: {}, utxo: {}, tokenType: null });
 
   const log = useCallback((label: string, note: string, tx: string) => {
     setActivity((prev) => [{ t: now(), label, note, tx }, ...prev]);
@@ -168,7 +200,7 @@ export function useStudioChain(): StudioChain {
         registeredCount: v.registered.length,
         holders: null,
       });
-    } else {
+    } else if (forKind === 'public') {
       const v = await readPublicView(at);
       if (!v) return;
       setView({
@@ -178,6 +210,26 @@ export function useStudioChain(): StudioChain {
         registeredCount: null,
         holders: v.holdings.map((h) => ({ id: hex(h.account), balance: h.balance })),
       });
+    } else {
+      const v = await readUtxoView(forKind, at);
+      if (!v) return;
+      setView({
+        symbol: v.symbol,
+        decimals: 2,
+        totalSupply: v.minted,
+        registeredCount: null,
+        holders: null,
+      });
+      const s = sessionsRef.current;
+      if (s.tokenType) {
+        const seq = ++balSeqRef.current;
+        const next: Partial<Record<'alice' | 'bob', bigint>> = {};
+        for (const persona of ['alice', 'bob'] as const) {
+          const session = s.utxo[persona];
+          if (session) next[persona] = await utxoBalanceOf(forKind, session, s.tokenType);
+        }
+        if (seq === balSeqRef.current) setUtxoBalances(next);
+      }
     }
   }, []);
 
@@ -202,25 +254,27 @@ export function useStudioChain(): StudioChain {
       setBusy(true);
       setOpErr(null);
       setKind(deployKind);
-      sessionsRef.current = { kind: deployKind, cft: {}, pub: {} };
+      sessionsRef.current = { kind: deployKind, cft: {}, pub: {}, utxo: {}, tokenType: null };
+      setUtxoBalances({});
       setDeploySteps(STEPS[deployKind].map((s) => ({ ...s, state: 'pending' as const })));
       try {
         step('wallets', 'running');
-        if (deployKind === 'confidential') {
-          for (const persona of ['acme', 'alice', 'bob'] as const) {
-            sessionsRef.current.cft[persona] = await connectCftPersona(persona, seeds?.[persona], (m) =>
-              step('wallets', 'running', m),
-            );
-          }
-        } else {
-          for (const persona of ['acme', 'alice', 'bob'] as const) {
-            sessionsRef.current.pub[persona] = await connectPublicPersona(persona, seeds?.[persona], (m) =>
-              step('wallets', 'running', m),
-            );
+        for (const persona of ['acme', 'alice', 'bob'] as const) {
+          const progress = (m: string) => step('wallets', 'running', m);
+          if (deployKind === 'confidential') {
+            sessionsRef.current.cft[persona] = await connectCftPersona(persona, seeds?.[persona], progress);
+          } else if (deployKind === 'public') {
+            sessionsRef.current.pub[persona] = await connectPublicPersona(persona, seeds?.[persona], progress);
+          } else {
+            sessionsRef.current.utxo[persona] = await connectUtxoPersona(deployKind, persona, seeds?.[persona], progress);
           }
         }
         const issuer =
-          deployKind === 'confidential' ? sessionsRef.current.cft.acme! : sessionsRef.current.pub.acme!;
+          deployKind === 'confidential'
+            ? sessionsRef.current.cft.acme!
+            : deployKind === 'public'
+              ? sessionsRef.current.pub.acme!
+              : sessionsRef.current.utxo.acme!;
         step(
           'wallets',
           'done',
@@ -229,10 +283,16 @@ export function useStudioChain(): StudioChain {
 
         step('deploy', 'running');
         let t = Date.now();
-        const deployed =
-          deployKind === 'confidential'
-            ? await deployCft(sessionsRef.current.cft.acme!, naming)
-            : await deployPublic(sessionsRef.current.pub.acme!, naming);
+        let deployed: string;
+        if (deployKind === 'confidential') {
+          deployed = await deployCft(sessionsRef.current.cft.acme!, naming);
+        } else if (deployKind === 'public') {
+          deployed = await deployPublic(sessionsRef.current.pub.acme!, naming);
+        } else {
+          const r = await deployUtxoToken(deployKind, sessionsRef.current.utxo.acme!, naming);
+          deployed = r.address;
+          sessionsRef.current.tokenType = r.tokenType;
+        }
         setAddress(deployed);
         step('deploy', 'done', `address ${deployed.slice(0, 12)}… · ${seconds(Date.now() - t)}`);
         log(`Deployed ${naming.name} (${naming.symbol})`, `proved + confirmed in ${seconds(Date.now() - t)}`, deployed.slice(0, 10));
@@ -312,12 +372,21 @@ export function useStudioChain(): StudioChain {
           'recipient sweep — the confidential model requires it',
           () => sweepCft(s.cft[to]!, address),
         );
-      } else {
+      } else if (s.kind === 'public') {
         if (!s.pub.acme || !s.pub[to]) return;
         await run(
           `Issued ${fmtUnits(units)} ${sym} to ${PERSONA_LABEL[to]}`,
           'mint under issuer authority — amount and balance are public',
           () => mintPublic(s.pub.acme!, address, asAccount(accountId(s.pub[to]!.secretKey)), units),
+        );
+      } else {
+        if (!s.utxo.acme || !s.utxo[to]) return;
+        await run(
+          `Issued ${fmtUnits(units)} ${sym} to ${PERSONA_LABEL[to]}`,
+          s.kind === 'utxo'
+            ? 'owner-gated mint of native coins, straight into the wallet — fully public'
+            : 'owner-gated mint into the shielded pool — the chain records a commitment',
+          () => mintUtxo(s.kind as 'utxo' | 'zswap', s.utxo.acme!, address, s.utxo[to]!, units),
         );
       }
     },
@@ -350,12 +419,26 @@ export function useStudioChain(): StudioChain {
           'recipient sweep — the confidential model requires it',
           () => sweepCft(s.cft[to]!, address),
         );
-      } else {
+      } else if (s.kind === 'public') {
         if (!s.pub[from] || !s.pub[to]) return;
         await run(
           `Transferred ${fmtUnits(units)} ${sym} — ${PERSONA_LABEL[from]} → ${PERSONA_LABEL[to]}`,
           'amount and both balances are public',
           () => transferPublic(s.pub[from]!, address, asAccount(accountId(s.pub[to]!.secretKey)), units),
+        );
+      } else {
+        if (!s.utxo[from] || !s.utxo[to] || !s.tokenType) return;
+        const have = await utxoBalanceOf(s.kind as 'utxo' | 'zswap', s.utxo[from]!, s.tokenType);
+        if (units > have) {
+          setOpErr(`Insufficient balance — ${PERSONA_LABEL[from]} holds ${fmtUnits(have)} ${sym}.`);
+          return;
+        }
+        await run(
+          `Transferred ${fmtUnits(units)} ${sym} — ${PERSONA_LABEL[from]} → ${PERSONA_LABEL[to]}`,
+          s.kind === 'utxo'
+            ? 'wallet-to-wallet, no contract involved — amount and parties are public'
+            : 'wallet-to-wallet through the shielded pool — amount, sender and recipient hidden',
+          () => walletTransferUtxo(s.kind as 'utxo' | 'zswap', s.utxo[from]!, s.tokenType!, s.utxo[to]!, units),
         );
       }
     },
@@ -379,12 +462,26 @@ export function useStudioChain(): StudioChain {
           'burned against the issuer — supply delta is public',
           () => redeemCft(s.cft[from]!, address, units),
         );
-      } else {
+      } else if (s.kind === 'public') {
         if (!s.pub.acme || !s.pub[from]) return;
         await run(
           `Redeemed ${fmtUnits(units)} ${sym} from ${PERSONA_LABEL[from]}`,
           'burned by the issuer — amount and balance are public',
           () => burnPublic(s.pub.acme!, address, asAccount(accountId(s.pub[from]!.secretKey)), units),
+        );
+      } else {
+        if (!s.utxo.acme || !s.utxo[from] || !s.tokenType) return;
+        const have = await utxoBalanceOf(s.kind as 'utxo' | 'zswap', s.utxo[from]!, s.tokenType);
+        if (units > have) {
+          setOpErr(`Insufficient balance — ${PERSONA_LABEL[from]} holds ${fmtUnits(have)} ${sym}.`);
+          return;
+        }
+        await run(
+          `Returned ${fmtUnits(units)} ${sym} to the issuer — from ${PERSONA_LABEL[from]}`,
+          s.kind === 'utxo'
+            ? 'bearer coins have no burn — redemption is a public transfer back to the issuer'
+            : 'bearer coins have no burn — redemption is a shielded transfer back to the issuer',
+          () => walletTransferUtxo(s.kind as 'utxo' | 'zswap', s.utxo[from]!, s.tokenType!, s.utxo.acme!, units),
         );
       }
     },
@@ -395,7 +492,7 @@ export function useStudioChain(): StudioChain {
     let issued = 0n;
     let redeemed = 0n;
     for (const ev of activity) {
-      const amount = ev.label.match(/^(Issued|Redeemed) ([\d,]+\.\d{2})/);
+      const amount = ev.label.match(/^(Issued|Redeemed|Returned) ([\d,]+\.\d{2})/);
       if (!amount) continue;
       const units = BigInt(Math.round(parseFloat(amount[2]!.replace(/,/g, '')) * 100));
       if (amount[1] === 'Issued') issued += units;
@@ -411,8 +508,11 @@ export function useStudioChain(): StudioChain {
       const session = s.cft[who];
       return session ? hex(session.tokenWallet.id) : null;
     }
-    const session = s.pub[who];
-    return session ? hex(accountId(session.secretKey)) : null;
+    if (s.kind === 'public') {
+      const session = s.pub[who];
+      return session ? hex(accountId(session.secretKey)) : null;
+    }
+    return null; // UTXO kinds have no contract-level account — the wallet address IS the identity
   };
 
   const balances: Partial<Record<'alice' | 'bob', bigint>> = {};
@@ -424,15 +524,18 @@ export function useStudioChain(): StudioChain {
         balances[persona] = s.tokenWallet.spendable;
         pending[persona] = s.tokenWallet.pending;
       }
-    } else {
+    } else if (sessionsRef.current.kind === 'public') {
       const id = accountIdHex(persona);
       const holder = view?.holders?.find((h) => h.id === id);
       if (id) balances[persona] = holder?.balance ?? 0n;
+    } else if (sessionsRef.current.utxo[persona]) {
+      balances[persona] = utxoBalances[persona] ?? 0n;
     }
   }
 
   const reset = useCallback(() => {
-    sessionsRef.current = { kind: 'confidential', cft: {}, pub: {} };
+    sessionsRef.current = { kind: 'confidential', cft: {}, pub: {}, utxo: {}, tokenType: null };
+    setUtxoBalances({});
     setKind('confidential');
     setAddress(null);
     setView(null);
@@ -464,11 +567,13 @@ export function useStudioChain(): StudioChain {
     },
     walletAddress: (who) => {
       const s = sessionsRef.current;
-      return (s.kind === 'confidential' ? s.cft[who]?.unshieldedAddress : s.pub[who]?.unshieldedAddress) ?? null;
+      const session = s.kind === 'confidential' ? s.cft[who] : s.kind === 'public' ? s.pub[who] : s.utxo[who];
+      return session?.unshieldedAddress ?? null;
     },
     walletOf: (who) => {
       const s = sessionsRef.current;
-      return (s.kind === 'confidential' ? s.cft[who]?.wallet : s.pub[who]?.wallet) ?? null;
+      const session = s.kind === 'confidential' ? s.cft[who] : s.kind === 'public' ? s.pub[who] : s.utxo[who];
+      return session?.wallet ?? null;
     },
     accountIdHex,
     runDeployment,

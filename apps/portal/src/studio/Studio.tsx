@@ -4,8 +4,9 @@
  * Landing → guided issuance (token type → privacy → controls → custody →
  * network → review) → live deployment → asset dashboard. Everything on chain
  * is real: the deployment steps are actual transactions completing live, and
- * two token types deploy end to end today — the unshielded contract token and
- * the confidential (CFT) shielded contract token.
+ * four token types deploy end to end today — the unshielded UTXO token, the
+ * unshielded contract token, the ZSwap shielded UTXO token and the
+ * confidential (CFT) shielded contract token.
  */
 
 import { useEffect, useRef, useState } from 'react';
@@ -23,6 +24,7 @@ import {
   CUSTODY_DEFS,
   custodyLabel,
   DEFAULT_CONFIG,
+  FEATURE_DEFS,
   loadConfig,
   privacyOverview,
   saveConfig,
@@ -40,7 +42,13 @@ const normSeed = (raw: string) => raw.trim().toLowerCase().replace(/^0x/, '');
 const isSeed = (raw: string) => /^[0-9a-f]{64}$/.test(raw);
 
 const kindOf = (config: StudioConfig): TokenKind =>
-  config.token === 'contract-unshielded' ? 'public' : 'confidential';
+  config.token === 'utxo-unshielded'
+    ? 'utxo'
+    : config.token === 'contract-unshielded'
+      ? 'public'
+      : config.token === 'zswap-shielded'
+        ? 'zswap'
+        : 'confidential';
 
 export default function Studio() {
   const restored = useRef(loadConfig());
@@ -57,7 +65,6 @@ export default function Studio() {
   const networkMatches = wantsStagenet === (activeNetwork === 'stagenet');
   const netLabel = wantsStagenet ? 'Stagenet' : 'Local development';
   const selected = tokenDef(config.token);
-  const confidential = kindOf(config) === 'confidential';
 
   useEffect(() => {
     document.title = 'Midnight Asset Studio';
@@ -207,9 +214,9 @@ export default function Studio() {
                     <div className="st-cell-title">{t.name}<span>{t.model}</span></div>
                     <div>{t.id.includes('shielded') || t.id === 'contract-confidential' || t.id === 'contract-note' ? (t.id === 'contract-confidential' ? 'Encrypted' : 'Hidden') : 'Public'}</div>
                     <div>{t.id === 'contract-confidential' ? 'Hidden' : t.id === 'zswap-shielded' || t.id === 'contract-note' ? 'Hidden' : 'Public'}</div>
-                    <div>{t.id === 'contract-confidential' ? 'Public (attestable)' : t.id === 'zswap-shielded' ? 'Not attestable' : t.id === 'contract-note' ? 'Design open' : 'Public'}</div>
+                    <div>{t.id === 'contract-confidential' || t.id === 'zswap-shielded' ? 'Public (attestable)' : t.id === 'contract-note' ? 'Design open' : 'Public'}</div>
                     <div>{t.id.startsWith('contract') ? (t.id === 'contract-note' ? 'Contract-enforced (design)' : 'Mint · redeem · policy hooks') : 'None after mint'}</div>
-                    <div className="st-flag">{t.deployable ? 'Deploys from this studio' : t.id === 'contract-note' ? 'Placeholder' : 'Model runs; issuance flow pending'}</div>
+                    <div className="st-flag">{t.deployable ? 'Deploys from this studio' : 'Placeholder'}</div>
                   </div>
                 ))}
               </div>
@@ -251,8 +258,8 @@ export default function Studio() {
                     <h1>Choose your token type</h1>
                     <p>
                       Midnight gives you two state models — UTXO and account — each in an
-                      unshielded and a shielded form. Pick the one your instrument needs; two
-                      deploy from this studio today.
+                      unshielded and a shielded form. Pick the one your instrument needs;
+                      every type except the note-based placeholder deploys from this studio today.
                     </p>
                   </div>
                   {TOKEN_DEFS.map((t) => (
@@ -271,7 +278,14 @@ export default function Studio() {
                       <span className="st-pick-model">{t.model}</span>
                       <span className="st-pick-desc">{t.desc}</span>
                       <span className="st-pick-meta"><strong>Useful for:</strong> {t.usefulFor}</span>
-                      <span className="st-pick-meta"><strong>Visibility:</strong> {t.visibility}</span>
+                      <span className="st-checks">
+                        {FEATURE_DEFS.map((f) => (
+                          <span key={f.id} className={`st-check${t.features[f.id] ? ' on' : ''}`}>
+                            <span className="st-checkbox">{t.features[f.id] ? '✓' : ''}</span>
+                            {f.label}
+                          </span>
+                        ))}
+                      </span>
                       <span className={`st-flag${t.deployable ? ' ok' : ''}`}>{t.statusLine}</span>
                     </button>
                   ))}
@@ -568,8 +582,8 @@ export default function Studio() {
                   </div>
                   {!selected.deployable && (
                     <div className="st-warnbox">
-                      {selected.name} does not deploy from this studio yet — {selected.statusLine.toLowerCase()} Choose
-                      the unshielded contract token or the confidential contract token to deploy today.
+                      {selected.name} does not deploy from this studio yet — {selected.statusLine.toLowerCase()} Every
+                      other token type deploys today.
                     </div>
                   )}
                   <div className="st-namegrid">
@@ -726,8 +740,11 @@ export default function Studio() {
             <div className="st-table">
               <div className="st-table-row st-brief-grid"><div className="st-kcell muted">Contract address</div><div className="mono st-copy" title="click to copy" onClick={() => chain.address && void navigator.clipboard.writeText(chain.address)}>{chain.address}</div></div>
               <div className="st-table-row st-brief-grid"><div className="st-kcell muted">Network</div><div>{netLabel}</div></div>
-              <div className="st-table-row st-brief-grid"><div className="st-kcell muted">Standard</div><div>{confidential ? 'Confidential fungible token + public-supply extension (OpenZeppelin Compact)' : 'FungibleToken + Ownable in public contract state (OpenZeppelin Compact)'}</div></div>
-              <div className="st-table-row st-brief-grid"><div className="st-kcell muted">Privacy profile</div><div>{confidential ? 'Balances encrypted · transfer values hidden · identifiers, graph and supply public' : 'Fully public — every holder, balance and transfer is enumerable'}</div></div>
+              {briefRows(config)
+                .filter((b) => b.k === 'Technical composition' || b.k === 'Privacy profile')
+                .map((b) => (
+                  <div key={b.k} className="st-table-row st-brief-grid"><div className="st-kcell muted">{b.k === 'Technical composition' ? 'Standard' : b.k}</div><div>{b.v}</div></div>
+                ))}
             </div>
             <div>
               <button className="st-btn accent" onClick={() => setScreen('dashboard')}>

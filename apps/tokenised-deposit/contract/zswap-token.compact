@@ -1,0 +1,48 @@
+// The ZSWAP SHIELDED UTXO TOKEN: the private counterpart of the native asset.
+//
+// Minting creates shielded coins — on-chain the world sees a commitment, not
+// an amount or a recipient. Coins then move through the shielded pool under
+// zero-knowledge proofs, wallet-to-wallet, outside any contract's reach: no
+// pause, no freeze, no burn — bearer privacy by construction.
+//
+// The mint is owner-gated and the total ever issued is deliberately public
+// (the one number an issuer must be able to attest); everything downstream of
+// the mint is hidden by the ledger itself.
+
+pragma language_version >= 0.23.0;
+
+import CompactStandardLibrary;
+
+import "../../../node_modules/@openzeppelin/compact-contracts/access/Ownable"
+  prefix Ownable_;
+import { _owner } from "../../../node_modules/@openzeppelin/compact-contracts/access/Ownable";
+export { _owner };
+
+export { ContractAddress, Either, ZswapCoinPublicKey };
+
+export ledger _name: Opaque<"string">;
+export ledger _symbol: Opaque<"string">;
+/** Total units ever minted — public, so issuance is attestable. */
+export ledger _minted: Uint<128>;
+
+constructor(
+  name: Opaque<"string">,
+  symbol: Opaque<"string">,
+  initialOwner: Either<Bytes<32>, ContractAddress>
+) {
+  Ownable_initialize(initialOwner);
+  _name = disclose(name);
+  _symbol = disclose(symbol);
+  _minted = 0;
+}
+
+/**
+ * Issue shielded coins to a recipient's coin public key. Owner only.
+ * The minted TOTAL is public; the coin lands as a commitment — the recipient
+ * and the coin's later movements are hidden by the shielded pool.
+ */
+export circuit mint(pk: ZswapCoinPublicKey, value: Uint<64>, nonce: Bytes<32>): [] {
+  Ownable_assertOnlyOwner();
+  _minted = _minted + disclose(value) as Uint<128>;
+  const coin = mintShieldedToken(pad(32, "mra:zswap-utxo"), disclose(value), disclose(nonce), disclose(left<ZswapCoinPublicKey, ContractAddress>(pk)));
+}

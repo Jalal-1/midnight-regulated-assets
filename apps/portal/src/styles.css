@@ -1218,6 +1218,19 @@ a.model-card:hover { border-color: var(--blue-text); box-shadow: 0 0 28px rgba(7
 .st-pick.slim .st-pick-title { font-size: 15px; }
 .st-pick-desc { font-size: 14.5px; color: var(--text-secondary); line-height: 1.55; }
 .st-pick-meta { font-size: 13px; color: var(--text-muted); }
+.st-checks {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 6px 20px; border-top: 1px solid var(--border-subtle); padding-top: 12px;
+}
+.st-check { display: inline-flex; align-items: center; gap: 9px; font-size: 13px; color: var(--text-muted); }
+.st-check.on { color: var(--text-primary); }
+.st-checkbox {
+  width: 16px; height: 16px; border-radius: 4px; flex-shrink: 0;
+  border: 1px solid var(--border-strong); display: inline-flex;
+  align-items: center; justify-content: center; font-size: 11px; line-height: 1;
+}
+.st-check.on .st-checkbox { background: rgba(47, 191, 113, 0.16); border-color: var(--ok); color: var(--ok-text); }
+.theme-light .st-check.on .st-checkbox { background: rgba(29, 138, 80, 0.12); color: var(--ok); }
 .st-radio { width: 16px; height: 16px; border-radius: 50%; border: 1px solid var(--border-strong); flex-shrink: 0; background: transparent; }
 .st-pick.selected .st-radio { background: var(--blue); border-color: var(--blue); }
 .st-pick.netcard { align-content: start; }

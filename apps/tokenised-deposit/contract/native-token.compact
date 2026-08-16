@@ -1,0 +1,44 @@
+// The UNSHIELDED UTXO TOKEN: a first-class ledger asset, like NIGHT itself.
+//
+// The contract exists only to mint. Once minted, coins are native unshielded
+// UTXOs: they move wallet-to-wallet under holder signatures, with no contract
+// between holders and their funds — which is exactly the model's point, and
+// why there is no pause, freeze, transfer or burn circuit here.
+//
+// The mint is owner-gated (OpenZeppelin Ownable) and counts everything it has
+// ever issued in public state, so total issuance is attestable even though
+// the coins themselves live outside the contract.
+
+pragma language_version >= 0.23.0;
+
+import CompactStandardLibrary;
+
+import "../../../node_modules/@openzeppelin/compact-contracts/access/Ownable"
+  prefix Ownable_;
+import { _owner } from "../../../node_modules/@openzeppelin/compact-contracts/access/Ownable";
+export { _owner };
+
+export { ContractAddress, Either, UserAddress };
+
+export ledger _name: Opaque<"string">;
+export ledger _symbol: Opaque<"string">;
+/** Total units ever minted — public, so issuance is attestable. */
+export ledger _minted: Uint<128>;
+
+constructor(
+  name: Opaque<"string">,
+  symbol: Opaque<"string">,
+  initialOwner: Either<Bytes<32>, ContractAddress>
+) {
+  Ownable_initialize(initialOwner);
+  _name = disclose(name);
+  _symbol = disclose(symbol);
+  _minted = 0;
+}
+
+/** Issue native unshielded coins to a wallet address. Owner only. */
+export circuit mint(to: UserAddress, value: Uint<64>): [] {
+  Ownable_assertOnlyOwner();
+  _minted = _minted + disclose(value) as Uint<128>;
+  mintUnshieldedToken(pad(32, "mra:unshielded-utxo"), disclose(value), disclose(right<ContractAddress, UserAddress>(to)));
+}

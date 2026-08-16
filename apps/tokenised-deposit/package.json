@@ -5,7 +5,9 @@
   "type": "module",
   "exports": {
     "./contract": "./contract/managed/public-token/contract/index.js",
-    "./contract-confidential": "./contract/managed/confidential-token/contract/index.js"
+    "./contract-confidential": "./contract/managed/confidential-token/contract/index.js",
+    "./contract-native": "./contract/managed/native-token/contract/index.js",
+    "./contract-zswap": "./contract/managed/zswap-token/contract/index.js"
   },
   "dependencies": {
     "@midnight-ntwrk/compact-runtime": "0.18.0-rc.1",
@@ -18,6 +20,7 @@
   },
   "scripts": {
     "design-options:public": "node --experimental-strip-types src/design-options/public-token.ts",
-    "design-options:confidential": "node --experimental-strip-types src/design-options/confidential-token.ts"
+    "design-options:confidential": "node --experimental-strip-types src/design-options/confidential-token.ts",
+    "design-options:utxo": "node --experimental-strip-types src/design-options/utxo-tokens.ts"
   }
 }

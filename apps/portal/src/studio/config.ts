@@ -25,6 +25,8 @@ export interface TokenDef {
   readonly model: string;
   readonly desc: string;
   readonly usefulFor: string;
+  /** Skimmable capability checklist — same rows on every card so trade-offs line up. */
+  readonly features: Record<FeatureId, boolean>;
   readonly visibility: string;
   /** Deployable through this studio today. */
   readonly deployable: boolean;
@@ -33,24 +35,38 @@ export interface TokenDef {
   readonly defaults: { name: string; symbol: string };
 }
 
+export type FeatureId = 'balances' | 'amounts' | 'parties' | 'supply' | 'controls' | 'native';
+
+/** One checklist, every card — a checked box is a capability the token HAS. */
+export const FEATURE_DEFS: readonly { id: FeatureId; label: string }[] = [
+  { id: 'balances', label: 'Private balances' },
+  { id: 'amounts', label: 'Private transfer amounts' },
+  { id: 'parties', label: 'Private counterparties' },
+  { id: 'supply', label: 'Publicly attestable issuance' },
+  { id: 'controls', label: 'Issuer controls after issuance' },
+  { id: 'native', label: 'Moves wallet-to-wallet like NIGHT' },
+];
+
 export const TOKEN_DEFS: readonly TokenDef[] = [
   {
     id: 'utxo-unshielded',
     name: 'Unshielded UTXO token',
     model: 'Native ledger asset · UTXO model — the representation NIGHT itself uses',
-    desc: 'A first-class ledger asset. Coins move wallet-to-wallet with plain signatures; no contract sits between holders and their funds.',
+    desc: 'A first-class ledger asset — coins move with plain signatures, no contract in the path.',
     usefulFor: 'Settlement assets, exchange-grade fungibility, maximum interoperability.',
+    features: { balances: false, amounts: false, parties: false, supply: true, controls: false, native: true },
     visibility: 'Fully public: every coin, amount and counterparty is visible to everyone.',
-    deployable: false,
-    statusLine: 'Issuance flow lands next — the model runs in every wallet today.',
+    deployable: true,
+    statusLine: 'Deploys from this studio — owner-gated mint, then pure wallet-to-wallet movement.',
     defaults: { name: 'Unshielded UTXO token', symbol: 'UUT' },
   },
   {
     id: 'contract-unshielded',
     name: 'Unshielded contract token',
     model: 'Contract asset · account model — balances live in public contract state',
-    desc: 'The account-model counterpart: a contract holds every balance in a public map. That contract is what gives the issuer control — mint, redeem, and policy hooks the UTXO model cannot express.',
-    usefulFor: 'Transparent settlement instruments and registry-style assets where full public auditability is the point.',
+    desc: 'A contract holds every balance in a public map — and that contract is where issuer control lives.',
+    usefulFor: 'Registry-style assets where full public auditability is the point.',
+    features: { balances: false, amounts: false, parties: false, supply: true, controls: true, native: false },
     visibility: 'Fully public: anyone can enumerate every holder, balance and transfer.',
     deployable: true,
     statusLine: 'Runs end to end on localnet — deploy it from this studio.',
@@ -60,19 +76,21 @@ export const TOKEN_DEFS: readonly TokenDef[] = [
     id: 'zswap-shielded',
     name: 'ZSwap shielded UTXO token',
     model: 'Native ledger asset · shielded UTXO model — commitments and nullifiers on-chain',
-    desc: 'The private counterpart of the native asset: bearer-style coins whose amounts, holders and links are hidden by the ledger itself.',
+    desc: 'The private native asset: bearer coins whose amounts, holders and links the ledger itself hides.',
     usefulFor: 'Private bearer instruments and cash-like assets where holder privacy dominates.',
+    features: { balances: true, amounts: true, parties: true, supply: true, controls: false, native: true },
     visibility: 'Shielded: balances, amounts and counterparties are hidden; the public sees commitments.',
-    deployable: false,
-    statusLine: 'Runs at the ledger level today; issuer controls and custody workflows are open design work.',
+    deployable: true,
+    statusLine: 'Deploys from this studio — owner-gated mint into the shielded pool, attestable issuance.',
     defaults: { name: 'ZSwap shielded token', symbol: 'ZST' },
   },
   {
     id: 'contract-confidential',
     name: 'Shielded contract token — confidential (CFT)',
     model: 'Contract asset · account model — encrypted balances, public attestable supply',
-    desc: 'The account model with the visibility dial turned: balances are ciphertexts, transfer values never appear on-chain, and the issuer keeps mint and redeem. Supply stays public so the issuer can attest backing.',
-    usefulFor: 'Deposits, fund shares, e-money — regulated instruments that need privacy AND issuer control on public rails.',
+    desc: 'Encrypted balances and hidden transfer values, with issuer mint and redeem — supply stays public so backing is attestable.',
+    usefulFor: 'Deposits, fund shares, e-money — privacy AND issuer control on public rails.',
+    features: { balances: true, amounts: true, parties: false, supply: true, controls: true, native: false },
     visibility: 'Confidential values: balances encrypted, amounts hidden; identifiers, graph and supply public.',
     deployable: true,
     statusLine: 'Runs end to end on localnet — deploy it from this studio.',
@@ -82,8 +100,9 @@ export const TOKEN_DEFS: readonly TokenDef[] = [
     id: 'contract-note',
     name: 'Shielded contract token — note-based',
     model: 'Contract asset · note model — contract-managed shielded notes',
-    desc: 'The fully graph-private contract token: holders, amounts and links all hidden, with contract-enforced policy. The standard is being designed; this entry is a placeholder until a module exists.',
+    desc: 'The fully graph-private contract token — every privacy box AND issuer control. The standard is still being designed.',
     usefulFor: 'Fully private regulated instruments, once the standard matures.',
+    features: { balances: true, amounts: true, parties: true, supply: true, controls: true, native: false },
     visibility: 'Shielded throughout — by design of the model.',
     deployable: false,
     statusLine: 'Placeholder — no module exists yet; nothing is demonstrated here by design.',
@@ -249,12 +268,17 @@ export interface KvRow {
 
 export function assuranceRows(network: StudioNetwork, token: TokenType): KvRow[] {
   const confidential = token === 'contract-confidential';
+  const standard: Record<string, string> = {
+    'contract-confidential': 'Confidential fungible token + public-supply extension (OpenZeppelin Compact)',
+    'contract-unshielded': 'FungibleToken + Ownable in public contract state (OpenZeppelin Compact)',
+    'utxo-unshielded': 'Native unshielded mint gated by OpenZeppelin Ownable; coins are ledger-native',
+    'zswap-shielded': 'Shielded (ZSwap) mint gated by OpenZeppelin Ownable; coins live in the shielded pool',
+    'contract-note': 'No module exists yet',
+  };
   const rows: KvRow[] = [
     {
       k: 'Asset standard',
-      v: confidential
-        ? 'Confidential fungible token + public-supply extension (OpenZeppelin Compact)'
-        : 'FungibleToken + Ownable in public contract state (OpenZeppelin Compact)',
+      v: standard[token]!,
       chip: 'Demonstrated', tone: 'success',
     },
     { k: 'Module & version', v: '@openzeppelin/compact-contracts 0.3.0-alpha.2', chip: 'Pre-release', tone: 'warning' },
@@ -282,30 +306,53 @@ export function assuranceRows(network: StudioNetwork, token: TokenType): KvRow[]
 }
 
 export function briefRows(config: StudioConfig): KvRow[] {
-  const ctlOn = CONTROL_DEFS.filter((c) => config.ctl[c.id]).map((c) => c.label).join(' · ');
-  const confidential = config.token === 'contract-confidential';
-  return [
-    { k: 'Token type', v: tokenDef(config.token).name },
-    {
-      k: 'Technical composition',
-      v: confidential
-        ? 'Confidential fungible token + public-supply extension + Ownable (OpenZeppelin Compact)'
-        : 'FungibleToken + Ownable in public contract state (OpenZeppelin Compact)',
-    },
-    {
-      k: 'Privacy profile',
-      v: confidential
-        ? 'Balances encrypted · transfer values hidden · identifiers, graph and supply public'
-        : 'Fully public — every holder, balance and transfer is enumerable',
-    },
-    { k: 'Issuer controls', v: ctlOn || 'None selected' },
-    {
+  const t = config.token;
+  const def = tokenDef(t);
+  const composition: Record<string, string> = {
+    'contract-confidential': 'Confidential fungible token + public-supply extension + Ownable (OpenZeppelin Compact)',
+    'contract-unshielded': 'FungibleToken + Ownable in public contract state (OpenZeppelin Compact)',
+    'utxo-unshielded': 'Owner-gated native mint (Ownable) — coins are ledger-native unshielded UTXOs',
+    'zswap-shielded': 'Owner-gated shielded mint (Ownable) — coins live in the shielded pool',
+    'contract-note': 'Placeholder — no module exists yet',
+  };
+  const privacy: Record<string, string> = {
+    'contract-confidential': 'Balances encrypted · transfer values hidden · identifiers, graph and supply public',
+    'contract-unshielded': 'Fully public — every holder, balance and transfer is enumerable',
+    'utxo-unshielded': 'Fully public — coins, amounts and counterparties visible in the UTXO set',
+    'zswap-shielded': 'Shielded — balances, amounts and counterparties hidden; total issuance public',
+    'contract-note': 'Shielded throughout (design)',
+  };
+  const rows: KvRow[] = [
+    { k: 'Token type', v: def.name },
+    { k: 'Technical composition', v: composition[t]! },
+    { k: 'Privacy profile', v: privacy[t]! },
+  ];
+  if (t.startsWith('contract')) {
+    const ctlOn = CONTROL_DEFS.filter((c) => config.ctl[c.id]).map((c) => c.label).join(' · ');
+    rows.push({ k: 'Issuer controls', v: ctlOn || 'None selected' });
+    rows.push({
       k: 'Custody & approvals',
       v: custodyLabel(config.custody) + (config.custody === 'demo' ? '' : ' (target policy — deploys with the demonstration key today)'),
-    },
+    });
+  } else {
+    rows.push({ k: 'Issuer controls', v: 'Owner-gated mint only — no post-mint control (bearer model)' });
+    rows.push({
+      k: 'Custody & approvals',
+      v: t === 'utxo-unshielded'
+        ? 'Holder-side key custody — HSM/MPC/multisig apply directly'
+        : 'Note-secret custody — witness material consumed by a local prover',
+    });
+  }
+  rows.push(
     { k: 'Network', v: config.network === 'stagenet' ? 'Stagenet — public Midnight test network' : 'Local development network' },
-    { k: 'Lifecycle', v: 'Deploy · issue · transfer · redeem — verified on localnet' },
-  ];
+    {
+      k: 'Lifecycle',
+      v: t.startsWith('contract')
+        ? 'Deploy · issue · transfer · redeem — verified on localnet'
+        : 'Deploy · issue (contract mint) · wallet transfers · return to issuer — verified on localnet',
+    },
+  );
+  return rows;
 }
 
 // --- Persistence across the network-switch reload -------------------------------------------

@@ -1,6 +1,7 @@
 /**
- * The asset dashboard — post-deployment management surface for BOTH deployable
- * token kinds. Supply, holders and registration state come off the indexer;
+ * The asset dashboard — post-deployment management surface for all four
+ * deployable token kinds. Supply, holders and registration state come off the
+ * indexer (UTXO-kind holder balances come from the demo wallets themselves);
  * confidential holder balances are the sessions' wallet-side plaintext
  * (labelled as such); activity rows carry real transaction ids and measured
  * durations; the infrastructure cards are live probes.
@@ -50,7 +51,10 @@ export default function StudioDashboard({
   readonly custodyName: string;
   readonly onToggleCtl: (id: keyof StudioConfig['ctl'], value: boolean) => void;
 }) {
-  const confidential = chain.kind === 'confidential';
+  const kind = chain.kind;
+  const confidential = kind === 'confidential';
+  const utxoKind = kind === 'utxo' || kind === 'zswap';
+  const shielded = kind === 'zswap' || confidential;
   const [tab, setTab] = useState<Tab>('overview');
   const [persona, setPersona] = useState<'public' | 'issuer' | 'alice' | 'bob' | 'auditor'>('public');
   const [forms, setForms] = useState({
@@ -93,18 +97,48 @@ export default function StudioDashboard({
       no: ['Not visible', 'warning'], ni: ['Not implemented', 'danger'],
     };
     const R = (f: string, k: Key, note: string) => ({ f, chip: chip[k][0], tone: chip[k][1], note });
-    if (!confidential) {
+    if (kind === 'public' || kind === 'utxo') {
       // The transparency baseline: identical full view for every perspective.
+      const utxo = kind === 'utxo';
       return [
-        R('Asset identity', 'vis', `${config.assetName} (${symbol}) — address and standard are public`),
-        R('Total supply', 'vis', `${fmt(supply)} ${symbol} — read live from the indexer`),
-        R('Holder identity', 'vis', 'Account identifiers are public'),
-        R('Individual balance', 'vis', 'Every balance is public contract state — anyone can enumerate the full holder map'),
+        R('Asset identity', 'vis', `${config.assetName} (${symbol}) — ${utxo ? 'mint contract and token type are public' : 'address and standard are public'}`),
+        R('Total supply', 'vis', `${fmt(supply)} ${symbol} — ${utxo ? 'total minted, public contract state' : 'read live from the indexer'}`),
+        R('Holder identity', 'vis', utxo ? 'Wallet addresses are public' : 'Account identifiers are public'),
+        R('Individual balance', 'vis', utxo ? 'The sum of a wallet’s coins — enumerable from the public UTXO set' : 'Every balance is public contract state — anyone can enumerate the full holder map'),
         R('Transfer value', 'vis', 'Every amount is public'),
-        R('Sender & recipient', 'vis', 'Both identifiers are public on every transfer'),
+        R('Sender & recipient', 'vis', utxo ? 'Both wallet addresses are public on every transfer' : 'Both identifiers are public on every transfer'),
         R('Transaction graph', 'vis', 'Fully observable'),
-        R('Policy state', 'vis', 'Issuer control state is public'),
+        R('Policy state', 'vis', utxo ? 'The mint contract’s owner is public; the coins themselves carry no policy' : 'Issuer control state is public'),
       ];
+    }
+    if (kind === 'zswap') {
+      const base = [
+        R('Asset identity', 'vis', `${config.assetName} (${symbol}) — mint contract and token type are public`),
+        R('Total issued', 'vis', `${fmt(supply)} ${symbol} — public contract state, so issuance stays attestable`),
+        R('Holder identity', 'no', 'Coins live in the shielded pool — no holder addresses on the public ledger'),
+        R('Individual balance', 'no', 'The chain holds commitments; no balance is derivable from public data'),
+        R('Transfer value', 'no', 'Amounts are hidden in every shielded transfer'),
+        R('Sender & recipient', 'no', 'Both ends of a shielded transfer are hidden'),
+        R('Transaction graph', 'no', 'Who transacts with whom is not observable'),
+        R('Policy state', 'vis', 'The mint contract’s owner is public; the coins themselves carry no policy'),
+      ];
+      if (persona === 'public') return base;
+      const m = [...base];
+      if (persona === 'issuer') {
+        m[3] = R('Individual balance', 'no', 'The issuer has no view into holder balances after minting');
+        m[4] = R('Transfer value', 'own', 'Mint amounts only — holder-to-holder transfers stay hidden');
+        return m;
+      }
+      if (persona === 'alice' || persona === 'bob') {
+        const name = persona === 'alice' ? 'Alice' : 'Bob';
+        const balance = chain.balances[persona] ?? 0n;
+        m[3] = R('Individual balance', 'own', `${name} sees their own wallet: ${fmt(balance)} ${symbol} — decrypted with their own keys`);
+        m[4] = R('Transfer value', 'own', `Visible for transfers ${name} takes part in — all others stay hidden`);
+        return m;
+      }
+      m[3] = R('Individual balance', 'ni', 'No privileged view — the reviewer sees commitments, like the public');
+      m[4] = R('Transfer value', 'ni', 'No selective-disclosure mechanism exists for shielded UTXOs');
+      return m;
     }
     const base = [
       R('Asset identity', 'vis', `${config.assetName} (${symbol}) — address and standard are public`),
@@ -172,7 +206,7 @@ export default function StudioDashboard({
           </div>
           <div className="st-dashactions">
             <button className="st-btn accent sm" onClick={goTab('issue')} disabled={busy}>Issue</button>
-            <button className="st-btn outline sm" onClick={goTab('issue')} disabled={busy}>Redeem</button>
+            <button className="st-btn outline sm" onClick={goTab('issue')} disabled={busy}>{utxoKind ? 'Return' : 'Redeem'}</button>
             <button className="st-btn outline sm" onClick={goTab('issue')} disabled={busy}>Transfer</button>
             <button className="st-btn ghost sm" onClick={goTab('participants')}>Participants</button>
             <button className="st-btn ghost sm" onClick={goTab('visibility')}>Inspect visibility</button>
@@ -195,11 +229,13 @@ export default function StudioDashboard({
           {tab === 'overview' && (
             <div className="st-step">
               <div className="st-tiles">
-                <div className="st-tile"><span>Circulating supply <em>· public</em></span><strong>{fmt(supply)} <small>{symbol}</small></strong></div>
+                <div className="st-tile"><span>{utxoKind ? 'Total issued' : 'Circulating supply'} <em>· public</em></span><strong>{fmt(supply)} <small>{symbol}</small></strong></div>
                 <div className="st-tile"><span>Issued this session</span><strong>{fmt(chain.issuedTotal)}</strong></div>
-                <div className="st-tile"><span>Redeemed this session</span><strong>{fmt(chain.redeemedTotal)}</strong></div>
+                <div className="st-tile"><span>{utxoKind ? 'Returned this session' : 'Redeemed this session'}</span><strong>{fmt(chain.redeemedTotal)}</strong></div>
                 {confidential ? (
                   <div className="st-tile"><span>Registered participants <em>· public</em></span><strong>{view?.registeredCount ?? 0}</strong></div>
+                ) : utxoKind ? (
+                  <div className="st-tile"><span>Held by demo wallets {kind === 'zswap' ? <em>· holders’ own view</em> : <em>· public</em>}</span><strong>{fmt((chain.balances.alice ?? 0n) + (chain.balances.bob ?? 0n))}</strong></div>
                 ) : (
                   <div className="st-tile"><span>Holders <em>· public</em></span><strong>{view?.holders?.length ?? 0}</strong></div>
                 )}
@@ -219,7 +255,11 @@ export default function StudioDashboard({
                   <div className="st-body-sm">
                     {confidential
                       ? <>Balances encrypted · transfer values hidden<br />Identifiers, transaction graph and supply public</>
-                      : <>Fully public — every holder, balance and transfer is enumerable.<br />The transparency baseline.</>}
+                      : kind === 'zswap'
+                        ? <>Amounts, senders and recipients hidden — the chain sees commitments.<br />Total issuance stays public and attestable.</>
+                        : kind === 'utxo'
+                          ? <>Fully public — coins, amounts and counterparties visible in the UTXO set.<br />The transparency baseline, wallet-native.</>
+                          : <>Fully public — every holder, balance and transfer is enumerable.<br />The transparency baseline.</>}
                   </div>
                   <button className="st-btn ghost sm st-left" onClick={goTab('visibility')}>Inspect who can see what →</button>
                 </div>
@@ -251,7 +291,11 @@ export default function StudioDashboard({
               <div className="st-note">
                 {confidential
                   ? 'This demonstration operates every party, so the full lifecycle runs end to end. Incoming funds land as pending and the recipient sweeps them spendable — a separate real transaction the activity log shows explicitly.'
-                  : 'This demonstration operates every party, so the full lifecycle runs end to end. On this token every amount and balance is public the moment it confirms.'}
+                  : kind === 'zswap'
+                    ? 'This demonstration operates every party, so the full lifecycle runs end to end. Minting is a contract call; every movement after that is a wallet-level shielded transfer — no contract involved, amounts and parties hidden.'
+                    : kind === 'utxo'
+                      ? 'This demonstration operates every party, so the full lifecycle runs end to end. Minting is a contract call; every movement after that is a wallet-level transfer of native coins — no contract involved, fully public.'
+                      : 'This demonstration operates every party, so the full lifecycle runs end to end. On this token every amount and balance is public the moment it confirms.'}
               </div>
               <div className="st-three">
                 <div className="st-card st-stack">
@@ -294,10 +338,10 @@ export default function StudioDashboard({
                   >
                     Transfer
                   </button>
-                  <div className="st-muted-xs">{confidential ? 'Value hidden on the public ledger.' : 'Amount public on the ledger.'}</div>
+                  <div className="st-muted-xs">{shielded ? 'Value hidden on the public ledger.' : 'Amount public on the ledger.'}{utxoKind ? ' Wallet-to-wallet — no contract involved.' : ''}</div>
                 </div>
                 <div className="st-card st-stack">
-                  <div className="st-strong">Redeem</div>
+                  <div className="st-strong">{utxoKind ? 'Return to issuer' : 'Redeem'}</div>
                   <label className="st-field"><span>From</span>
                     <select value={forms.redeemFrom} onChange={(e) => setForms((f) => ({ ...f, redeemFrom: e.target.value as 'alice' | 'bob' }))} disabled={busy}>
                       {holders.map((h) => <option key={h} value={h}>{PERSONA_LABEL[h]}</option>)}
@@ -311,15 +355,20 @@ export default function StudioDashboard({
                     disabled={busy || parseUnits(forms.redeemAmt) === 0n}
                     onClick={() => void chain.redeem(forms.redeemFrom, parseUnits(forms.redeemAmt))}
                   >
-                    Redeem
+                    {utxoKind ? 'Return' : 'Redeem'}
                   </button>
+                  {utxoKind && <div className="st-muted-xs">Bearer coins have no burn — redemption is a transfer back to the issuer’s wallet.</div>}
                 </div>
               </div>
               <div className="st-card raised st-stack st-holderview">
                 <div className="st-kcell muted">
                   {confidential
                     ? 'Holder view — wallet-side plaintext, private to each holder'
-                    : 'Holder balances — public contract state, read from the indexer'}
+                    : kind === 'zswap'
+                      ? 'Holder view — each holder’s own shielded balance, decrypted with their own keys'
+                      : kind === 'utxo'
+                        ? 'Holder balances — native coins in each wallet, public on the ledger'
+                        : 'Holder balances — public contract state, read from the indexer'}
                 </div>
                 {holders.map((h) => {
                   const balance = chain.balances[h];
@@ -338,7 +387,9 @@ export default function StudioDashboard({
                 <div className="st-muted-xs">
                   {confidential
                     ? 'On the public ledger these balances are ciphertexts. They are readable here because the demonstration holds every party’s wallet — and every accepted proof verified them against those ciphertexts.'
-                    : 'Anyone on the network can read these — no wallet or key required. That is the point of this token type.'}
+                    : kind === 'zswap'
+                      ? 'On the public ledger these balances are commitments. They are readable here only because the demonstration holds every party’s wallet keys.'
+                      : 'Anyone on the network can read these — no wallet or key required. That is the point of this token type.'}
                 </div>
               </div>
             </div>
@@ -350,12 +401,14 @@ export default function StudioDashboard({
                 The demonstration cast, with real on-chain identities.{' '}
                 {confidential
                   ? 'On this token a participant registers an encryption key before receiving — registration state below is public chain data.'
-                  : 'On this token anyone can hold — there is no registration step and no gatekeeping.'}
+                  : utxoKind
+                    ? 'On this token any wallet can hold — coins move wallet-to-wallet with no registration step and no gatekeeping.'
+                    : 'On this token anyone can hold — there is no registration step and no gatekeeping.'}
               </div>
               <div className="st-table">
-                <div className="st-table-head st-part-grid"><div>Name</div><div>Role</div><div>Account id (public)</div><div>{confidential ? 'Registration' : 'Holding'}</div></div>
+                <div className="st-table-head st-part-grid"><div>Name</div><div>Role</div><div>{utxoKind ? 'Wallet address' : 'Account id (public)'}</div><div>{confidential ? 'Registration' : 'Holding'}</div></div>
                 {(['acme', 'alice', 'bob'] as const).map((who) => {
-                  const id = chain.accountIdHex(who);
+                  const id = utxoKind ? chain.walletAddress(who) : chain.accountIdHex(who);
                   return (
                     <div key={who} className="st-table-row st-part-grid">
                       <div className="st-strong">{PERSONA_LABEL[who]}</div>
@@ -375,7 +428,33 @@ export default function StudioDashboard({
             </div>
           )}
 
-          {tab === 'policy' && (
+          {tab === 'policy' && utxoKind && (
+            <div className="st-step">
+              <div className="st-note">
+                Live today: owner-gated minting under the issuer key. That is the whole policy
+                surface for this token type.
+              </div>
+              <div className="st-card st-stack">
+                <div className="st-strong">No post-mint controls exist on this token</div>
+                <div className="st-body-sm">
+                  {kind === 'utxo'
+                    ? 'The coins are ledger-native UTXOs. Once minted they move wallet-to-wallet like NIGHT — no contract sits in the transfer path, so pause, freeze or transfer restrictions cannot be enforced on the token itself.'
+                    : 'The coins live in the shielded pool. Once minted they move as shielded UTXOs — no contract sits in the transfer path, so pause, freeze or transfer restrictions cannot be enforced on the token itself.'}
+                </div>
+                <div className="st-muted-sm">
+                  If your product needs issuer controls after issuance, choose a contract-based token —
+                  the unshielded contract token or the confidential token — where every movement passes
+                  through contract logic.
+                </div>
+              </div>
+              <div className="st-card st-stack">
+                <div className="st-inline spread"><span className="st-strong-sm">Owner-gated mint</span><span className="st-flag ok">Runs today</span></div>
+                <div className="st-muted-sm">Only the contract owner can mint; total issuance is public contract state, so supply stays attestable.</div>
+              </div>
+            </div>
+          )}
+
+          {tab === 'policy' && !utxoKind && (
             <div className="st-step">
               <div className="st-note">
                 Live today: controlled issue and redeem under the issuer key. Toggling a designed
@@ -417,12 +496,18 @@ export default function StudioDashboard({
                 <div className="st-card st-stack">
                   <span className="st-flag">Target architecture</span>
                   <div className="st-strong">Institutional custody</div>
-                  <div className="st-body-sm">Your selected policy: <strong>{custodyName}</strong>. Integration with established custody, HSM, MPC, multisig and threshold-approval environments — shaped through extensive technical feedback from institutional custodians.</div>
+                  <div className="st-body-sm">
+                    {utxoKind
+                      ? kind === 'utxo'
+                        ? 'Custody is your existing key stack. The coins are wallet-native, so HSM, MPC and multisig signing apply directly — nothing token-specific to integrate.'
+                        : 'Custody means protecting the wallet keys AND the shielded note secrets — the witness material a local prover consumes when spending.'
+                      : <>Your selected policy: <strong>{custodyName}</strong>. Integration with established custody, HSM, MPC, multisig and threshold-approval environments — shaped through extensive technical feedback from institutional custodians.</>}
+                  </div>
                 </div>
               </div>
               <div className="st-card raised st-stack">
-                <div className="st-qa"><div>What authorises asset movement</div><p>Issuer operations: the issuer key. Transfers: the holder&apos;s key{confidential ? ' plus a zero-knowledge proof of the confidential state transition' : ''}.</p></div>
-                <div className="st-qa"><div>What must be protected</div><p>The issuer secret, holder keys{confidential ? ', and proof witness material' : ''}.</p></div>
+                <div className="st-qa"><div>What authorises asset movement</div><p>Issuer operations: the issuer key. Transfers: the holder&apos;s {utxoKind ? 'wallet signature — no contract is involved' : 'key'}{confidential ? ' plus a zero-knowledge proof of the confidential state transition' : ''}{kind === 'zswap' ? ' (shielded spends are proved locally)' : ''}.</p></div>
+                <div className="st-qa"><div>What must be protected</div><p>The issuer secret, holder keys{confidential ? ', and proof witness material' : ''}{kind === 'zswap' ? ', and the shielded note secrets' : ''}.</p></div>
                 <div className="st-qa"><div>Proving trust boundary</div><p>Proofs are generated on the operator&apos;s machine — witness data never leaves it.</p></div>
               </div>
             </div>
@@ -433,12 +518,12 @@ export default function StudioDashboard({
               <div className="st-head-block tight">
                 <h2>Who can see what?</h2>
                 <p className="st-body-sm">
-                  {confidential
-                    ? 'Switch perspective — field-level visibility, exactly as the deployed contract enforces it.'
+                  {shielded
+                    ? 'Switch perspective — field-level visibility, exactly as the ledger enforces it.'
                     : 'On this token every perspective sees the same thing: everything. That symmetry is what the shielded types change.'}
                 </p>
               </div>
-              {confidential && (
+              {shielded && (
                 <div className="st-personas">
                   {(['public', 'issuer', 'alice', 'bob', 'auditor'] as const).map((p) => (
                     <button key={p} className={`st-tag${persona === p ? ' active' : ''}`} onClick={() => setPersona(p)}>
@@ -447,13 +532,14 @@ export default function StudioDashboard({
                   ))}
                 </div>
               )}
-              {confidential && persona === 'auditor' && (
+              {shielded && persona === 'auditor' && (
                 <div className="st-note">
-                  A reviewer today sees the public view. Viewing-key disclosure for authorised
-                  reviewers is on the platform roadmap.
+                  {confidential
+                    ? 'A reviewer today sees the public view. Viewing-key disclosure for authorised reviewers is on the platform roadmap.'
+                    : 'A reviewer sees the public view: commitments. Shielded UTXOs have no selective-disclosure mechanism — issuance is the attestable part.'}
                 </div>
               )}
-              {confidential && <div className="st-body-sm">{personaDesc[persona]}</div>}
+              {shielded && <div className="st-body-sm">{personaDesc[persona]}</div>}
               <div className="st-table">
                 {matrixRows.map((m) => (
                   <div key={m.f} className="st-table-row st-matrix-grid">
@@ -491,6 +577,7 @@ export default function StudioDashboard({
                   <div className="st-muted-xs">
                     Every id is a real transaction on the connected chain; durations are measured.
                     {confidential && ' Transfer values appear in this log only because the demonstration operates every party — the public ledger hides them.'}
+                    {kind === 'zswap' && ' Transfer details appear in this log only because the demonstration operates every party — the public ledger sees commitments.'}
                   </div>
                 </>
               )}
@@ -502,8 +589,8 @@ export default function StudioDashboard({
               <blockquote className="st-quote">Privacy and institutional control follow the asset into the applications where it is used.</blockquote>
               <h2>What can this asset do next?</h2>
               <div className="st-two">
-                <div className="st-card st-stack"><div className="st-inline spread"><span className="st-strong-sm">Redeem through the issuer</span><span className="st-flag ok">Runs today</span></div><div className="st-muted-sm">Burn against the issuer — exercisable in Issue &amp; redeem.</div></div>
-                <div className="st-card st-stack"><div className="st-inline spread"><span className="st-strong-sm">Settle a transfer</span><span className="st-flag ok">Runs today</span></div><div className="st-muted-sm">{confidential ? 'Value-private transfer on public infrastructure.' : 'Public transfer on public infrastructure.'}</div></div>
+                <div className="st-card st-stack"><div className="st-inline spread"><span className="st-strong-sm">{utxoKind ? 'Return through the issuer' : 'Redeem through the issuer'}</span><span className="st-flag ok">Runs today</span></div><div className="st-muted-sm">{utxoKind ? 'Bearer coins have no burn — redemption is a transfer back to the issuer, exercisable in Issue & redeem.' : 'Burn against the issuer — exercisable in Issue & redeem.'}</div></div>
+                <div className="st-card st-stack"><div className="st-inline spread"><span className="st-strong-sm">Settle a transfer</span><span className="st-flag ok">Runs today</span></div><div className="st-muted-sm">{confidential ? 'Value-private transfer on public infrastructure.' : kind === 'zswap' ? 'Fully-shielded wallet-level transfer on public infrastructure.' : kind === 'utxo' ? 'Public wallet-level transfer — the same rails NIGHT moves on.' : 'Public transfer on public infrastructure.'}</div></div>
                 <div className="st-card st-stack"><div className="st-inline spread"><span className="st-strong-sm">Subscribe to a regulated fund</span><span className="st-flag">Planned</span></div><div className="st-muted-sm">The tokenised money-market fund composition; this token is its cash leg.</div></div>
                 <div className="st-card st-stack"><div className="st-inline spread"><span className="st-strong-sm">Post as collateral</span><span className="st-flag">Planned</span></div><div className="st-muted-sm">Collateral designation for a fund or security position.</div></div>
                 <div className="st-card st-stack"><div className="st-inline spread"><span className="st-strong-sm">Private delivery versus payment</span><span className="st-flag">Planned</span></div><div className="st-muted-sm">Offers-based atomic settlement — private quantities, approved counterparties.</div></div>
