@@ -213,6 +213,12 @@ export default function StudioDashboard({
           </div>
         </div>
 
+        {chain.sponsored && (
+          <div className="st-note inpage">
+            Customer fees are issuer-sponsored. Alice and Bob hold no DUST; they sign and bind
+            their own transactions, and ACME Bank attaches the fee and submits.
+          </div>
+        )}
         {chain.opErr && <div className="st-errbox inpage">{chain.opErr}</div>}
         {busy && (
           <div className="st-workbox inpage">
@@ -259,7 +265,7 @@ export default function StudioDashboard({
                         ? <>Amounts, senders and recipients hidden — the chain sees commitments.<br />Total issuance stays public and attestable.</>
                         : kind === 'utxo'
                           ? <>Fully public — coins, amounts and counterparties visible in the UTXO set.<br />The transparency baseline, wallet-native.</>
-                          : <>Fully public — every holder, balance and transfer is enumerable.<br />The transparency baseline.</>}
+                          : <>Fully public: every holder, balance and transfer is enumerable.</>}
                   </div>
                   <button className="st-btn ghost sm st-left" onClick={goTab('visibility')}>Inspect who can see what →</button>
                 </div>
@@ -290,12 +296,12 @@ export default function StudioDashboard({
             <div className="st-step">
               <div className="st-note">
                 {confidential
-                  ? 'This demonstration operates every party, so the full lifecycle runs end to end. Incoming funds land as pending and the recipient sweeps them spendable — a separate real transaction the activity log shows explicitly.'
+                  ? 'Incoming funds land as pending and the recipient sweeps them spendable — a separate transaction, shown in the activity log.'
                   : kind === 'zswap'
-                    ? 'This demonstration operates every party, so the full lifecycle runs end to end. Minting is a contract call; every movement after that is a wallet-level shielded transfer — no contract involved, amounts and parties hidden.'
+                    ? 'Minting is a contract call; every movement after that is a wallet-level shielded transfer. Amounts and parties are hidden.'
                     : kind === 'utxo'
-                      ? 'This demonstration operates every party, so the full lifecycle runs end to end. Minting is a contract call; every movement after that is a wallet-level transfer of native coins — no contract involved, fully public.'
-                      : 'This demonstration operates every party, so the full lifecycle runs end to end. On this token every amount and balance is public the moment it confirms.'}
+                      ? 'Minting is a contract call; every movement after that is a wallet-level transfer of native coins. All details are public.'
+                      : 'Every amount and balance on this token is public the moment it confirms.'}
               </div>
               <div className="st-three">
                 <div className="st-card st-stack">
@@ -389,7 +395,7 @@ export default function StudioDashboard({
                     ? 'On the public ledger these balances are ciphertexts. They are readable here because the demonstration holds every party’s wallet — and every accepted proof verified them against those ciphertexts.'
                     : kind === 'zswap'
                       ? 'On the public ledger these balances are commitments. They are readable here only because the demonstration holds every party’s wallet keys.'
-                      : 'Anyone on the network can read these — no wallet or key required. That is the point of this token type.'}
+                      : 'Anyone on the network can read these balances; no wallet or key is required.'}
                 </div>
               </div>
             </div>
@@ -576,8 +582,8 @@ export default function StudioDashboard({
                   </div>
                   <div className="st-muted-xs">
                     Every id is a real transaction on the connected chain; durations are measured.
-                    {confidential && ' Transfer values appear in this log only because the demonstration operates every party — the public ledger hides them.'}
-                    {kind === 'zswap' && ' Transfer details appear in this log only because the demonstration operates every party — the public ledger sees commitments.'}
+                    {confidential && ' Transfer values appear in this log because this session holds every party\u2019s keys; the public ledger hides them.'}
+                    {kind === 'zswap' && ' Transfer details appear in this log because this session holds every party\u2019s keys; the public ledger sees commitments.'}
                   </div>
                 </>
               )}

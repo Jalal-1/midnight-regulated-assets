@@ -26,7 +26,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { currentNetwork } from '@mra/lab-shell';
-import { formatDust, formatNight, onTxStage, prepareHostedWallet } from '@mra/wallet';
+import { formatDust, formatNight, onTxStage, prepareHostedWallet, withSponsoredProviders } from '@mra/wallet';
 
 import {
   connectCftPersona,
@@ -157,10 +157,13 @@ export interface StudioChain {
   readonly walletAddress: (who: PersonaId) => string | null;
   readonly walletOf: (who: PersonaId) => CftSession['wallet'] | TokenSession['wallet'] | null;
   readonly accountIdHex: (who: PersonaId) => string | null;
+  /** Issuer-sponsored customer fees for this deployment. */
+  readonly sponsored: boolean;
   readonly runDeployment: (
     kind: TokenKind,
     naming: { name: string; symbol: string },
     seeds?: Record<PersonaId, string>,
+    opts?: { sponsored?: boolean },
   ) => Promise<boolean>;
   readonly issue: (to: 'alice' | 'bob', units: bigint) => Promise<void>;
   readonly transfer: (from: 'alice' | 'bob', to: 'alice' | 'bob', units: bigint) => Promise<void>;
@@ -179,6 +182,7 @@ export function useStudioChain(): StudioChain {
     STEPS.confidential.map((s) => ({ ...s, state: 'pending' as const, sub: [] })),
   );
   const [opStage, setOpStage] = useState<string | null>(null);
+  const [sponsored, setSponsored] = useState(false);
   const [busy, setBusy] = useState(false);
   const [opErr, setOpErr] = useState<string | null>(null);
   const [lastOp, setLastOp] = useState<{ label: string; tx: string; ms: number } | null>(null);
@@ -261,10 +265,13 @@ export function useStudioChain(): StudioChain {
       deployKind: TokenKind,
       naming: { name: string; symbol: string },
       seeds?: Record<PersonaId, string>,
+      opts?: { sponsored?: boolean },
     ): Promise<boolean> => {
+      const sponsorFees = opts?.sponsored ?? false;
       setBusy(true);
       setOpErr(null);
       setKind(deployKind);
+      setSponsored(sponsorFees);
       sessionsRef.current = { kind: deployKind, cft: {}, pub: {}, utxo: {}, tokenType: null };
       setUtxoBalances({});
       setDeploySteps(STEPS[deployKind].map((s) => ({ ...s, state: 'pending' as const, sub: [] })));
@@ -282,20 +289,44 @@ export function useStudioChain(): StudioChain {
             subStep('wallets', `${PERSONA_LABEL[persona]}: ${m}`);
           };
           if (deployKind === 'confidential') {
-            sessionsRef.current.cft[persona] = await connectCftPersona(persona, seeds?.[persona], progress);
+            const session = await connectCftPersona(persona, seeds?.[persona], progress);
+            sessionsRef.current.cft[persona] =
+              sponsorFees && persona !== 'acme'
+                ? { ...session, providers: withSponsoredProviders(session.providers, session.wallet, sessionsRef.current.cft.acme!.wallet) }
+                : session;
           } else if (deployKind === 'public') {
-            sessionsRef.current.pub[persona] = await connectPublicPersona(persona, seeds?.[persona], progress);
+            const session = await connectPublicPersona(persona, seeds?.[persona], progress);
+            sessionsRef.current.pub[persona] =
+              sponsorFees && persona !== 'acme'
+                ? { ...session, providers: withSponsoredProviders(session.providers, session.wallet, sessionsRef.current.pub.acme!.wallet) }
+                : session;
           } else {
-            sessionsRef.current.utxo[persona] = await connectUtxoPersona(deployKind, persona, seeds?.[persona], progress);
+            const session = await connectUtxoPersona(deployKind, persona, seeds?.[persona], progress);
+            sessionsRef.current.utxo[persona] =
+              sponsorFees && persona !== 'acme'
+                ? { ...session, providers: withSponsoredProviders(session.providers, session.wallet, sessionsRef.current.utxo.acme!.wallet) }
+                : session;
           }
-          subStep('wallets', `${PERSONA_LABEL[persona]}: wallet ready`);
+          subStep('wallets', `${PERSONA_LABEL[persona]}: wallet ready${sponsorFees && persona !== 'acme' ? ' — fees sponsored by the issuer, no funding needed' : ''}`);
         }
         if (currentNetwork().networkId !== 'undeployed') {
-          // Hosted network: nothing works until each wallet is faucet-funded,
-          // DUST-registered, and holds enough DUST to pay fees. Gate here — in
-          // parallel, so all three faucet rows can be handled in one sitting.
-          step('wallets', 'running', 'waiting for faucet funds — fund each address in the rows below');
-          subStep('wallets', 'waiting for faucet funds on all three wallets — fund each address below');
+          // Hosted network: nothing works until fee-paying wallets are
+          // faucet-funded, DUST-registered, and hold enough DUST. Sponsored
+          // deployments gate ONLY the issuer — customers never need funding.
+          const gated: readonly PersonaId[] = sponsorFees ? ['acme'] : ['acme', 'alice', 'bob'];
+          step(
+            'wallets',
+            'running',
+            sponsorFees
+              ? 'waiting for faucet funds — only the issuer needs funding; it sponsors all customer fees'
+              : 'waiting for faucet funds — fund each address in the rows below',
+          );
+          subStep(
+            'wallets',
+            sponsorFees
+              ? 'issuer-sponsored fees: only ACME needs faucet funds — Alice and Bob stay at zero DUST'
+              : 'waiting for faucet funds on all three wallets — fund each address below',
+          );
           const sessionOf = (persona: PersonaId) =>
             deployKind === 'confidential'
               ? sessionsRef.current.cft[persona]!
@@ -303,13 +334,13 @@ export function useStudioChain(): StudioChain {
                 ? sessionsRef.current.pub[persona]!
                 : sessionsRef.current.utxo[persona]!;
           await Promise.all(
-            (['acme', 'alice', 'bob'] as const).map((persona) =>
+            gated.map((persona) =>
               prepareHostedWallet(sessionOf(persona).wallet, {
                 onProgress: (m) => subStep('wallets', `${PERSONA_LABEL[persona]}: ${m}`),
               }),
             ),
           );
-          subStep('wallets', 'all three wallets funded, DUST-registered and fee-ready');
+          subStep('wallets', sponsorFees ? 'issuer funded, DUST-registered and fee-ready — sponsoring is live' : 'all three wallets funded, DUST-registered and fee-ready');
         }
         const issuer =
           deployKind === 'confidential'
@@ -488,12 +519,12 @@ export function useStudioChain(): StudioChain {
             if (units > have) {
               throw new Error(`insufficient balance — ${PERSONA_LABEL[from]} holds ${fmtUnits(have)} ${sym}`);
             }
-            return walletTransferUtxo(kind, s.utxo[from]!, s.tokenType!, s.utxo[to]!, units);
+            return walletTransferUtxo(kind, s.utxo[from]!, s.tokenType!, s.utxo[to]!, units, sponsored ? s.utxo.acme : undefined);
           },
         );
       }
     },
-    [address, run, view],
+    [address, run, sponsored, view],
   );
 
   const redeem = useCallback(
@@ -533,12 +564,12 @@ export function useStudioChain(): StudioChain {
             if (units > have) {
               throw new Error(`insufficient balance — ${PERSONA_LABEL[from]} holds ${fmtUnits(have)} ${sym}`);
             }
-            return walletTransferUtxo(kind, s.utxo[from]!, s.tokenType!, s.utxo.acme!, units);
+            return walletTransferUtxo(kind, s.utxo[from]!, s.tokenType!, s.utxo.acme!, units, sponsored ? s.utxo.acme : undefined);
           },
         );
       }
     },
-    [address, run, view],
+    [address, run, sponsored, view],
   );
 
   useEffect(() => {
@@ -611,6 +642,7 @@ export function useStudioChain(): StudioChain {
     busy,
     opErr,
     opStage,
+    sponsored,
     lastOp,
     issuedTotal,
     redeemedTotal,

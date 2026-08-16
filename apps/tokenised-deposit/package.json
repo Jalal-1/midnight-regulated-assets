@@ -21,6 +21,7 @@
   "scripts": {
     "design-options:public": "node --experimental-strip-types src/design-options/public-token.ts",
     "design-options:confidential": "node --experimental-strip-types src/design-options/confidential-token.ts",
-    "design-options:utxo": "node --experimental-strip-types src/design-options/utxo-tokens.ts"
+    "design-options:utxo": "node --experimental-strip-types src/design-options/utxo-tokens.ts",
+    "design-options:sponsorship": "node --experimental-strip-types src/design-options/dust-sponsorship.ts"
   }
 }

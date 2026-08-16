@@ -34,7 +34,7 @@ import {
 } from '@mra/app-tokenised-deposit/contract-zswap';
 import { currentNetwork } from '@mra/lab-shell';
 import { LOCALNET_GENESIS_SEEDS } from '@mra/network';
-import { configureNetworkId, createWalletFromSeed, emitTxStage, type MidnightWallet } from '@mra/wallet';
+import { configureNetworkId, createWalletFromSeed, emitTxStage, sponsoredTransfer, type MidnightWallet } from '@mra/wallet';
 import { createBrowserProviders } from '@mra/wallet/providers/browser';
 
 import { waitForNextBlock } from './publicToken.ts';
@@ -183,22 +183,32 @@ export async function mintUtxo(
   return { txId: (result as { public: { txId: string } }).public.txId };
 }
 
-/** Wallet-level transfer — the UTXO model's whole point: no contract involved. */
+/**
+ * Wallet-level transfer — the UTXO model's whole point: no contract involved.
+ * With a `sponsor`, the holder binds the transfer with `payFees: false` and
+ * the sponsor attaches the DUST fee — the holder needs no DUST, ever.
+ */
 export async function walletTransferUtxo(
   kind: UtxoKind,
   from: UtxoSession,
   tokenType: string,
   to: UtxoSession,
   amount: bigint,
+  sponsor?: UtxoSession,
 ): Promise<{ txId: string }> {
   const toState = await to.wallet.wallet.waitForSyncedState();
   const receiverAddress = kind === 'utxo' ? toState.unshielded.address : toState.shielded.address;
+  const outputs = [
+    kind === 'utxo'
+      ? { type: 'unshielded', outputs: [{ type: tokenType, receiverAddress, amount }] }
+      : { type: 'shielded', outputs: [{ type: tokenType, receiverAddress, amount }] },
+  ];
+  if (sponsor) {
+    const txId = await sponsoredTransfer(from.wallet, sponsor.wallet, outputs as never);
+    return { txId };
+  }
   const recipe = await from.wallet.wallet.transferTransaction(
-    [
-      kind === 'utxo'
-        ? { type: 'unshielded', outputs: [{ type: tokenType, receiverAddress, amount }] }
-        : { type: 'shielded', outputs: [{ type: tokenType, receiverAddress, amount }] },
-    ] as never,
+    outputs as never,
     { shieldedSecretKeys: from.wallet.shieldedSecretKeys, dustSecretKey: from.wallet.dustSecretKey },
     { ttl: new Date(Date.now() + 5 * 60_000) },
   );

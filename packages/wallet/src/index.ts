@@ -194,3 +194,4 @@ export async function createWalletFromSeed(
 export * from './units.ts';
 export * from './dust.ts';
 export * from './txStages.ts';
+export * from './sponsorship.ts';

@@ -109,6 +109,7 @@ export default function Studio() {
       wantsStagenet
         ? { acme: normSeed(seeds.acme), alice: normSeed(seeds.alice), bob: normSeed(seeds.bob) }
         : undefined,
+      { sponsored: config.sponsored },
     );
     if (ok) {
       clearConfig();
@@ -163,14 +164,13 @@ export default function Studio() {
             <LogoMark className="st-landing-logo" />
             <h1>Issue regulated assets on Midnight</h1>
             <p className="st-landing-lede">
-              Choose a token type, set what stays confidential, keep issuer control, and deploy to
-              a public network — in minutes, with zero-knowledge proofs generated on your own
-              machine.
+              Pick a token type, review its privacy profile and issuer controls, name it, and
+              deploy to a test network. Proofs are generated on your own machine.
             </p>
             <div className="st-landing-points">
-              <div><strong>Five token types.</strong> From fully public UTXOs to encrypted-balance contract tokens — one studio, real trade-offs.</div>
-              <div><strong>Real deployments.</strong> Every step on the deploy screen is a live transaction; every dashboard number is chain state.</div>
-              <div><strong>Built for institutions.</strong> Custody, approvals and disclosure are first-class configuration, not afterthoughts.</div>
+              <div><strong>Unshielded tokens</strong> for settlement assets and registry-style instruments where public auditability is the requirement.</div>
+              <div><strong>Shielded tokens</strong> for private bearer instruments and confidential regulated products that keep issuer controls and attestable supply.</div>
+              <div><strong>Issuer operations</strong> — mint, transfer, redeem, custody, approvals and fee sponsorship are configured per asset.</div>
             </div>
             <div className="cta-row">
               <button className="st-btn accent lg" onClick={() => { setScreen('wizard'); go(1); }}>
@@ -382,21 +382,20 @@ export default function Studio() {
                   ) : (
                     <>
                       <div className="st-card st-stack">
-                        <div className="st-strong">Why there is nothing to configure here</div>
+                        <div className="st-strong">No issuer controls on this token type</div>
                         <div className="st-body-sm">
                           Pause, freeze, allowlists, transfer restrictions and controlled redemption
-                          are all contract behaviours — they exist because a contract holds the
-                          balances and can refuse an operation. A UTXO token has no such contract:
-                          once minted, coins move under their holders&apos; signatures alone, and
-                          contract control of UTXO assets is not yet available on Midnight.
+                          are contract behaviours: a contract holds the balances and can refuse an
+                          operation. A UTXO token has no such contract — once minted, coins move
+                          under their holders&apos; signatures. Contract control of UTXO assets is
+                          under development on Midnight.
                         </div>
                       </div>
                       <div className="st-card st-stack">
-                        <div className="st-strong">What that buys you instead</div>
+                        <div className="st-strong">The trade-off</div>
                         <div className="st-body-sm">
-                          Bearer simplicity: no policy layer to administer, no issuer key to
-                          protect after mint, and the widest interoperability — every wallet and
-                          exchange integration speaks this model natively.
+                          No policy layer to administer and no issuer key to protect after mint.
+                          Wallets and exchange integrations handle this model natively.
                         </div>
                       </div>
                       <div className="st-note">
@@ -536,7 +535,7 @@ export default function Studio() {
                         <span className="st-radio" />
                         <span className="st-pick-title">Stagenet</span>
                       </span>
-                      <span className="st-body-sm">Midnight&apos;s public test network — the place to evaluate real public-network behaviour. Test assets only.</span>
+                      <span className="st-body-sm">Midnight&apos;s public test network. Test assets only.</span>
                       <span className="st-verify">
                         <span className="ok">Wallet connectivity verified · first-time funding and DUST setup automated</span>
                         <span className="muted">Token lifecycle runs after faucet funding (one captcha per wallet)</span>
@@ -554,6 +553,49 @@ export default function Studio() {
                       <span className="st-verify">
                         <span className="ok">Full lifecycle verified: deploy, issue, transfer, redeem</span>
                         <span className="muted">Requires yarn localnet:up</span>
+                      </span>
+                    </button>
+                  </div>
+                  <div className="st-head-block">
+                    <h2 className="st-h2">Customer fees</h2>
+                    <p>
+                      Every Midnight transaction costs DUST. The issuer can pay it on customers'
+                      behalf, or each customer can fund their own wallet.
+                    </p>
+                  </div>
+                  <div className="st-two">
+                    <button
+                      className={`st-pick netcard${config.sponsored ? ' selected' : ''}`}
+                      onClick={() => set('sponsored', true)}
+                    >
+                      <span className="st-pick-head">
+                        <span className="st-radio" />
+                        <span className="st-pick-title">Issuer-sponsored fees</span>
+                      </span>
+                      <span className="st-body-sm">
+                        Customers hold no DUST. Each customer signs and binds their own transaction;
+                        the issuer attaches the fee and submits it. Only the issuer wallet needs
+                        funding.
+                      </span>
+                      <span className="st-verify">
+                        <span className="ok">Sponsored deploy, contract calls and wallet transfers all supported</span>
+                        <span className="muted">A bound transaction cannot be altered by the fee payer</span>
+                      </span>
+                    </button>
+                    <button
+                      className={`st-pick netcard${config.sponsored ? '' : ' selected'}`}
+                      onClick={() => set('sponsored', false)}
+                    >
+                      <span className="st-pick-head">
+                        <span className="st-radio" />
+                        <span className="st-pick-title">Self-funded customers</span>
+                      </span>
+                      <span className="st-body-sm">
+                        Each customer wallet holds NIGHT and generates its own DUST — the default
+                        chain model, used by exchanges and self-custody holders.
+                      </span>
+                      <span className="st-verify">
+                        <span className="muted">On Stagenet this means faucet funding + DUST setup per wallet</span>
                       </span>
                     </button>
                   </div>
@@ -582,8 +624,7 @@ export default function Studio() {
                   </div>
                   {!selected.deployable && (
                     <div className="st-warnbox">
-                      {selected.name} does not deploy from this studio yet — {selected.statusLine.toLowerCase()} Every
-                      other token type deploys today.
+                      {selected.name} is under development — not yet deployable.
                     </div>
                   )}
                   <div className="st-namegrid">
@@ -710,7 +751,7 @@ export default function Studio() {
             </div>
             {chain.opErr && <div className="st-errbox">{chain.opErr}</div>}
             {wantsStagenet &&
-              (['acme', 'alice', 'bob'] as const).map((who) => {
+              (config.sponsored ? (['acme'] as const) : (['acme', 'alice', 'bob'] as const)).map((who) => {
                 const wallet = chain.walletOf(who);
                 const address = chain.walletAddress(who);
                 return wallet && address ? (

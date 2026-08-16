@@ -52,12 +52,12 @@ export const TOKEN_DEFS: readonly TokenDef[] = [
     id: 'utxo-unshielded',
     name: 'Unshielded UTXO token',
     model: 'Native ledger asset · UTXO model — the representation NIGHT itself uses',
-    desc: 'A first-class ledger asset — coins move with plain signatures, no contract in the path.',
+    desc: 'A native ledger asset. Coins move with plain signatures; no contract sits in the path.',
     usefulFor: 'Settlement assets, exchange-grade fungibility, maximum interoperability.',
     features: { balances: false, amounts: false, parties: false, supply: true, controls: false, native: true },
     visibility: 'Fully public: every coin, amount and counterparty is visible to everyone.',
     deployable: true,
-    statusLine: 'Deploys from this studio — owner-gated mint, then pure wallet-to-wallet movement.',
+    statusLine: 'Deployable — owner-gated mint, then wallet-level transfers.',
     defaults: { name: 'Unshielded UTXO token', symbol: 'UUT' },
   },
   {
@@ -69,7 +69,7 @@ export const TOKEN_DEFS: readonly TokenDef[] = [
     features: { balances: false, amounts: false, parties: false, supply: true, controls: true, native: false },
     visibility: 'Fully public: anyone can enumerate every holder, balance and transfer.',
     deployable: true,
-    statusLine: 'Runs end to end on localnet — deploy it from this studio.',
+    statusLine: 'Deployable — full lifecycle: mint, transfer, redeem.',
     defaults: { name: 'Unshielded contract token', symbol: 'UCT' },
   },
   {
@@ -81,7 +81,7 @@ export const TOKEN_DEFS: readonly TokenDef[] = [
     features: { balances: true, amounts: true, parties: true, supply: true, controls: false, native: true },
     visibility: 'Shielded: balances, amounts and counterparties are hidden; the public sees commitments.',
     deployable: true,
-    statusLine: 'Deploys from this studio — owner-gated mint into the shielded pool, attestable issuance.',
+    statusLine: 'Deployable — owner-gated mint into the shielded pool; issuance stays public.',
     defaults: { name: 'ZSwap shielded token', symbol: 'ZST' },
   },
   {
@@ -89,23 +89,23 @@ export const TOKEN_DEFS: readonly TokenDef[] = [
     name: 'Shielded contract token — confidential (CFT)',
     model: 'Contract asset · account model — encrypted balances, public attestable supply',
     desc: 'Encrypted balances and hidden transfer values, with issuer mint and redeem — supply stays public so backing is attestable.',
-    usefulFor: 'Deposits, fund shares, e-money — privacy AND issuer control on public rails.',
+    usefulFor: 'Deposits, fund shares, e-money — instruments that need both privacy and issuer control.',
     features: { balances: true, amounts: true, parties: false, supply: true, controls: true, native: false },
     visibility: 'Confidential values: balances encrypted, amounts hidden; identifiers, graph and supply public.',
     deployable: true,
-    statusLine: 'Runs end to end on localnet — deploy it from this studio.',
+    statusLine: 'Deployable — full lifecycle: mint, transfer, redeem.',
     defaults: { name: 'Confidential deposit token', symbol: 'CDT' },
   },
   {
     id: 'contract-note',
     name: 'Shielded contract token — note-based',
     model: 'Contract asset · note model — contract-managed shielded notes',
-    desc: 'The fully graph-private contract token — every privacy box AND issuer control. The standard is still being designed.',
+    desc: 'Contract-managed shielded notes: private holders, amounts and links, with issuer controls. The standard is under development.',
     usefulFor: 'Fully private regulated instruments, once the standard matures.',
     features: { balances: true, amounts: true, parties: true, supply: true, controls: true, native: false },
-    visibility: 'Shielded throughout — by design of the model.',
+    visibility: 'Shielded throughout.',
     deployable: false,
-    statusLine: 'Placeholder — no module exists yet; nothing is demonstrated here by design.',
+    statusLine: 'Under development.',
     defaults: { name: 'Note-based shielded token', symbol: 'NST' },
   },
 ];
@@ -120,15 +120,18 @@ export interface StudioConfig {
   ctl: Record<'mint' | 'redeem' | 'pause' | 'freeze' | 'allowlist' | 'restrict' | 'recovery' | 'clawback' | 'supplyCap' | 'roles', boolean>;
   custody: CustodyId;
   network: StudioNetwork;
+  /** Issuer-sponsored customer fees: customers hold zero DUST, the issuer pays. */
+  sponsored: boolean;
   assetName: string;
   symbol: string;
 }
 
 export const DEFAULT_CONFIG: StudioConfig = {
   token: 'contract-confidential',
+  sponsored: true,
+  network: 'local',
   ctl: { mint: true, redeem: true, pause: true, freeze: false, allowlist: true, restrict: false, recovery: false, clawback: false, supplyCap: false, roles: true },
   custody: 'demo',
-  network: 'stagenet',
   assetName: 'Confidential deposit token',
   symbol: 'CDT',
 };
@@ -344,6 +347,12 @@ export function briefRows(config: StudioConfig): KvRow[] {
     });
   }
   rows.push(
+    {
+      k: 'Customer fees',
+      v: config.sponsored
+        ? 'Issuer-sponsored — customers hold zero DUST; they bind transactions, the issuer attaches fees'
+        : 'Self-funded — each customer wallet holds NIGHT and generates its own DUST',
+    },
     { k: 'Network', v: config.network === 'stagenet' ? 'Stagenet — public Midnight test network' : 'Local development network' },
     {
       k: 'Lifecycle',
