@@ -11,7 +11,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 
-import { currentNetworkName, LogoMark, switchNetwork } from '@mra/lab-shell';
+import { currentNetwork, currentNetworkName, LogoMark, switchNetwork } from '@mra/lab-shell';
 
 import FaucetSetup from '../labs/FaucetSetup.tsx';
 import LocalStackHelp, { LOCAL_STACK_COMMANDS } from './LocalStackHelp.tsx';
@@ -35,6 +35,7 @@ import {
   type StudioConfig,
 } from './config.ts';
 import StudioDashboard from './StudioDashboard.tsx';
+import { useChainTicker } from './useChainTicker.ts';
 import { PERSONA_LABEL, useStudioChain, type PersonaId, type TokenKind } from './useStudioChain.ts';
 
 type Screen = 'landing' | 'wizard' | 'compare' | 'deploy' | 'success' | 'dashboard';
@@ -61,6 +62,7 @@ export default function Studio() {
   const [deployNote, setDeployNote] = useState<string | null>(null);
   const [netOpen, setNetOpen] = useState(false);
   const [cmdCopied, setCmdCopied] = useState<number | null>(null);
+  const ticker = useChainTicker();
   const chain = useStudioChain();
 
   const activeNetwork = currentNetworkName();
@@ -187,6 +189,18 @@ export default function Studio() {
           </button>
         )}
         <span className="st-netwrap" onClick={(e) => e.stopPropagation()}>
+          <button className="st-ticker mono" onClick={() => setNetOpen((o) => !o)} title="Network details">
+            <span className={`st-tickdot ${ticker.nodeOk === null ? 'wait' : ticker.nodeOk && ticker.indexerOk ? 'ok' : 'err'}`} />
+            {ticker.indexerHeight !== null ? (
+              <>
+                <span>#{ticker.indexerHeight.toLocaleString('en-US')}</span>
+                {ticker.blockSeconds !== null && <span className="st-tickmuted">{ticker.blockSeconds.toFixed(1)} s/block</span>}
+                {ticker.blockAgeMs !== null && <span className="st-tickmuted">{Math.max(0, Math.round(ticker.blockAgeMs / 1000))}s ago</span>}
+              </>
+            ) : (
+              <span className="st-tickmuted">{ticker.nodeOk === null ? 'connecting…' : 'chain unreachable'}</span>
+            )}
+          </button>
           <button
             className={`st-netpill${activeNetwork === 'stagenet' ? '' : ' local'} st-netbtn`}
             onClick={() => setNetOpen((o) => !o)}
@@ -198,6 +212,48 @@ export default function Studio() {
           </button>
           {netOpen && (
             <div className="st-netmenu">
+              <div className="st-netmenu-cmds st-netfacts">
+                <span className="st-inline spread">
+                  <span className="st-muted-sm">Latest block</span>
+                  <span className="mono st-factval">
+                    {ticker.indexerHeight !== null ? `#${ticker.indexerHeight.toLocaleString('en-US')}` : '—'}
+                    {ticker.blockHash ? ` · ${ticker.blockHash.slice(0, 10)}…` : ''}
+                  </span>
+                </span>
+                <span className="st-inline spread">
+                  <span className="st-muted-sm">Block time</span>
+                  <span className="mono st-factval">{ticker.blockSeconds !== null ? `${ticker.blockSeconds.toFixed(1)} s (observed)` : '—'}</span>
+                </span>
+                <span className="st-inline spread">
+                  <span className="st-muted-sm">Node</span>
+                  <span className="mono st-factval">
+                    <span className={`st-tickdot ${ticker.nodeOk === null ? 'wait' : ticker.nodeOk ? 'ok' : 'err'}`} />
+                    {ticker.nodeOk === false ? 'unreachable' : `${new URL(currentNetwork().node).host}${ticker.nodeVersion ? ` · v${ticker.nodeVersion}` : ''}`}
+                  </span>
+                </span>
+                <span className="st-inline spread">
+                  <span className="st-muted-sm">Indexer</span>
+                  <span className="mono st-factval">
+                    <span className={`st-tickdot ${ticker.indexerOk === null ? 'wait' : ticker.indexerOk ? 'ok' : 'err'}`} />
+                    {ticker.indexerOk === false
+                      ? 'unreachable'
+                      : `${new URL(currentNetwork().indexer).host}${ticker.nodeHeight !== null && ticker.indexerHeight !== null && ticker.nodeHeight - ticker.indexerHeight > 1 ? ` · ${ticker.nodeHeight - ticker.indexerHeight} blocks behind` : ''}`}
+                  </span>
+                </span>
+                <span className="st-inline spread">
+                  <span className="st-muted-sm">Proof server</span>
+                  <span className="mono st-factval">
+                    <span className={`st-tickdot ${ticker.proofOk === null ? 'wait' : ticker.proofOk ? 'ok' : 'err'}`} />
+                    {ticker.proofOk ? 'localhost:6300 — proving stays local' : 'not running — proving unavailable'}
+                  </span>
+                </span>
+                {activeNetwork !== 'stagenet' && ticker.peers !== null && (
+                  <span className="st-inline spread">
+                    <span className="st-muted-sm">Peers</span>
+                    <span className="mono st-factval">{ticker.peers} (single-node dev chain)</span>
+                  </span>
+                )}
+              </div>
               <button className="st-netopt" onClick={() => pickNetwork('stagenet')}>
                 <span className="st-inline spread">
                   <span className="st-strong-sm">Stagenet</span>
