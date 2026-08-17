@@ -546,22 +546,21 @@ export default function Studio() {
                     <h1>{config.token.startsWith('contract') ? 'Issuer and compliance controls' : 'This token has no issuer controls'}</h1>
                     <p>
                       {config.token.startsWith('contract')
-                        ? 'Issuer control is the account model’s defining feature: the contract that holds balances is the thing that enforces policy. Controlled issue and redeem run today; everything else you enable becomes part of your target configuration.'
+                        ? 'Issuer control is the account model’s defining feature: the contract that holds balances is the thing that enforces policy. Mint and redeem are part of the deployed contract; the greyed controls are under development on Midnight.'
                         : 'UTXO tokens are bearer instruments: coins belong to whoever holds the keys, and nothing sits between holders and their funds.'}
                     </p>
                   </div>
                   {config.token.startsWith('contract') ? (
                     <div className="st-ctlgrid">
                       {CONTROL_DEFS.map((c) => {
-                        const locked = c.status === 'Not implemented';
-                        const on = config.ctl[c.id];
+                        const on = c.available && config.ctl[c.id];
                         return (
-                          <div key={c.id} className={`st-card st-ctl-row${locked ? ' locked' : ''}`}>
+                          <div key={c.id} className={`st-card st-ctl-row${c.available ? '' : ' locked'}`}>
                             <button
                               className={`st-switch${on ? ' on' : ''}`}
                               role="switch"
                               aria-checked={on}
-                              disabled={locked}
+                              disabled={!c.available}
                               onClick={() => set('ctl', { ...config.ctl, [c.id]: !on })}
                             >
                               <span />
@@ -570,7 +569,7 @@ export default function Studio() {
                               <div className="st-strong">{c.label}</div>
                               <div className="st-muted-sm">{c.desc}</div>
                             </div>
-                            <span className={`st-flag ${c.tone === 'success' ? 'ok' : c.tone === 'danger' ? 'err' : c.tone === 'warning' ? 'warn' : ''}`}>{c.status}</span>
+                            {!c.available && <span className="st-muted-xs">Under development</span>}
                           </div>
                         );
                       })}

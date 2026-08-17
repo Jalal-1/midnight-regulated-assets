@@ -463,19 +463,18 @@ export default function StudioDashboard({
           {tab === 'policy' && !utxoKind && (
             <div className="st-step">
               <div className="st-note">
-                Live today: controlled issue and redeem under the issuer key. Toggling a designed
-                control updates the target configuration.
+                Mint and redeem run under the issuer key on this contract. Greyed controls are
+                under development on Midnight — they are not part of the deployed contract.
               </div>
               {CONTROL_DEFS.map((c) => {
-                const locked = c.status === 'Not implemented';
-                const on = config.ctl[c.id];
+                const on = c.available && config.ctl[c.id];
                 return (
-                  <div key={c.id} className={`st-card st-ctl-row${locked ? ' locked' : ''}`}>
+                  <div key={c.id} className={`st-card st-ctl-row${c.available ? '' : ' locked'}`}>
                     <button
                       className={`st-switch${on ? ' on' : ''}`}
                       role="switch"
                       aria-checked={on}
-                      disabled={locked}
+                      disabled={!c.available}
                       onClick={() => onToggleCtl(c.id, !on)}
                     >
                       <span />
@@ -484,7 +483,7 @@ export default function StudioDashboard({
                       <div className="st-strong">{c.label}</div>
                       <div className="st-muted-sm">{c.desc}</div>
                     </div>
-                    <span className={`st-flag ${c.tone === 'success' ? 'ok' : c.tone === 'danger' ? 'err' : c.tone === 'warning' ? 'warn' : ''}`}>{c.status}</span>
+                    {c.available ? <span className="st-flag ok">Live</span> : <span className="st-muted-xs">Under development</span>}
                   </div>
                 );
               })}

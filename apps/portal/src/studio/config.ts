@@ -132,7 +132,7 @@ export const DEFAULT_CONFIG: StudioConfig = {
   token: 'contract-confidential',
   sponsored: true,
   network: isHostedPage() ? 'stagenet' : 'local',
-  ctl: { mint: true, redeem: true, pause: true, freeze: false, allowlist: true, restrict: false, recovery: false, clawback: false, supplyCap: false, roles: true },
+  ctl: { mint: true, redeem: true, pause: false, freeze: false, allowlist: false, restrict: false, recovery: false, clawback: false, supplyCap: false, roles: false },
   custody: 'demo',
   assetName: 'Confidential deposit token',
   symbol: 'CDT',
@@ -153,21 +153,24 @@ export interface ControlDef {
   readonly id: keyof StudioConfig['ctl'];
   readonly label: string;
   readonly desc: string;
-  readonly status: 'Demonstrated' | 'Designed' | 'Requires extension' | 'Not implemented';
-  readonly tone: 'success' | 'neutral' | 'warning' | 'danger';
+  /** True only when the deployed contract actually exposes this operation. */
+  readonly available: boolean;
 }
 
+// Availability is read off the contracts themselves: public-token.compact and
+// confidential-token.compact expose mint, burn/redeem and transfer (plus CFT
+// register/sweep) — and nothing else. Everything else is under development.
 export const CONTROL_DEFS: readonly ControlDef[] = [
-  { id: 'mint', label: 'Mint', desc: 'Issue new units under issuer authority', status: 'Demonstrated', tone: 'success' },
-  { id: 'redeem', label: 'Redeem', desc: 'Burn units returned to the issuer', status: 'Demonstrated', tone: 'success' },
-  { id: 'pause', label: 'Pause', desc: 'Suspend all transfers', status: 'Designed', tone: 'neutral' },
-  { id: 'freeze', label: 'Freeze account', desc: 'Suspend a single participant', status: 'Designed', tone: 'neutral' },
-  { id: 'allowlist', label: 'Allowlist', desc: 'Restrict holding to approved participants', status: 'Designed', tone: 'neutral' },
-  { id: 'restrict', label: 'Transfer restrictions', desc: 'Rule-based limits on transfers', status: 'Designed', tone: 'neutral' },
-  { id: 'recovery', label: 'Recovery', desc: 'Recover units from a lost account', status: 'Not implemented', tone: 'danger' },
-  { id: 'clawback', label: 'Forced transfer / clawback', desc: 'Move units under legal authority', status: 'Not implemented', tone: 'danger' },
-  { id: 'supplyCap', label: 'Supply limits', desc: 'Cap total circulating supply', status: 'Requires extension', tone: 'warning' },
-  { id: 'roles', label: 'Role-based administration', desc: 'Separate issuer, operator and compliance roles', status: 'Designed', tone: 'neutral' },
+  { id: 'mint', label: 'Mint', desc: 'Issue new units under issuer authority', available: true },
+  { id: 'redeem', label: 'Redeem', desc: 'Burn units returned to the issuer', available: true },
+  { id: 'pause', label: 'Pause', desc: 'Suspend all transfers', available: false },
+  { id: 'freeze', label: 'Freeze account', desc: 'Suspend a single participant', available: false },
+  { id: 'allowlist', label: 'Allowlist', desc: 'Restrict holding to approved participants', available: false },
+  { id: 'restrict', label: 'Transfer restrictions', desc: 'Rule-based limits on transfers', available: false },
+  { id: 'recovery', label: 'Recovery', desc: 'Recover units from a lost account', available: false },
+  { id: 'clawback', label: 'Forced transfer / clawback', desc: 'Move units under legal authority', available: false },
+  { id: 'supplyCap', label: 'Supply limits', desc: 'Cap total circulating supply', available: false },
+  { id: 'roles', label: 'Role-based administration', desc: 'Separate issuer, operator and compliance roles', available: false },
 ];
 
 // --- Custody & approvals --------------------------------------------------------------
@@ -387,6 +390,7 @@ export function loadConfig(): { config: StudioConfig; stage: number } | null {
     const parsed = JSON.parse(raw) as { config: StudioConfig; stage: number };
     const config = { ...DEFAULT_CONFIG, ...parsed.config };
     if (!CUSTODY_DEFS.some((c) => c.id === config.custody && c.available)) config.custody = 'demo';
+    for (const c of CONTROL_DEFS) if (!c.available) config.ctl[c.id] = false;
     return { config, stage: parsed.stage };
   } catch {
     return null;
