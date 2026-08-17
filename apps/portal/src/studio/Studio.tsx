@@ -619,7 +619,7 @@ export default function Studio() {
                       {config.token.startsWith('contract')
                         ? 'Pick the approval model your institution runs for issuer operations. These are distinct mechanisms — an HSM, an MPC quorum and a multisig protect different things.'
                         : config.token === 'utxo-unshielded'
-                          ? 'Coins move under holder signatures alone — the exact case HSMs, MPC quorums, multisigs and threshold policies were built for. They apply directly, at the key layer, with no adaptation.'
+                          ? 'Coins move under holder-authorised wallet signatures — closer to a conventional signing boundary than contract witnesses. Exact key derivation, policy enforcement and recovery still require custody validation; none is integrated here.'
                           : 'Spending a shielded coin is proof-based: the sensitive material is the note secret a local prover consumes, not a conventional signing key. Custody here means protecting witness material.'}
                     </p>
                   </div>

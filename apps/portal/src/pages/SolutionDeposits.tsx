@@ -23,12 +23,13 @@ export default function SolutionDeposits() {
       <div className="portal-inner prose">
         <header className="portal-hero left">
           <span className="overline">Solutions · Tokenised deposits</span>
-          <h1>Commercial bank money on public rails</h1>
+          <h1>Commercial-bank money, represented onchain</h1>
           <p className="home-sub">
-            A bank issues deposits as tokens; customers transact without broadcasting balances
-            and flows; the bank keeps issuer control; the regulator retains access; settlement
-            happens on shared public infrastructure. Impossible on transparent chains, unpalatable
-            in walled gardens.
+            A tokenised deposit remains a liability of the issuing bank. This prototype evaluates
+            how that claim could move on Midnight with confidential balances and amounts, public
+            supply reconciliation and programmable settlement. The demonstrated CFT still exposes
+            account relationships and does not yet implement regulatory viewing, participant
+            restrictions, recovery, administrative seizure or institutional custody.
           </p>
         </header>
 
@@ -36,7 +37,7 @@ export default function SolutionDeposits() {
         <ul>
           <li>Controlled issuance and redemption (mint against a core-ledger liability, burn on redemption)</li>
           <li>Customer privacy: balances and payment amounts not broadcast to the world</li>
-          <li>Custody-grade control of issuer keys — HSM/MPC/multisig, threshold approvals such as 2-of-3</li>
+          <li>Institutional custody of issuer keys — HSM, MPC or threshold approval (integration targets, not implemented here)</li>
           <li>Regulatory access to a differentiated view</li>
           <li>Public settlement and interoperability</li>
           <li>Recovery and compliance operations</li>
@@ -48,10 +49,13 @@ export default function SolutionDeposits() {
           satisfies control and interoperability but fails privacy by construction — its lab
           exists as the transparency baseline, where anyone can enumerate every holder. The{' '}
           <Link to={cft.route} className="inline-link">confidential contract token</Link> is the
-          closest demonstrated fit: balances and transfer amounts are encrypted, the issuer keeps
-          mint and compliance-burn control, and total supply stays public so the bank can attest
-          1:1 backing. Native and note-based models trade away issuer control or custody
-          compatibility — the <Link to="/compare" className="inline-link">comparison</Link> makes
+          closest demonstrated fit: balances and transfer amounts are encrypted; stable account
+          identifiers and the counterparty graph remain public. The wrapper provides owner-gated
+          mint and holder-initiated redemption — no built-in auditor view, freeze or unilateral
+          seizure. Public onchain supply supports reconciliation against a separately attested
+          bank-liability ledger; token supply alone does not prove reserves or 1:1 backing.
+          Native models are closer to conventional holder signing but have no post-mint issuer
+          mediation; the note-based design is a closed, unmerged research exploration — the <Link to="/compare" className="inline-link">comparison</Link> makes
           those trades explicit.
         </p>
 
@@ -66,20 +70,18 @@ export default function SolutionDeposits() {
             as a <Link to="/labs/confidential-token" className="inline-link">browser lab</Link>{' '}
             and a Node reference script.
           </li>
-          <li>Public supply attestation via the PublicSupply extension (each mint/redeem visible as a delta).</li>
-          <li>Owner-gated mint and compliance burn (OpenZeppelin Ownable).</li>
-          <li>Local proving throughout: witness material never leaves the operator&apos;s machine.</li>
+          <li>Public onchain supply via the PublicSupply extension — each mint/redeem delta is publicly visible; reconciliation input, not proof of backing.</li>
+          <li>Owner-gated mint and holder-initiated redemption (OpenZeppelin Ownable).</li>
+          <li>Proving via the configured proving service — a local process by default; a hosted prover changes the trust boundary.</li>
         </ul>
         <VisibilityMatrix model={cft} />
 
         <h2>Designed architecture</h2>
         <p>
-          The broader product architecture was shaped through extensive technical feedback from
-          custodians and is designed to integrate with existing HSM, MPC, multisig and
-          threshold-control environments. The pinned OpenZeppelin package ships the ECDSA Signer
-          and multisig modules (2-of-3 capable) intended to replace the single-secret Ownable
-          gate with genuine threshold issuer control. Designed, in this register, means exactly
-          that — the integration below is what does not exist yet.
+          Current demo authority is a single browser-held Ownable witness. HSM, MPC and
+          threshold approval are integration targets, not implemented capabilities. The pinned
+          OpenZeppelin alpha ships multisig contract structure, but its signature verification is
+          stubbed pending ECDSA and Keccak primitives — it is not production custody evidence.
         </p>
 
         <h2>Remaining gaps — stated plainly</h2>

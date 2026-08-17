@@ -42,7 +42,7 @@ export const TOPICS: readonly Topic[] = [
       'Zero-knowledge proofs made on your machine — the network verifies validity, never contents.',
     paragraphs: [
       'When you act on shielded state, your machine builds a zero-knowledge proof that the action follows the contract rules — balances suffice, signatures check, policy holds — without revealing the data itself.',
-      'The proof server runs locally, next to your wallet. The witness — amounts, keys, counterparties — is its input, and it never crosses the network boundary. Only the proof does. Verifying it takes the network milliseconds.',
+      'The application sends circuit-specific witness-bearing inputs to its configured proving service. In the default local setup that service runs on the same machine; a hosted prover changes the trust boundary. The chain receives the proof plus public transaction data and effects.',
       'In the hosted examples this is real: the console shows the local prover at :6300 doing exactly this on every transaction.',
     ],
     terms: [

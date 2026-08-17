@@ -41,6 +41,6 @@
  *    with `accountId = persistentHash(secretKey)`. Total-supply tracking is NOT
  *    built in — it is an opt-in extension
  *    (`extensions/ConfidentialFungibleTokenPublicSupply`). A deposit that must
- *    prove 1:1 backing needs that extension, not just the base module.
+ *    support supply reconciliation needs that extension, not just the base module.
  */
 export {};

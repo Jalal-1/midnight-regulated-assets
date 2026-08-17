@@ -239,8 +239,9 @@ export default function ConfidentialTokenLab() {
         <p>
           The composition a tokenised deposit actually wants:{' '}
           <strong>balances and transfer amounts encrypted</strong> (ElGamal ciphertexts on chain),
-          issuer control retained (owner-gated mint and compliance burn), and{' '}
-          <strong>total supply public by design</strong> — a bank attesting 1:1 backing needs an
+          owner-gated mint with holder-initiated redemption (no unilateral seizure), and{' '}
+          <strong>total supply public by design</strong> — reconcilable against a separately
+          attested liability ledger; not by itself proof of backing. Needs an
           attestable circulating supply, which also means each issue/redeem amount is visible as a
           supply delta. Run the{' '}
           <Link to="/labs/public-token" className="inline-link">transparency baseline</Link> first

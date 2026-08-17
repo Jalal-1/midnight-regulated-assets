@@ -122,7 +122,9 @@ function ProvingModel() {
         </span>
       </div>
       <p className="model-caption">
-        Only the proof crosses the boundary. The witness — amounts, keys, identities — never
+        Witness-bearing inputs stay within the configured proving boundary — local by
+        default, a hosted prover changes it. The chain receives the proof plus public
+        transaction data and effects; the witness itself never
         leaves your machine.
       </p>
     </div>

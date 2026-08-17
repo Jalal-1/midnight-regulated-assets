@@ -91,7 +91,7 @@ Both previously-unconfirmed values are now resolved: the Compact language versio
 
 | Product | Use case | Composition differs by |
 |---|---|---|
-| **Tokenised deposit** | Commercial bank money on public rails — bank issues deposits as tokens, customers transact without broadcasting balances, bank keeps issuer control, custodians operate 2-of-3 ECDSA multisig, regulator retains visibility. | baseline |
+| **Tokenised deposit** | Target product: commercial-bank money represented onchain (the bank remains the debtor). Demonstrated today: CFT token accounting with encrypted balances/amounts, public account graph, owner-gated mint, holder redemption, public supply for reconciliation. Not implemented: regulator viewing, freeze/seizure, recovery, institutional custody (OZ alpha multisig signature verification is stubbed). | baseline |
 | **RWA token** | Regulated real-world assets (working example: a money-market fund share) with compliance built into the asset. | adds compliance checks, transfer restrictions, allowlists, disclosure policy |
 
 Both are measured against the same requirements checklist: ECDSA 2-of-3 multisig custody · privacy (value-private → fully graph-private) · regulator visibility via viewing keys · controlled mint/burn · account segregation · recovery · compliance operations.

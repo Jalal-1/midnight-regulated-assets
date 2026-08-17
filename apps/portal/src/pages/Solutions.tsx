@@ -33,7 +33,7 @@ export default function Solutions() {
             </div>
             <span className="card-desc">
               Commercial bank money on public rails: controlled issuance and redemption, customer
-              privacy, custody-grade approvals, regulatory access, public settlement.
+              privacy, documented custody and disclosure requirements, public settlement.
             </span>
             <span className="landing-cta">Read the solution →</span>
           </Link>

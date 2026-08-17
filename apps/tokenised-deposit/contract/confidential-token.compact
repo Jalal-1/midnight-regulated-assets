@@ -2,9 +2,9 @@
 //
 // The composition the tokenised deposit actually wants: balances and transfer
 // amounts are ElGamal ciphertexts — the indexer serves only encrypted cells —
-// while the issuer keeps control (owner-gated mint and compliance burn) and
+// while the issuer keeps owner-gated mint (redemption is holder-initiated) and
 // the total supply stays PUBLIC via the PublicSupply extension, because a bank
-// attesting 1:1 backing needs an attestable circulating supply.
+// reconciling against a liability ledger needs a public onchain supply.
 //
 // What stays visible on chain, deliberately: the counterparty graph (sender
 // and recipient account ids on each transfer) and each mint/redeem amount via
@@ -83,7 +83,7 @@ export circuit mint(account: Bytes<32>, value: Uint<128>): [] {
   CFT__mint(account, value);
 }
 
-/** Compliance burn: the issuer burns from a named account (court order,
+/** Approval-based burn via OZ _burnFrom — NOT unilateral seizure (court order,
  *  redemption on the account's behalf). Owner-gated. */
 export circuit burnFrom(account: Bytes<32>, value: Uint<128>): [] {
   Ownable_assertOnlyOwner();

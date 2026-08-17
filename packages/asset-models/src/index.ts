@@ -295,7 +295,7 @@ export const ASSET_MODELS: readonly AssetModel[] = [
     ],
     issuerControls: [
       'Owner-gated mint (paired with public supply accounting)',
-      'Owner-gated compliance burn (burnFrom)',
+      'Approval-based burnFrom — not unilateral seizure',
     ],
     authorisationModel:
       'Proof-based: caller identity from a witness secret (accountId = H(SK)); balance claims ' +
