@@ -176,18 +176,19 @@ export interface CustodyDef {
   readonly id: CustodyId;
   readonly label: string;
   readonly desc: string;
-  readonly status: 'Available' | 'Designed' | 'Requires integration';
-  readonly tone: 'success' | 'neutral' | 'warning';
+  /** Selectable today. Unavailable options render greyed out, unselectable. */
+  readonly available: boolean;
+  /** 'onchain' leads; 'infra' sits underneath as integration paths. */
+  readonly group: 'onchain' | 'infra';
 }
 
 export const CUSTODY_DEFS: readonly CustodyDef[] = [
-  { id: 'demo', label: 'Demonstration issuer key', desc: 'A single issuer authority. What runs today.', status: 'Available', tone: 'success' },
-  { id: 'hsm', label: 'HSM-backed key', desc: 'Issuer key held in a hardware security module.', status: 'Designed', tone: 'neutral' },
-  { id: 'mpc', label: 'MPC / threshold signing', desc: 'Key shares held across parties; no single point of compromise.', status: 'Designed', tone: 'neutral' },
-  { id: 'multisig', label: 'ECDSA multisig', desc: 'Multiple distinct keys authorise sensitive operations.', status: 'Designed', tone: 'neutral' },
-  { id: '2of3', label: '2-of-3 approval policy', desc: 'Any two of three designated approvers authorise.', status: 'Designed', tone: 'neutral' },
-  { id: 'role', label: 'Contract-based role approval', desc: 'Approval rules enforced by the asset contract itself.', status: 'Designed', tone: 'neutral' },
-  { id: 'custom', label: 'Custom custody integration', desc: 'Integrate an existing institutional custody platform.', status: 'Requires integration', tone: 'warning' },
+  { id: 'demo', label: 'Demonstration issuer key', desc: 'A single issuer authority. What runs today.', available: true, group: 'onchain' },
+  { id: 'multisig', label: 'ECDSA multisig (contract-based)', desc: 'Multiple distinct keys must sign before the contract accepts a sensitive operation.', available: false, group: 'onchain' },
+  { id: 'role', label: 'Contract-based approval', desc: 'Approval rules enforced by the asset contract itself — roles, quorums and limits live in contract state.', available: false, group: 'onchain' },
+  { id: 'hsm', label: 'HSM-backed key', desc: 'Issuer key held in a hardware security module.', available: false, group: 'infra' },
+  { id: 'mpc', label: 'MPC / threshold signing', desc: 'Key shares held across parties; no single point of compromise.', available: false, group: 'infra' },
+  { id: 'custom', label: 'Custom custody integration', desc: 'Integrate an existing institutional custody platform.', available: false, group: 'infra' },
 ];
 
 export const custodyLabel = (id: CustodyId): string =>
@@ -384,7 +385,9 @@ export function loadConfig(): { config: StudioConfig; stage: number } | null {
     const raw = sessionStorage.getItem(CONFIG_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as { config: StudioConfig; stage: number };
-    return { config: { ...DEFAULT_CONFIG, ...parsed.config }, stage: parsed.stage };
+    const config = { ...DEFAULT_CONFIG, ...parsed.config };
+    if (!CUSTODY_DEFS.some((c) => c.id === config.custody && c.available)) config.custody = 'demo';
+    return { config, stage: parsed.stage };
   } catch {
     return null;
   }

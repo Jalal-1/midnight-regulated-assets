@@ -586,10 +586,11 @@ export default function Studio() {
                   </div>
                   {config.token.startsWith('contract') ? (
                     <>
-                      {CUSTODY_DEFS.map((k) => (
+                      {CUSTODY_DEFS.filter((k) => k.group === 'onchain').map((k) => (
                         <button
                           key={k.id}
                           className={`st-pick slim${config.custody === k.id ? ' selected' : ''}`}
+                          disabled={!k.available}
                           onClick={() => set('custody', k.id)}
                         >
                           <span className="st-pick-head">
@@ -598,16 +599,26 @@ export default function Studio() {
                               <span className="st-strong">{k.label}</span>
                               <span className="st-muted-sm">{k.desc}</span>
                             </span>
-                            <span className={`st-flag ${k.tone === 'success' ? 'ok' : k.tone === 'warning' ? 'warn' : ''}`}>{k.status}</span>
                           </span>
                         </button>
                       ))}
-                      {config.custody !== 'demo' && (
-                        <div className="st-note">
-                          Recorded as your target approval policy. Studio deployments authorise with the
-                          demonstration issuer key; the custody integration programme delivers the rest.
-                        </div>
-                      )}
+                      <div className="st-overline st-group-label">Infrastructure custody — integration paths</div>
+                      {CUSTODY_DEFS.filter((k) => k.group === 'infra').map((k) => (
+                        <button
+                          key={k.id}
+                          className={`st-pick slim${config.custody === k.id ? ' selected' : ''}`}
+                          disabled={!k.available}
+                          onClick={() => set('custody', k.id)}
+                        >
+                          <span className="st-pick-head">
+                            <span className="st-radio" />
+                            <span className="st-grow st-left">
+                              <span className="st-strong">{k.label}</span>
+                              <span className="st-muted-sm">{k.desc}</span>
+                            </span>
+                          </span>
+                        </button>
+                      ))}
                       <div className="st-card raised st-stack">
                         <span className="st-overline">How authorisation works</span>
                         <div className="st-qa"><div>What authorises asset movement</div><p>Issuer operations carry the issuer key&apos;s authority. Transfers carry the holder&apos;s, with a zero-knowledge proof validating the state transition.</p></div>

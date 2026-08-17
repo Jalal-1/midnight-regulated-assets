@@ -1240,7 +1240,9 @@ a.model-card:hover { border-color: var(--blue-text); box-shadow: 0 0 28px rgba(7
   transition: border-color 150ms var(--ease-out);
 }
 .st-pick.slim { padding: 14px 20px; gap: 0; }
-.st-pick:hover { border-color: var(--border-strong); }
+.st-pick:hover:not(:disabled) { border-color: var(--border-strong); }
+.st-pick:disabled { opacity: 0.4; cursor: default; }
+.st-group-label { margin-top: 10px; }
 .st-pick.selected { border-color: var(--blue); }
 .st-pick-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .st-pick-title { font-size: 18px; font-weight: 500; }
