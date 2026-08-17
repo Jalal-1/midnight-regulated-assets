@@ -112,7 +112,7 @@ export default function StagenetSeeds({
       } else {
         lines.push('Recovery phrase: none — this seed was entered directly.', '');
       }
-      lines.push('Seed (hex — what this studio uses):', '', `  ${seed}`, '');
+      lines.push('Seed (hex — what this dashboard uses):', '', `  ${seed}`, '');
     }
     lines.push(
       '=================================================================',

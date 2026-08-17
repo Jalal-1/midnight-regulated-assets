@@ -61,7 +61,7 @@ export default function LocalStackHelp({ title }: { readonly title: string }) {
       {isHostedPage() && (
         <div className="st-muted-sm">
           Chrome asks once to allow local network access — allow it. Firefox cannot reach a
-          local stack from a hosted page; use a Chromium-based browser there, or run the studio
+          local stack from a hosted page; use a Chromium-based browser there, or run the dashboard
           itself locally.
         </div>
       )}

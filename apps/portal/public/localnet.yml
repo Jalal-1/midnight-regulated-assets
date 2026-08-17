@@ -1,15 +1,15 @@
-# Midnight local stack for the Asset Studio — node + indexer + proof server.
+# Midnight local stack for the Asset Dashboard — node + indexer + proof server.
 #
 # Requires Docker (docker.com). Start:
 #
-#   curl -fsSL https://midnight-asset-studio.pages.dev/localnet.yml -o midnight-localnet.yml
+#   curl -fsSL https://midnight-asset-dashboard.pages.dev/localnet.yml -o midnight-localnet.yml
 #   docker compose -f midnight-localnet.yml up -d
 #
-# Then switch the studio to "Local development". Reset the chain with:
+# Then switch the dashboard to "Local development". Reset the chain with:
 #
 #   docker compose -f midnight-localnet.yml down -v
 #
-# Versions match the studio's pinned Stagenet-compatible stack (Ledger RC3).
+# Versions match the dashboard's pinned Stagenet-compatible stack (Ledger RC3).
 
 services:
   node:
@@ -34,7 +34,7 @@ services:
         condition: service_healthy
     environment:
       APP__INFRA__NODE__URL: 'ws://node:9944'
-      # Must match the studio's localnet network id, or wallet sync returns nothing.
+      # Must match the dashboard's localnet network id, or wallet sync returns nothing.
       APP__APPLICATION__NETWORK_ID: 'undeployed'
       APP__INFRA__STORAGE__PASSWORD: 'indexer'
       APP__INFRA__PUB_SUB__PASSWORD: 'indexer'

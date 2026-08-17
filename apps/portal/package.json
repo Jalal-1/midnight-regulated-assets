@@ -36,6 +36,6 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "deploy:pages": "vite build && wrangler pages deploy dist --project-name midnight-asset-studio --branch main"
+    "deploy:pages": "vite build && wrangler pages deploy dist --project-name midnight-asset-dashboard --branch main"
   }
 }

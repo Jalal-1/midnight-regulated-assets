@@ -42,7 +42,7 @@ round after increment = 1
 - **`yarn check` is clean** and the lockfile is committed.
 
 **The portal** (`yarn ui` → http://localhost:5173) — the front door is the
-**Midnight Asset Studio**: a product-first guided issuance wizard (product →
+**Midnight Asset Dashboard**: a product-first guided issuance wizard (product →
 privacy → controls → custody → network → review) that deploys a REAL
 confidential token and flows into an asset-management dashboard whose every
 number is chain state and whose deployment steps complete live. The

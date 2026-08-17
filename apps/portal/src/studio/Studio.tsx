@@ -80,7 +80,7 @@ export default function Studio() {
   const selected = tokenDef(config.token);
 
   useEffect(() => {
-    document.title = 'Midnight Asset Studio';
+    document.title = 'Midnight Asset Dashboard';
   }, []);
 
   const set = <K extends keyof StudioConfig>(key: K, value: StudioConfig[K]) =>
@@ -180,7 +180,7 @@ export default function Studio() {
         <LogoMark className="st-logo" />
         <span className="st-wordmark">midnight</span>
         <span className="st-divider" />
-        <span className="st-appname">Asset studio</span>
+        <span className="st-appname">Asset dashboard</span>
       </div>
       <div className="st-topbar-right">
         {screen === 'dashboard' && (
@@ -212,48 +212,6 @@ export default function Studio() {
           </button>
           {netOpen && (
             <div className="st-netmenu">
-              <div className="st-netmenu-cmds st-netfacts">
-                <span className="st-inline spread">
-                  <span className="st-muted-sm">Latest block</span>
-                  <span className="mono st-factval">
-                    {ticker.indexerHeight !== null ? `#${ticker.indexerHeight.toLocaleString('en-US')}` : '—'}
-                    {ticker.blockHash ? ` · ${ticker.blockHash.slice(0, 10)}…` : ''}
-                  </span>
-                </span>
-                <span className="st-inline spread">
-                  <span className="st-muted-sm">Block time</span>
-                  <span className="mono st-factval">{ticker.blockSeconds !== null ? `${ticker.blockSeconds.toFixed(1)} s (observed)` : '—'}</span>
-                </span>
-                <span className="st-inline spread">
-                  <span className="st-muted-sm">Node</span>
-                  <span className="mono st-factval">
-                    <span className={`st-tickdot ${ticker.nodeOk === null ? 'wait' : ticker.nodeOk ? 'ok' : 'err'}`} />
-                    {ticker.nodeOk === false ? 'unreachable' : `${new URL(currentNetwork().node).host}${ticker.nodeVersion ? ` · v${ticker.nodeVersion}` : ''}`}
-                  </span>
-                </span>
-                <span className="st-inline spread">
-                  <span className="st-muted-sm">Indexer</span>
-                  <span className="mono st-factval">
-                    <span className={`st-tickdot ${ticker.indexerOk === null ? 'wait' : ticker.indexerOk ? 'ok' : 'err'}`} />
-                    {ticker.indexerOk === false
-                      ? 'unreachable'
-                      : `${new URL(currentNetwork().indexer).host}${ticker.nodeHeight !== null && ticker.indexerHeight !== null && ticker.nodeHeight - ticker.indexerHeight > 1 ? ` · ${ticker.nodeHeight - ticker.indexerHeight} blocks behind` : ''}`}
-                  </span>
-                </span>
-                <span className="st-inline spread">
-                  <span className="st-muted-sm">Proof server</span>
-                  <span className="mono st-factval">
-                    <span className={`st-tickdot ${ticker.proofOk === null ? 'wait' : ticker.proofOk ? 'ok' : 'err'}`} />
-                    {ticker.proofOk ? 'localhost:6300 — proving stays local' : 'not running — proving unavailable'}
-                  </span>
-                </span>
-                {activeNetwork !== 'stagenet' && ticker.peers !== null && (
-                  <span className="st-inline spread">
-                    <span className="st-muted-sm">Peers</span>
-                    <span className="mono st-factval">{ticker.peers} (single-node dev chain)</span>
-                  </span>
-                )}
-              </div>
               <button className="st-netopt" onClick={() => pickNetwork('stagenet')}>
                 <span className="st-inline spread">
                   <span className="st-strong-sm">Stagenet</span>
@@ -268,21 +226,81 @@ export default function Studio() {
                 </span>
                 <span className="st-muted-sm">The Midnight stack on your machine — pre-funded wallets</span>
               </button>
-              <div className="st-netmenu-cmds" onClick={(e) => e.stopPropagation()}>
-                <span className="st-muted-sm">Local development needs the stack running — one command (requires Docker):</span>
-                {LOCAL_STACK_COMMANDS.map((command, i) => (
-                  <span key={command} className="st-inline st-cmdrow">
-                    <code className="mono st-cmd sm">{command}</code>
-                    <button className="link" onClick={() => copyCmd(command, i)}>
-                      {cmdCopied === i ? 'copied' : 'copy'}
-                    </button>
+              <div className="st-netstatus">
+                <span className="st-inline">
+                  <span className={`st-tickdot ${ticker.nodeOk === null ? 'wait' : ticker.nodeOk && ticker.indexerOk ? 'ok' : 'err'}`} />
+                  <span className="st-body-sm">
+                    {ticker.nodeOk === null
+                      ? 'Checking the chain…'
+                      : ticker.nodeOk && ticker.indexerOk
+                        ? `Chain healthy — block #${(ticker.indexerHeight ?? 0).toLocaleString('en-US')}${ticker.blockSeconds !== null ? `, a new block every ~${ticker.blockSeconds.toFixed(0)} s` : ''}`
+                        : 'Chain unreachable — this network is not answering'}
                   </span>
-                ))}
-                <span className="st-muted-sm">
-                  Windows PowerShell: <span className="mono">curl.exe</span> · reset:{' '}
-                  <span className="mono">down -v</span>
+                </span>
+                <span className="st-inline">
+                  <span className={`st-tickdot ${ticker.proofOk === null ? 'wait' : ticker.proofOk ? 'ok' : 'err'}`} />
+                  <span className="st-body-sm">
+                    {ticker.proofOk === null
+                      ? 'Checking the proof server…'
+                      : ticker.proofOk
+                        ? 'Proving ready — proof server running on your machine'
+                        : 'Proof server not running — needed before anything can deploy'}
+                  </span>
                 </span>
               </div>
+              <details className="st-netdetails">
+                <summary>Technical details</summary>
+                <div className="st-netmenu-cmds st-netfacts">
+                  <span className="st-inline spread">
+                    <span className="st-muted-sm">Latest block</span>
+                    <span className="mono st-factval">
+                      {ticker.indexerHeight !== null ? `#${ticker.indexerHeight.toLocaleString('en-US')}` : '—'}
+                      {ticker.blockHash ? ` · ${ticker.blockHash.slice(0, 10)}…` : ''}
+                    </span>
+                  </span>
+                  <span className="st-inline spread">
+                    <span className="st-muted-sm">Block time</span>
+                    <span className="mono st-factval">{ticker.blockSeconds !== null ? `${ticker.blockSeconds.toFixed(1)} s (observed)` : '—'}</span>
+                  </span>
+                  <span className="st-inline spread">
+                    <span className="st-muted-sm">Node</span>
+                    <span className="mono st-factval">
+                      {ticker.nodeOk === false ? 'unreachable' : `${new URL(currentNetwork().node).host}${ticker.nodeVersion ? ` · v${ticker.nodeVersion}` : ''}`}
+                    </span>
+                  </span>
+                  <span className="st-inline spread">
+                    <span className="st-muted-sm">Indexer</span>
+                    <span className="mono st-factval">
+                      {ticker.indexerOk === false
+                        ? 'unreachable'
+                        : `${new URL(currentNetwork().indexer).host}${ticker.nodeHeight !== null && ticker.indexerHeight !== null && ticker.nodeHeight - ticker.indexerHeight > 1 ? ` · ${ticker.nodeHeight - ticker.indexerHeight} blocks behind` : ''}`}
+                    </span>
+                  </span>
+                  {activeNetwork !== 'stagenet' && ticker.peers !== null && (
+                    <span className="st-inline spread">
+                      <span className="st-muted-sm">Peers</span>
+                      <span className="mono st-factval">{ticker.peers} (single-node dev chain)</span>
+                    </span>
+                  )}
+                </div>
+              </details>
+              <details className="st-netdetails" open={activeNetwork !== 'stagenet' && ticker.nodeOk === false}>
+                <summary>Run the local stack (Docker, one command)</summary>
+                <div className="st-netmenu-cmds">
+                  {LOCAL_STACK_COMMANDS.map((command, i) => (
+                    <span key={command} className="st-inline st-cmdrow">
+                      <code className="mono st-cmd sm">{command}</code>
+                      <button className="link" onClick={() => copyCmd(command, i)}>
+                        {cmdCopied === i ? 'copied' : 'copy'}
+                      </button>
+                    </span>
+                  ))}
+                  <span className="st-muted-sm">
+                    Then pick Local development above. Windows PowerShell:{' '}
+                    <span className="mono">curl.exe</span> · reset: <span className="mono">down -v</span>
+                  </span>
+                </div>
+              </details>
             </div>
           )}
         </span>

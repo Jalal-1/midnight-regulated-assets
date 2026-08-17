@@ -1125,7 +1125,7 @@ a.model-card:hover { border-color: var(--blue-text); box-shadow: 0 0 28px rgba(7
 .faucet-addr { background: none; border: 0; padding: 0; cursor: pointer; text-align: left; word-break: break-all; }
 .faucet-addr:hover { color: var(--text-link); }
 
-/* ===== Asset Studio ============================================================ */
+/* ===== Asset Dashboard ========================================================= */
 
 .st-page { min-height: 100vh; height: 100vh; overflow-y: auto; display: flex; flex-direction: column; background: var(--surface-page); color: var(--text-primary); }
 .st-topbar {
@@ -1430,7 +1430,19 @@ a.model-card:hover { border-color: var(--blue-text); box-shadow: 0 0 28px rgba(7
 .st-tickdot.ok { background: var(--ok); }
 .st-tickdot.err { background: #e5484d; }
 .st-tickdot.wait { background: var(--text-muted); }
-.st-netfacts { border-top: none; border-bottom: 1px solid var(--border-subtle); padding: 4px 12px 10px; }
+.st-netfacts { border-top: none; padding: 8px 12px 6px; }
+.st-netstatus {
+  display: grid; gap: 8px; border-top: 1px solid var(--border-subtle);
+  padding: 12px 12px 6px; margin-top: 2px;
+}
+.st-netstatus .st-inline { flex-wrap: nowrap; align-items: baseline; }
+.st-netstatus .st-tickdot { transform: translateY(-1px); }
+.st-netdetails { border-top: 1px solid var(--border-subtle); padding: 8px 12px 4px; }
+.st-netdetails summary {
+  cursor: pointer; font-size: 12.5px; color: var(--text-muted); list-style-position: inside;
+}
+.st-netdetails summary:hover { color: var(--text-secondary); }
+.st-netdetails .st-netmenu-cmds { border: none; padding: 8px 0 4px; }
 .st-factval { display: inline-flex; align-items: center; gap: 7px; font-size: 12px; }
 @media (max-width: 900px) { .st-ticker { display: none; } }
 .st-caret { font-size: 9px; opacity: 0.8; }

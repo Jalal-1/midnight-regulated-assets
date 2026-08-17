@@ -73,7 +73,7 @@ for (const K of KINDS) {
     const tiles = (await page.locator('.st-tiles').innerText()).replace(/\s+/g, ' ');
     if (!/Total issued · public 1,000\.00/.test(tiles)) fail(`supply tile wrong: ${tiles}`);
     if (!/Returned this session 500\.00/.test(tiles)) fail(`returned tile wrong: ${tiles}`);
-    console.log(`OK — ${K.card}: full lifecycle through the studio UI`);
+    console.log(`OK — ${K.card}: full lifecycle through the dashboard UI`);
   } catch (e) {
     fail(`threw: ${String(e).slice(0, 300)}`);
     await page.screenshot({ path: `${process.env.SCRATCH ?? '.'}/studio-fail-${K.card.split(' ')[0]}.png`, fullPage: true }).catch(() => {});
@@ -81,6 +81,6 @@ for (const K of KINDS) {
   await page.close();
 }
 
-console.log(problems.length ? `FAIL\n${problems.join('\n')}` : 'OK — both UTXO kinds verified through the studio');
+console.log(problems.length ? `FAIL\n${problems.join('\n')}` : 'OK — both UTXO kinds verified through the dashboard');
 await browser.close();
 process.exit(problems.length ? 1 : 0);
