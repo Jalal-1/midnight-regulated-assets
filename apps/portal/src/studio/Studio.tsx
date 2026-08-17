@@ -513,25 +513,33 @@ export default function Studio() {
                       enforces — fact by fact, audience by audience.
                     </p>
                   </div>
-                  {overview.map((r) => (
-                    <div key={r.fact} className="st-card st-priv-row">
-                      <div className="st-priv-head">
-                        <div className="st-priv-label">
-                          <div className="st-strong">{r.fact}</div>
-                          <div className="st-muted-sm">{r.desc}</div>
+                  <div className="st-privlist">
+                    {overview.map((r) => (
+                      <details key={r.fact} className="st-privrow">
+                        <summary>
+                          <span className={`st-privdot ${r.state === 'Public' ? 'pub' : r.state === 'Public by design' ? 'design' : 'priv'}`} />
+                          <span className="st-priv-fact">{r.fact}</span>
+                          <span className="st-priv-desc">{r.desc}</span>
+                          <span className={`st-privstate ${r.state === 'Public' ? 'pub' : r.state === 'Public by design' ? 'design' : 'priv'}`}>
+                            {r.state}
+                          </span>
+                          <span className="st-priv-chev">▾</span>
+                        </summary>
+                        <div className="st-priv-who">
+                          <div><span className="st-who-k">Public</span>{r.who.pub}</div>
+                          <div><span className="st-who-k">Issuer</span>{r.who.iss}</div>
+                          <div><span className="st-who-k">Holder</span>{r.who.hold}</div>
+                          <div><span className="st-who-k">Authorised reviewer</span>{r.who.rev}</div>
                         </div>
-                        <span className={`st-flag big ${r.state === 'Public' ? '' : r.state === 'Public by design' ? 'accent' : 'ok'}`}>
-                          {r.state}
-                        </span>
-                      </div>
-                      <div className="st-priv-who">
-                        <div><span className="st-who-k">Public</span>{r.who.pub}</div>
-                        <div><span className="st-who-k">Issuer</span>{r.who.iss}</div>
-                        <div><span className="st-who-k">Holder</span>{r.who.hold}</div>
-                        <div><span className="st-who-k">Authorised reviewer</span>{r.who.rev}</div>
-                      </div>
-                    </div>
-                  ))}
+                      </details>
+                    ))}
+                  </div>
+                  <div className="st-legend">
+                    <span><span className="st-privdot priv" /> kept private by the model</span>
+                    <span><span className="st-privdot design" /> public on purpose (attestable)</span>
+                    <span><span className="st-privdot pub" /> public</span>
+                    <span className="st-tickmuted">click a row for who sees what</span>
+                  </div>
                   {config.token === 'contract-confidential' && (
                     <div className="st-note">
                       Values are private; participation is not. Sender and recipient identifiers —
