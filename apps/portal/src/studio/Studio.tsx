@@ -40,6 +40,21 @@ import { PERSONA_LABEL, useStudioChain, type PersonaId, type TokenKind } from '.
 
 type Screen = 'landing' | 'wizard' | 'compare' | 'deploy' | 'success' | 'dashboard';
 
+const CMP_NAME: Record<string, string> = {
+  'utxo-unshielded': 'Unshielded UTXO',
+  'contract-unshielded': 'Unshielded contract',
+  'zswap-shielded': 'ZSwap shielded',
+  'contract-confidential': 'Shielded contract (CFT)',
+  'contract-note': 'Note-based shielded',
+};
+const CMP_MODEL: Record<string, string> = {
+  'utxo-unshielded': 'native · UTXO',
+  'contract-unshielded': 'contract · account',
+  'zswap-shielded': 'native · shielded UTXO',
+  'contract-confidential': 'contract · account',
+  'contract-note': 'contract · notes',
+};
+
 const normSeed = (raw: string) => raw.trim().toLowerCase().replace(/^0x/, '');
 const isSeed = (raw: string) => /^(?:[0-9a-f]{64}|[0-9a-f]{128})$/.test(raw);
 
@@ -360,21 +375,49 @@ export default function Studio() {
                   a composition of these primitives.
                 </p>
               </div>
-              <div className="st-table">
-                <div className="st-table-head st-compare-grid">
-                  <div>Token type</div><div>Balances</div><div>Transfer values</div><div>Supply</div>
-                  <div>Issuer control</div><div>Today</div>
+              <div className="st-cmp">
+                <div className="st-cmp-row st-cmp-head">
+                  <div className="st-cmp-label" />
+                  {TOKEN_DEFS.map((t) => (
+                    <div key={t.id} className={`st-cmp-col-head${config.token === t.id ? ' current' : ''}`}>
+                      <span className="st-strong-sm">{CMP_NAME[t.id]}</span>
+                      <span className="st-muted-xs">{CMP_MODEL[t.id]}</span>
+                    </div>
+                  ))}
                 </div>
-                {TOKEN_DEFS.map((t) => (
-                  <div key={t.id} className="st-table-row st-compare-grid">
-                    <div className="st-cell-title">{t.name}<span>{t.model}</span></div>
-                    <div>{t.id.includes('shielded') || t.id === 'contract-confidential' || t.id === 'contract-note' ? (t.id === 'contract-confidential' ? 'Encrypted' : 'Hidden') : 'Public'}</div>
-                    <div>{t.id === 'contract-confidential' ? 'Hidden' : t.id === 'zswap-shielded' || t.id === 'contract-note' ? 'Hidden' : 'Public'}</div>
-                    <div>{t.id === 'contract-confidential' || t.id === 'zswap-shielded' ? 'Public (attestable)' : t.id === 'contract-note' ? 'Design open' : 'Public'}</div>
-                    <div>{t.id.startsWith('contract') ? (t.id === 'contract-note' ? 'Contract-enforced (design)' : 'Mint · redeem · policy hooks') : 'None after mint'}</div>
-                    <div className="st-flag">{t.deployable ? 'Deploys from this studio' : 'Placeholder'}</div>
+                {FEATURE_DEFS.map((f) => (
+                  <div key={f.id} className="st-cmp-row">
+                    <div className="st-cmp-label">{f.label}</div>
+                    {TOKEN_DEFS.map((t) => (
+                      <div key={t.id} className={`st-cmp-cell${config.token === t.id ? ' current' : ''}`}>
+                        {t.id === 'contract-note' ? (
+                          <span className="st-mark dev" title="Under development">⋯</span>
+                        ) : t.features[f.id] ? (
+                          <span className="st-mark yes">✓</span>
+                        ) : (
+                          <span className="st-mark no">✕</span>
+                        )}
+                      </div>
+                    ))}
                   </div>
                 ))}
+                <div className="st-cmp-row st-cmp-foot">
+                  <div className="st-cmp-label">Available today</div>
+                  {TOKEN_DEFS.map((t) => (
+                    <div key={t.id} className={`st-cmp-cell${config.token === t.id ? ' current' : ''}`}>
+                      {t.deployable ? (
+                        <span className="st-mark yes">✓</span>
+                      ) : (
+                        <span className="st-mark dev" title="Under development">⋯</span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="st-legend">
+                <span><span className="st-mark yes sm">✓</span> part of this token type</span>
+                <span><span className="st-mark no sm">✕</span> not part of this model</span>
+                <span><span className="st-mark dev sm">⋯</span> under development</span>
               </div>
               <div>
                 <button className="st-btn primary" onClick={() => setScreen('wizard')}>
