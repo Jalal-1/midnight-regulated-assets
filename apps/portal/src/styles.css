@@ -1088,6 +1088,11 @@ a.model-card:hover { border-color: var(--blue-text); box-shadow: 0 0 28px rgba(7
 .seed-wrap { display: flex; align-items: center; gap: 6px; }
 .seed-controls { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .st-h2 { font-size: 22px; font-weight: 500; }
+.st-cmd {
+  display: inline-block; font-size: 12.5px; padding: 6px 10px; border-radius: 8px;
+  border: 1px solid var(--border-subtle); background: var(--surface-raised);
+  overflow-x: auto; max-width: 100%; white-space: nowrap;
+}
 .st-sublog { margin-top: 8px; }
 .st-sublog summary {
   cursor: pointer; font-size: 12px; color: var(--text-muted);

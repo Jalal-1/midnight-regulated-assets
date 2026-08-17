@@ -14,6 +14,7 @@ import { useEffect, useRef, useState } from 'react';
 import { currentNetworkName, LogoMark, switchNetwork } from '@mra/lab-shell';
 
 import FaucetSetup from '../labs/FaucetSetup.tsx';
+import LocalStackHelp from './LocalStackHelp.tsx';
 import StagenetSeeds from '../labs/StagenetSeeds.tsx';
 import Chip from './Chip.tsx';
 import {
@@ -556,6 +557,7 @@ export default function Studio() {
                       </span>
                     </button>
                   </div>
+                  <LocalStackHelp title="Running the local stack" />
                   <div className="st-head-block">
                     <h2 className="st-h2">Customer fees</h2>
                     <p>
@@ -766,6 +768,9 @@ export default function Studio() {
                 ) : null;
               })}
             {deployNote && wantsStagenet && <div className="st-note">{deployNote}</div>}
+            {failed && wantsStagenet && (
+              <LocalStackHelp title="Stagenet trouble? Continue on the local stack" />
+            )}
             {failed && (
               <div className="st-deployrow">
                 <button className="st-btn accent" onClick={() => void startDeploy()}>
