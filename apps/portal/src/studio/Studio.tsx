@@ -14,7 +14,7 @@ import { useEffect, useRef, useState } from 'react';
 import { currentNetworkName, LogoMark, switchNetwork } from '@mra/lab-shell';
 
 import FaucetSetup from '../labs/FaucetSetup.tsx';
-import LocalStackHelp from './LocalStackHelp.tsx';
+import LocalStackHelp, { LOCAL_STACK_COMMANDS } from './LocalStackHelp.tsx';
 import StagenetSeeds from '../labs/StagenetSeeds.tsx';
 import Chip from './Chip.tsx';
 import {
@@ -59,9 +59,19 @@ export default function Studio() {
   const [config, setConfig] = useState<StudioConfig>(restored.current?.config ?? DEFAULT_CONFIG);
   const [seeds, setSeeds] = useState<Record<PersonaId, string>>({ acme: '', alice: '', bob: '' });
   const [deployNote, setDeployNote] = useState<string | null>(null);
+  const [netOpen, setNetOpen] = useState(false);
+  const [cmdCopied, setCmdCopied] = useState<number | null>(null);
   const chain = useStudioChain();
 
   const activeNetwork = currentNetworkName();
+
+  // Close the network menu on any outside click.
+  useEffect(() => {
+    if (!netOpen) return;
+    const close = () => setNetOpen(false);
+    document.addEventListener('click', close);
+    return () => document.removeEventListener('click', close);
+  }, [netOpen]);
   const wantsStagenet = config.network === 'stagenet';
   const networkMatches = wantsStagenet === (activeNetwork === 'stagenet');
   const netLabel = wantsStagenet ? 'Stagenet' : 'Local development';
@@ -131,6 +141,37 @@ export default function Studio() {
 
   const overview = privacyOverview(config.token);
 
+  // Switch the ACTIVE network from the pill, any time. The SDK's network id is
+  // process-global, so an actual switch reloads; the (non-secret) wizard config
+  // is saved first and the studio resumes where it was.
+  const pickNetwork = (name: 'stagenet' | 'localnet') => {
+    setNetOpen(false);
+    const wanted = name === 'stagenet' ? 'stagenet' : ('local' as const);
+    set('network', wanted);
+    if ((activeNetwork === 'stagenet') === (name === 'stagenet')) return; // already active
+    const inSession = screen === 'deploy' || screen === 'success' || screen === 'dashboard';
+    if (
+      inSession &&
+      !confirm('Switching networks reloads the page and ends the current asset session. Seeds are never stored.')
+    ) {
+      return;
+    }
+    saveConfig({ ...config, network: wanted }, screen === 'wizard' || screen === 'compare' ? stage : 6);
+    switchNetwork(name);
+  };
+
+  const copyCmd = (command: string, index: number) => {
+    try {
+      void navigator.clipboard.writeText(command);
+      setCmdCopied(index);
+      setTimeout(() => setCmdCopied(null), 1600);
+    } catch {
+      /* clipboard unavailable */
+    }
+  };
+
+  const activeLabel = activeNetwork === 'stagenet' ? 'Stagenet' : 'Local development';
+
   const header = (
     <div className="st-topbar">
       <div className="st-topbar-brand">
@@ -145,9 +186,49 @@ export default function Studio() {
             New asset
           </button>
         )}
-        <span className={`st-netpill${wantsStagenet ? '' : ' local'}`}>
-          <span className="dot" />
-          {netLabel}
+        <span className="st-netwrap" onClick={(e) => e.stopPropagation()}>
+          <button
+            className={`st-netpill${activeNetwork === 'stagenet' ? '' : ' local'} st-netbtn`}
+            onClick={() => setNetOpen((o) => !o)}
+            title="Switch network"
+          >
+            <span className="dot" />
+            {activeLabel}
+            <span className="st-caret">▾</span>
+          </button>
+          {netOpen && (
+            <div className="st-netmenu">
+              <button className="st-netopt" onClick={() => pickNetwork('stagenet')}>
+                <span className="st-inline spread">
+                  <span className="st-strong-sm">Stagenet</span>
+                  {activeNetwork === 'stagenet' && <span className="st-flag ok">active</span>}
+                </span>
+                <span className="st-muted-sm">Public test network — wallets need faucet-funded seeds</span>
+              </button>
+              <button className="st-netopt" onClick={() => pickNetwork('localnet')}>
+                <span className="st-inline spread">
+                  <span className="st-strong-sm">Local development</span>
+                  {activeNetwork !== 'stagenet' && <span className="st-flag ok">active</span>}
+                </span>
+                <span className="st-muted-sm">The Midnight stack on your machine — pre-funded wallets</span>
+              </button>
+              <div className="st-netmenu-cmds" onClick={(e) => e.stopPropagation()}>
+                <span className="st-muted-sm">Local development needs the stack running (requires Docker):</span>
+                {LOCAL_STACK_COMMANDS.map((command, i) => (
+                  <span key={command} className="st-inline">
+                    <code className="mono st-cmd sm">{command}</code>
+                    <button className="link" onClick={() => copyCmd(command, i)}>
+                      {cmdCopied === i ? 'copied' : 'copy'}
+                    </button>
+                  </span>
+                ))}
+                <span className="st-muted-sm">
+                  Windows PowerShell: <span className="mono">curl.exe</span> · reset:{' '}
+                  <span className="mono">down -v</span>
+                </span>
+              </div>
+            </div>
+          )}
         </span>
       </div>
     </div>

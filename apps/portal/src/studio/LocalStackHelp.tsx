@@ -17,10 +17,11 @@ import { useState } from 'react';
 
 import { isHostedPage, switchNetwork } from '@mra/lab-shell';
 
-const COMMANDS = [
+export const LOCAL_STACK_COMMANDS = [
   `curl -fsSL ${typeof location !== 'undefined' ? location.origin : ''}/localnet.yml -o midnight-localnet.yml`,
   'docker compose -f midnight-localnet.yml up -d',
 ];
+const COMMANDS = LOCAL_STACK_COMMANDS;
 
 export default function LocalStackHelp({ title }: { readonly title: string }) {
   const [copied, setCopied] = useState<number | null>(null);
