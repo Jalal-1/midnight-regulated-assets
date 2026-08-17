@@ -65,8 +65,27 @@ function Redirect({ to }: { readonly to: string }) {
   return null;
 }
 
+declare const __COMMIT__: string;
+
+/**
+ * Persistent evidence banner — audit requirement: a partner must see the
+ * prototype status, commit and environment reality at the point of entry,
+ * on every page, not buried under Standards.
+ */
+function EvidenceBanner() {
+  return (
+    <div className="evidence-banner">
+      Experimental prototype · commit {__COMMIT__} · lifecycles verified on localnet · Stagenet:
+      connectivity only · no applicable audit — OpenZeppelin Compact modules are experimental
+      alpha
+    </div>
+  );
+}
+
 export default function App() {
   return (
+    <>
+    <EvidenceBanner />
     <Router
       routes={{
         '/': <Home />,
@@ -95,5 +114,6 @@ export default function App() {
         '*': <NotFound />,
       }}
     />
+    </>
   );
 }

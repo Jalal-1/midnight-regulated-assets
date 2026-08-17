@@ -1576,3 +1576,12 @@ a.model-card:hover { border-color: var(--blue-text); box-shadow: 0 0 28px rgba(7
 .st-pick.undeployable { opacity: 0.86; }
 .st-pick .st-flag { white-space: normal; }
 .st-flag.big { font-size: 13px; }
+
+/* Persistent evidence banner — audit-mandated, on every page */
+.evidence-banner {
+  position: sticky; top: 0; z-index: 100; text-align: center;
+  font-size: 11.5px; line-height: 1.5; padding: 5px 16px;
+  background: rgba(232, 163, 61, 0.09); color: #d9b26a;
+  border-bottom: 1px solid rgba(232, 163, 61, 0.25);
+}
+.theme-light .evidence-banner { color: #805508; background: rgba(232, 163, 61, 0.12); }

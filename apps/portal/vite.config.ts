@@ -1,4 +1,14 @@
+import { execSync } from 'node:child_process';
+
 import { defineConfig } from 'vite';
+
+const commit = (() => {
+  try {
+    return execSync('git rev-parse --short HEAD').toString().trim();
+  } catch {
+    return 'unknown';
+  }
+})();
 import react from '@vitejs/plugin-react';
 import wasm from 'vite-plugin-wasm';
 import { nodePolyfills } from 'vite-plugin-node-polyfills';
@@ -16,6 +26,7 @@ import { nodePolyfills } from 'vite-plugin-node-polyfills';
  * The compiler's managed/ output is served from public/managed (a committed symlink) so FetchZkConfigProvider can fetch proving keys over HTTP.
  */
 export default defineConfig({
+  define: { __COMMIT__: JSON.stringify(commit) },
   plugins: [
     react(),
     wasm(),
