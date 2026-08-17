@@ -36,8 +36,8 @@ export default function LocalStackHelp({ title }: { readonly title: string }) {
   };
 
   return (
-    <div className="st-card st-stack">
-      <div className="st-strong">{title}</div>
+    <div className={title ? 'st-card st-stack' : 'st-stack'}>
+      {title && <div className="st-strong">{title}</div>}
       <div className="st-body-sm">
         Local development runs the Midnight stack on your machine: node, indexer and proof
         server, three containers, one command. Requires{' '}

@@ -461,42 +461,31 @@ export default function Studio() {
                       every type except the note-based placeholder deploys from this studio today.
                     </p>
                   </div>
+                  <div className="st-picklist">
                   {TOKEN_DEFS.map((t) => (
                     <button
                       key={t.id}
-                      className={`st-pick token${config.token === t.id ? ' selected' : ''}${t.deployable ? '' : ' undeployable'}`}
-                      onClick={() =>
-                        setConfig((c) => ({ ...c, token: t.id, assetName: t.defaults.name, symbol: t.defaults.symbol }))
-                      }
+                      className={`st-pick token slimrow${config.token === t.id ? ' selected' : ''}`}
+                      onClick={() => set('token', t.id)}
                     >
-                      <span className="st-pick-head">
-                        <span className="st-radio" />
-                        <span className="st-pick-title">{t.name}</span>
-                        {t.id === 'contract-confidential' && <span className="st-flag accent">Recommended for regulated assets</span>}
+                      <span className="st-radio" />
+                      <span className="st-grow st-left">
+                        <span className="st-inline">
+                          <span className="st-strong">{t.name}</span>
+                          <span className="st-muted-xs">{t.model.split(' — ')[0]}</span>
+                          {!t.deployable && <span className="st-flag warn">Under development</span>}
+                        </span>
+                        <span className="st-muted-sm"><strong>Useful for:</strong> {t.usefulFor}</span>
                       </span>
-                      <span className="st-pick-model">{t.model}</span>
-                      <span className="st-pick-desc">{t.desc}</span>
-                      <span className="st-pick-meta"><strong>Useful for:</strong> {t.usefulFor}</span>
-                      <span className="st-checks">
-                        {FEATURE_DEFS.map((f) => (
-                          <span key={f.id} className={`st-check${t.features[f.id] ? ' on' : ''}`}>
-                            <span className="st-checkbox">{t.features[f.id] ? '✓' : ''}</span>
-                            {f.label}
-                          </span>
-                        ))}
-                      </span>
-                      <span className={`st-flag${t.deployable ? ' ok' : ''}`}>{t.statusLine}</span>
                     </button>
                   ))}
-                  <div className="st-note">
-                    The two unshielded types make the UTXO-versus-account contrast concrete: the
-                    UTXO token is the chain&apos;s own money — simple, interoperable, uncontrolled.
-                    Moving to the account model puts a contract between holders and balances, and
-                    that contract is where issuer control lives. The shielded forms apply the same
-                    split to private state.
                   </div>
-                  <div>
-                    <button className="st-btn ghost" onClick={() => setScreen('compare')}>
+                  <div className="st-inline spread">
+                    <span className="st-muted-sm">
+                      Unsure? The side-by-side matrix shows exactly what each type keeps private
+                      and what the issuer can control.
+                    </span>
+                    <button className="st-btn ghost sm" onClick={() => setScreen('compare')}>
                       Compare token types →
                     </button>
                   </div>
@@ -562,7 +551,7 @@ export default function Studio() {
                     </p>
                   </div>
                   {config.token.startsWith('contract') ? (
-                    <>
+                    <div className="st-ctlgrid">
                       {CONTROL_DEFS.map((c) => {
                         const locked = c.status === 'Not implemented';
                         const on = config.ctl[c.id];
@@ -585,7 +574,7 @@ export default function Studio() {
                           </div>
                         );
                       })}
-                    </>
+                    </div>
                   ) : (
                     <>
                       <div className="st-card st-stack">
@@ -670,12 +659,14 @@ export default function Studio() {
                           </span>
                         </button>
                       ))}
-                      <div className="st-card raised st-stack">
-                        <span className="st-overline">How authorisation works</span>
-                        <div className="st-qa"><div>What authorises asset movement</div><p>Issuer operations carry the issuer key&apos;s authority. Transfers carry the holder&apos;s, with a zero-knowledge proof validating the state transition.</p></div>
-                        <div className="st-qa"><div>What must be protected</div><p>The issuer secret, each holder&apos;s key, and the witness material behind every proof — which is why custody integration covers more than signatures.</p></div>
-                        <div className="st-qa"><div>Where proofs are generated</div><p>On the operator&apos;s own machine. Witness data never leaves it.</p></div>
-                      </div>
+                      <details className="st-fold">
+                        <summary>How authorisation works</summary>
+                        <div className="st-fold-body st-stack">
+                          <div className="st-qa"><div>What authorises asset movement</div><p>Issuer operations carry the issuer key&apos;s authority. Transfers carry the holder&apos;s, with a zero-knowledge proof validating the state transition.</p></div>
+                          <div className="st-qa"><div>What must be protected</div><p>The issuer secret, each holder&apos;s key, and the witness material behind every proof — which is why custody integration covers more than signatures.</p></div>
+                          <div className="st-qa"><div>Where proofs are generated</div><p>On the operator&apos;s own machine. Witness data never leaves it.</p></div>
+                        </div>
+                      </details>
                     </>
                   ) : config.token === 'utxo-unshielded' ? (
                     <>
@@ -774,7 +765,10 @@ export default function Studio() {
                       </span>
                     </button>
                   </div>
-                  <LocalStackHelp title="Running the local stack" />
+                  <details className="st-fold">
+                    <summary>Run the local stack on this machine (Docker, one command)</summary>
+                    <div className="st-fold-body"><LocalStackHelp title="" /></div>
+                  </details>
                   <div className="st-head-block">
                     <h2 className="st-h2">Customer fees</h2>
                     <p>
@@ -818,19 +812,18 @@ export default function Studio() {
                       </span>
                     </button>
                   </div>
-                  <div className="st-table">
-                    <div className="st-table-title">
-                      <span>Assurance summary</span>
-                      <span className="st-muted-sm">Statuses come from the implementation</span>
+                  <details className="st-fold">
+                    <summary>Assurance summary — what is verified where</summary>
+                    <div className="st-fold-body st-table plain">
+                      {assuranceRows(config.network, config.token).map((a) => (
+                        <div key={a.k} className="st-table-row st-assur-grid">
+                          <div className="st-kcell">{a.k}</div>
+                          <div>{a.v}</div>
+                          <span className="st-flag">{a.chip}</span>
+                        </div>
+                      ))}
                     </div>
-                    {assuranceRows(config.network, config.token).map((a) => (
-                      <div key={a.k} className="st-table-row st-assur-grid">
-                        <div className="st-kcell">{a.k}</div>
-                        <div>{a.v}</div>
-                        <span className="st-flag">{a.chip}</span>
-                      </div>
-                    ))}
-                  </div>
+                  </details>
                 </div>
               )}
 

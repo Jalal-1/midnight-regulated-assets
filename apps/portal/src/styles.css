@@ -1087,7 +1087,7 @@ a.model-card:hover { border-color: var(--blue-text); box-shadow: 0 0 28px rgba(7
 /* --- Seed entry with generation (Stagenet) -------------------------------------------------- */
 .seed-wrap { display: flex; align-items: center; gap: 6px; }
 .seed-controls { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-.st-h2 { font-size: 22px; font-weight: 500; }
+.st-h2 { font-size: 19px; font-weight: 500; }
 .st-cmd {
   display: block; font-size: 12.5px; padding: 6px 10px; border-radius: 8px;
   border: 1px solid var(--border-subtle); background: var(--surface-raised);
@@ -1124,6 +1124,35 @@ a.model-card:hover { border-color: var(--blue-text); box-shadow: 0 0 28px rgba(7
 .seed-generate:hover:not(:disabled) { border-color: var(--accent-hover); color: var(--accent-hover); }
 .faucet-addr { background: none; border: 0; padding: 0; cursor: pointer; text-align: left; word-break: break-all; }
 .faucet-addr:hover { color: var(--text-link); }
+
+/* Generic fold — headline visible, mechanism one click away */
+.st-fold { border: 1px solid var(--border-subtle); border-radius: 12px; background: var(--surface-card); }
+.st-fold > summary {
+  display: flex; justify-content: space-between; align-items: center; gap: 10px;
+  padding: 12px 16px; cursor: pointer; list-style: none;
+  font-size: 13.5px; font-weight: 500; color: var(--text-secondary);
+}
+.st-fold > summary::-webkit-details-marker { display: none; }
+.st-fold > summary::after { content: '▾'; font-size: 9px; color: var(--text-muted); transition: transform 150ms var(--ease-out); }
+.st-fold[open] > summary::after { transform: rotate(180deg); }
+.st-fold > summary:hover { color: var(--text-primary); }
+.st-fold-body { padding: 2px 16px 14px; }
+.st-table.plain { border: none; background: none; }
+
+/* Step 1 — one compact row per token; the compare matrix carries the detail */
+.st-picklist { display: grid; gap: 8px; }
+.st-pick.slimrow { padding: 12px 16px; gap: 0; }
+.st-pick.slimrow .st-pick-head, .st-pick.slimrow .st-inline { gap: 10px; }
+.st-pick.slimrow { display: flex; align-items: center; gap: 12px; }
+.st-pick.slimrow .st-strong { font-size: 14.5px; }
+.st-pick.slimrow .st-muted-sm { font-size: 12.5px; }
+
+/* Step 3 — control toggles, two-up */
+.st-ctlgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; align-items: stretch; }
+.st-ctlgrid .st-card { padding: 12px 14px; }
+.st-ctlgrid .st-strong { font-size: 13.5px; }
+.st-ctlgrid .st-muted-sm { font-size: 12px; }
+@media (max-width: 1100px) { .st-ctlgrid { grid-template-columns: 1fr; } }
 
 /* Privacy overview — one skimmable row per fact, audience detail on demand */
 .st-privlist { border: 1px solid var(--border-subtle); border-radius: 14px; overflow: hidden; background: var(--surface-card); }
@@ -1262,13 +1291,13 @@ a.model-card:hover { border-color: var(--blue-text); box-shadow: 0 0 28px rgba(7
   font-size: 12.5px; color: var(--text-muted); line-height: 1.5;
 }
 .st-main { flex: 1; min-width: 0; padding: 40px 44px 90px; border-left: 1px solid var(--border-subtle); border-right: 1px solid var(--border-subtle); align-self: stretch; }
-.st-step { display: grid; gap: 16px; max-width: 760px; animation: fadeUp 0.3s var(--ease-out); }
+.st-step { display: grid; gap: 13px; max-width: 860px; animation: fadeUp 0.3s var(--ease-out); }
 @keyframes fadeUp { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 
 .st-head-block { display: grid; gap: 10px; }
-.st-head-block h1 { font-size: 34px; font-weight: 500; letter-spacing: -0.01em; line-height: 1.1; margin: 0; white-space: normal; }
+.st-head-block h1 { font-size: 30px; font-weight: 500; letter-spacing: -0.01em; line-height: 1.1; margin: 0; white-space: normal; }
 .st-head-block.tight h2 { font-size: 22px; font-weight: 500; margin: 0; }
-.st-head-block p { font-size: 15.5px; color: var(--text-secondary); line-height: 1.55; margin: 0; }
+.st-head-block p { font-size: 14.5px; color: var(--text-secondary); line-height: 1.5; margin: 0; }
 .st-overline { font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--text-muted); font-weight: 500; }
 
 .st-strong { font-size: 15px; font-weight: 500; }
@@ -1294,7 +1323,7 @@ a.model-card:hover { border-color: var(--blue-text); box-shadow: 0 0 28px rgba(7
   display: grid; gap: 10px; font-family: var(--font-sans); color: var(--text-primary);
   transition: border-color 150ms var(--ease-out);
 }
-.st-pick.slim { padding: 14px 20px; gap: 0; }
+.st-pick.slim { padding: 11px 18px; gap: 0; }
 .st-pick:hover:not(:disabled) { border-color: var(--border-strong); }
 .st-pick:disabled { opacity: 0.4; cursor: default; }
 .st-group-label { margin-top: 10px; }
@@ -1319,8 +1348,8 @@ a.model-card:hover { border-color: var(--blue-text); box-shadow: 0 0 28px rgba(7
 .theme-light .st-check.on .st-checkbox { background: rgba(29, 138, 80, 0.12); color: var(--ok); }
 .st-radio { width: 16px; height: 16px; border-radius: 50%; border: 1px solid var(--border-strong); flex-shrink: 0; background: transparent; }
 .st-pick.selected .st-radio { background: var(--blue); border-color: var(--blue); }
-.st-pick.netcard { align-content: start; }
-.st-verify { display: grid; gap: 2px; font-size: 12.5px; line-height: 1.6; border-top: 1px solid var(--border-subtle); padding-top: 10px; }
+.st-pick.netcard { align-content: start; padding: 16px 18px; gap: 8px; }
+.st-verify { display: grid; gap: 2px; font-size: 12px; line-height: 1.5; border-top: 1px solid var(--border-subtle); padding-top: 8px; }
 .st-verify .ok { color: #5fd79a; }
 .st-verify .warn { color: #efbe6e; }
 .st-verify .muted { color: var(--text-muted); }
