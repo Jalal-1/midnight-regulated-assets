@@ -265,9 +265,14 @@ export async function awaitSpendableUtxo(
   for (;;) {
     const { spendable, pending } = await utxoBalancesOf(kind, session, tokenType);
     if (spendable >= need) return spendable;
-    if (spendable + pending < need || Date.now() > deadline) return spendable;
+    // No early exit on spendable+pending: right after a submit the wallet can
+    // briefly observe NEITHER the spend nor the change note (measured on the
+    // zswap kind). Poll to the deadline; a genuine shortfall errors after it.
+    if (Date.now() > deadline) return spendable;
     emitTxStage(
-      `waiting for change to settle — ${(Number(pending) / 100).toFixed(2)} pending from the previous transfer`,
+      pending > 0n
+        ? `waiting for change to settle — ${(Number(pending) / 100).toFixed(2)} pending from the previous transfer`
+        : 'waiting for the wallet to observe the previous transaction',
     );
     await new Promise((resolve) => setTimeout(resolve, 4000));
   }

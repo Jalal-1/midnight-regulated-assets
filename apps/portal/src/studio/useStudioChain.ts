@@ -540,15 +540,15 @@ export function useStudioChain(): StudioChain {
           return;
         }
         await run(
-          `Redeemed ${fmtUnits(units)} ${sym} from ${PERSONA_LABEL[from]}`,
-          'burned against the issuer — supply delta is public',
+          `${PERSONA_LABEL[from]} redeemed ${fmtUnits(units)} ${sym}`,
+          'holder-initiated redemption — the supply delta is public',
           () => redeemCft(s.cft[from]!, address, units),
         );
       } else if (s.kind === 'public') {
         if (!s.pub.acme || !s.pub[from]) return;
         await run(
-          `Redeemed ${fmtUnits(units)} ${sym} from ${PERSONA_LABEL[from]}`,
-          'burned by the issuer — amount and balance are public',
+          `Issuer burned ${fmtUnits(units)} ${sym} from ${PERSONA_LABEL[from]}'s balance`,
+          'administrative burn under issuer authority — not a holder-initiated redemption',
           () => burnPublic(s.pub.acme!, address, asAccount(accountId(s.pub[from]!.secretKey)), units),
         );
       } else {
@@ -576,9 +576,10 @@ export function useStudioChain(): StudioChain {
     let issued = 0n;
     let redeemed = 0n;
     for (const ev of activity) {
-      const amount = ev.label.match(/^(Issued|Redeemed|Returned) ([\d,]+\.\d{2})/);
+      const amount = ev.label.match(/^(?:(Issued|Returned) ([\d,]+\.\d{2})|Issuer burned ([\d,]+\.\d{2})|\w+ redeemed ([\d,]+\.\d{2}))/);
       if (!amount) continue;
-      const units = BigInt(Math.round(parseFloat(amount[2]!.replace(/,/g, '')) * 100));
+      const raw = amount[2] ?? amount[3] ?? amount[4]!;
+      const units = BigInt(Math.round(parseFloat(raw.replace(/,/g, '')) * 100));
       if (amount[1] === 'Issued') issued += units;
       else redeemed += units;
     }

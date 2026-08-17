@@ -26,7 +26,7 @@ const NAV: readonly [Tab, string][] = [
   ['policy', 'Policy & controls'],
   ['custody', 'Custody & approvals'],
   ['visibility', 'Visibility'],
-  ['activity', 'Activity'],
+  ['activity', 'This session'],
   ['compose', 'Composability'],
   ['assurance', 'Assurance'],
   ['tech', 'Technical details'],
@@ -213,6 +213,10 @@ export default function StudioDashboard({
           </div>
         </div>
 
+        <div className="st-muted-xs inpage">
+          Single-browser localnet demonstration — all personas run in this page; state is
+          session-only and not an operations or custody system.
+        </div>
         {chain.sponsored && (
           <div className="st-note inpage">
             Customer fees are issuer-sponsored. Alice and Bob hold no DUST; they sign and bind
