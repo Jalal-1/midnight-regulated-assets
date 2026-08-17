@@ -1089,10 +1089,15 @@ a.model-card:hover { border-color: var(--blue-text); box-shadow: 0 0 28px rgba(7
 .seed-controls { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .st-h2 { font-size: 22px; font-weight: 500; }
 .st-cmd {
-  display: inline-block; font-size: 12.5px; padding: 6px 10px; border-radius: 8px;
+  display: block; font-size: 12.5px; padding: 6px 10px; border-radius: 8px;
   border: 1px solid var(--border-subtle); background: var(--surface-raised);
-  overflow-x: auto; max-width: 100%; white-space: nowrap;
+  overflow-x: auto; max-width: 100%; white-space: nowrap; scrollbar-width: thin;
 }
+/* A command row must shrink instead of overflowing: min-width: 0 at EVERY
+   level of the grid/flex chain, no wrapping, and the code scrolls inside. */
+.st-cmdrow { min-width: 0; flex-wrap: nowrap; width: 100%; }
+.st-cmdrow > .st-cmd { flex: 1 1 auto; min-width: 0; }
+.st-netmenu, .st-netmenu-cmds { min-width: 0; }
 .st-sublog { margin-top: 8px; }
 .st-sublog summary {
   cursor: pointer; font-size: 12px; color: var(--text-muted);

@@ -213,9 +213,9 @@ export default function Studio() {
                 <span className="st-muted-sm">The Midnight stack on your machine — pre-funded wallets</span>
               </button>
               <div className="st-netmenu-cmds" onClick={(e) => e.stopPropagation()}>
-                <span className="st-muted-sm">Local development needs the stack running (requires Docker):</span>
+                <span className="st-muted-sm">Local development needs the stack running — one command (requires Docker):</span>
                 {LOCAL_STACK_COMMANDS.map((command, i) => (
-                  <span key={command} className="st-inline">
+                  <span key={command} className="st-inline st-cmdrow">
                     <code className="mono st-cmd sm">{command}</code>
                     <button className="link" onClick={() => copyCmd(command, i)}>
                       {cmdCopied === i ? 'copied' : 'copy'}
