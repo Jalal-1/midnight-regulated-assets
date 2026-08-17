@@ -11,9 +11,9 @@
   },
   "dependencies": {
     "@midnight-ntwrk/compact-runtime": "0.18.0-rc.1",
-    "@midnight-ntwrk/midnight-js-contracts": "5.0.0-beta.4",
-    "@midnight-ntwrk/midnight-js-indexer-public-data-provider": "5.0.0-beta.4",
-    "@midnight-ntwrk/midnight-js-protocol": "5.0.0-beta.4",
+    "@midnight-ntwrk/midnight-js-contracts": "5.0.0-beta.6",
+    "@midnight-ntwrk/midnight-js-indexer-public-data-provider": "5.0.0-beta.6",
+    "@midnight-ntwrk/midnight-js-protocol": "5.0.0-beta.6",
     "@mra/network": "workspace:^",
     "@mra/wallet": "workspace:^",
     "@openzeppelin/compact-contracts": "patch:@openzeppelin/compact-contracts@npm%3A0.3.0-alpha.2#~/.yarn/patches/@openzeppelin-compact-contracts-npm-0.3.0-alpha.2-51da427d6f.patch"

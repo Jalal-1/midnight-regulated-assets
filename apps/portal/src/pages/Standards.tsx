@@ -47,8 +47,8 @@ export default function Standards() {
         <p>
           The full dependency set moves together and is recorded in{' '}
           <span className="mono">ops/versions.lock.json</span>: Compact compiler 0.33.0-rc.2
-          (language 0.25.0), ledger 9.1.0.0-rc.3, node 2.0.0-rc.4, indexer 4.4.0-pre-alpha.16,
-          proof server 9.0.0-rc.5_experimental, midnight-js 5.0.0-beta.4, wallet-sdk 2.0.0-beta.2.
+          (language 0.25.0), ledger 9.1.0.0-rc.3, node 2.0.0-rc.4, indexer 4.4.0-rc.1,
+          proof server 9.0.0-rc.6, midnight-js 5.0.0-beta.6, wallet-sdk 2.0.0-beta.2.
           The compiler self-reports its expected ledger and runtime versions, and those
           self-reports are re-checked on every toolchain change.
         </p>

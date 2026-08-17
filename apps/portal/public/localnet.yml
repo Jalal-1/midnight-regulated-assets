@@ -26,8 +26,8 @@ services:
 
   indexer:
     # The published image carries the full build suffix — the short release
-    # name "4.4.0-pre-alpha.16" has no tag on Docker Hub.
-    image: "midnightntwrk/indexer-standalone:4.4.0-pre-alpha.16-l91r3-n2r3-bridge-and-events-epics-contract-zswap-16c656df"
+    # name "4.4.0-rc.1" has no tag on Docker Hub.
+    image: "midnightntwrk/indexer-standalone:4.4.0-rc.1"
     ports: ['8088:8088']
     depends_on:
       node:
@@ -53,7 +53,7 @@ services:
       start_period: 10s
 
   proof-server:
-    image: "midnightntwrk/proof-server:9.0.0-rc.5_experimental"
+    image: "midnightntwrk/proof-server:9.0.0-rc.6"
     command: ['midnight-proof-server --verbose']
     ports: ['6300:6300']
     environment:

@@ -13,13 +13,13 @@
   "stack": {
     "ledger": "9.1.0.0-rc.3",
     "node": "2.0.0-rc.4",
-    "indexer": "4.4.0-pre-alpha.16",
-    "proofServer": "9.0.0-rc.5_experimental",
+    "indexer": "4.4.0-rc.1",
+    "proofServer": "9.0.0-rc.6",
     "compactCompiler": "0.33.0-rc.2",
     "compactLanguage": "0.25.0",
     "compactRuntime": "0.18.0-rc.1",
     "compactJs": "2.5.5-rc.6",
-    "midnightJs": "5.0.0-beta.4",
+    "midnightJs": "5.0.0-beta.6",
     "walletSdk": "2.0.0-beta.2"
   },
 
@@ -57,9 +57,9 @@
   "dockerTags": {
     "_comment": "Verified present on Docker Hub (midnightntwrk/*) on 2026-08-13. Live in ops/localnet/env/rc3.env.",
     "node": "2.0.0-rc.4",
-    "proofServer": "9.0.0-rc.5_experimental",
-    "indexerStandalone": "4.4.0-pre-alpha.16-l91r3-n2r3-bridge-and-events-epics-contract-zswap-16c656df",
-    "indexerTagWarning": "There is no plain '4.4.0-pre-alpha.16' tag. The published image carries the build suffix above; shortening it gives 'manifest unknown'."
+    "proofServer": "9.0.0-rc.6",
+    "indexerStandalone": "4.4.0-rc.1",
+    "indexerTagWarning": "There is no plain '4.4.0-rc.1' tag. The published image carries the build suffix above; shortening it gives 'manifest unknown'."
   },
 
   "unresolved": {
