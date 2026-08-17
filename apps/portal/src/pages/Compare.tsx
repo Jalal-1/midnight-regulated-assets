@@ -29,7 +29,7 @@ const ROWS: readonly { label: string; value: (m: AssetModel) => string }[] = [
     value: (m) => `${m.custody.thresholdPolicy.status} — ${m.custody.thresholdPolicy.note}`,
   },
   { label: 'Custody integration', value: (m) => `${m.custody.integration.status} — ${m.custody.integration.note}` },
-  { label: 'Demonstrated today', value: (m) => m.verification },
+  { label: 'Example available?', value: (m) => m.verification },
   { label: 'Production readiness', value: (m) => m.readiness },
   { label: 'Standard / implementation', value: (m) => m.standards.implementation },
 ] as const;

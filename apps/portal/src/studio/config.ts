@@ -59,7 +59,7 @@ export const TOKEN_DEFS: readonly TokenDef[] = [
     features: { balances: false, amounts: false, parties: false, supply: true, controls: false, native: true },
     visibility: 'Fully public: every coin, amount and counterparty is visible to everyone.',
     deployable: true,
-    statusLine: 'Deployable — owner-gated mint, then wallet-level transfers.',
+    statusLine: 'Working example — owner-gated mint, then wallet-level transfers.',
     defaults: { name: 'Unshielded UTXO token', symbol: 'UUT' },
   },
   {
@@ -71,7 +71,7 @@ export const TOKEN_DEFS: readonly TokenDef[] = [
     features: { balances: false, amounts: false, parties: false, supply: true, controls: true, native: false },
     visibility: 'Fully public: anyone can enumerate every holder, balance and transfer.',
     deployable: true,
-    statusLine: 'Deployable — full lifecycle: mint, transfer, redeem.',
+    statusLine: 'Working example — full lifecycle: mint, transfer, redeem.',
     defaults: { name: 'Unshielded contract token', symbol: 'UCT' },
   },
   {
@@ -83,7 +83,7 @@ export const TOKEN_DEFS: readonly TokenDef[] = [
     features: { balances: true, amounts: true, parties: true, supply: true, controls: false, native: true },
     visibility: 'Shielded: balances, amounts and counterparties are hidden; the public sees commitments.',
     deployable: true,
-    statusLine: 'Deployable — owner-gated mint into the shielded pool; issuance stays public.',
+    statusLine: 'Working example — owner-gated mint into the shielded pool; issuance stays public.',
     defaults: { name: 'ZSwap shielded token', symbol: 'ZST' },
   },
   {
@@ -95,7 +95,7 @@ export const TOKEN_DEFS: readonly TokenDef[] = [
     features: { balances: true, amounts: true, parties: false, supply: true, controls: true, native: false },
     visibility: 'Confidential values: balances encrypted, amounts hidden; identifiers, graph and supply public.',
     deployable: true,
-    statusLine: 'Deployable — full lifecycle: mint, transfer, redeem.',
+    statusLine: 'Working example — full lifecycle: mint, transfer, redeem.',
     defaults: { name: 'Confidential deposit token', symbol: 'CDT' },
   },
   {
@@ -288,7 +288,7 @@ export function assuranceRows(network: StudioNetwork, token: TokenType): KvRow[]
     {
       k: 'Asset standard',
       v: standard[token]!,
-      chip: 'Demonstrated', tone: 'success',
+      chip: 'Example available', tone: 'success',
     },
     { k: 'Module & version', v: '@openzeppelin/compact-contracts 0.3.0-alpha.2', chip: 'Pre-release', tone: 'warning' },
     { k: 'Implementation status', v: 'Full lifecycle (deploy, issue, transfer, redeem) verified on localnet; Stagenet run pending test funds', chip: 'Localnet', tone: 'accent' },

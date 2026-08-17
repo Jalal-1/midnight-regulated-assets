@@ -11,12 +11,12 @@ import { Link, SiteNav, StatusBadge } from '@mra/lab-shell';
 const CAPABILITIES = [
   {
     name: 'Confidential balances & amounts',
-    status: 'Demonstrated on localnet',
+    status: 'Working example — localnet',
     note: 'Inherited from the confidential contract token the composition starts from.',
   },
   {
     name: 'Controlled issuance & redemption',
-    status: 'Demonstrated on localnet',
+    status: 'Working example — localnet',
     note: 'Owner-gated mint and burn, demonstrated in the deposit labs.',
   },
   {

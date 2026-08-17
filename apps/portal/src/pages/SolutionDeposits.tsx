@@ -59,7 +59,7 @@ export default function SolutionDeposits() {
           those trades explicit.
         </p>
 
-        <h2>Demonstrated today</h2>
+        <h2>Working examples</h2>
         <p>
           <StatusBadge status={cft.verification} />
         </p>
