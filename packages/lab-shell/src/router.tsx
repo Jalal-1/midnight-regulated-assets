@@ -56,6 +56,7 @@ export function Router({
     addEventListener('popstate', onPop);
     return () => removeEventListener('popstate', onPop);
   }, []);
-  const page = routes[path] ?? routes['/'];
+  // Unknown routes render the '*' entry (a real 404) when provided, never a silent fallback.
+  const page = routes[path] ?? routes['*'] ?? routes['/'];
   return <PathContext.Provider value={path}>{page}</PathContext.Provider>;
 }

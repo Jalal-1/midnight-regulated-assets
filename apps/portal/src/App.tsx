@@ -1,7 +1,8 @@
 /**
  * The portal: six primary sections over a deliberately tiny router.
  *
- *   /                         institutional homepage
+ *   /                         institutional homepage (root)
+ *   /studio                   guided issuance dashboard
  *   /why                      Why Midnight
  *   /compare                  Compare asset models (registry-driven)
  *   /learn                    Learn & Try index (labs + status pages + concepts)
@@ -36,6 +37,26 @@ import SolutionRwa from './pages/SolutionRwa.tsx';
 import Standards from './pages/Standards.tsx';
 import Why from './pages/Why.tsx';
 
+function NotFound() {
+  return (
+    <div className="portal-inner prose" style={{ paddingTop: 80 }}>
+      <h1>Page not found</h1>
+      <p>
+        This address does not exist. <a href="/">Go to the homepage</a> or open the{' '}
+        <a href="/studio">Asset dashboard</a>.
+      </p>
+    </div>
+  );
+}
+
+/** Full-page redirect — for targets the SPA navigate path cannot re-render reliably. */
+function HardRedirect({ to }: { readonly to: string }) {
+  useEffect(() => {
+    location.replace(to + location.search + location.hash);
+  }, [to]);
+  return null;
+}
+
 function Redirect({ to }: { readonly to: string }) {
   useEffect(() => {
     // Preserve query and hash: /counter?autorun must land as /build/counter?autorun.
@@ -48,8 +69,9 @@ export default function App() {
   return (
     <Router
       routes={{
-        '/': <Studio />,
-        '/portal': <Home />,
+        '/': <Home />,
+        '/studio': <Studio />,
+        '/portal': <HardRedirect to="/" />,
         '/why': <Why />,
         '/compare': <Compare />,
         '/learn': <Learn />,
@@ -70,6 +92,7 @@ export default function App() {
         '/unshielded-token': <Redirect to="/labs/public-token" />,
         '/deposit': <Redirect to="/labs/public-token" />,
         '/examples': <Redirect to="/learn" />,
+        '*': <NotFound />,
       }}
     />
   );

@@ -22,7 +22,7 @@ for (const K of KINDS) {
   });
   const fail = (m) => problems.push(`[${K.card}] ${m}`);
   try {
-    await page.goto(`${BASE}/`, { waitUntil: 'domcontentloaded' });
+    await page.goto(`${BASE}/studio`, { waitUntil: 'domcontentloaded' });
     await page.evaluate(() => sessionStorage.clear());
     await page.reload({ waitUntil: 'domcontentloaded' });
 
