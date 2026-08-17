@@ -20,7 +20,7 @@ const ROUTES = [
   ['/models/native-shielded', 'Native shielded UTXO asset'],
   ['/models/shielded-contract-token', 'Shielded (note-based) contract token'],
   ['/solutions', 'asset model to financial product'],
-  ['/solutions/tokenised-deposits', 'Commercial bank money'],
+  ['/solutions/tokenised-deposits', 'Commercial-bank money'],
   ['/solutions/rwa', 'money-market fund share'],
   ['/standards', 'built on'],
   ['/build', 'Run everything yourself'],
