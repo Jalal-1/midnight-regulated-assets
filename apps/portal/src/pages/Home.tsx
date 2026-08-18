@@ -17,7 +17,9 @@
 
 import { useEffect } from 'react';
 
-import { currentNetworkName, Link, LogoMark } from '@mra/lab-shell';
+import { Link } from '@mra/lab-shell';
+
+import { LpFooter, LpNav } from './lp.tsx';
 
 const PUB = { className: 'lp-chip pub' };
 const HID = { className: 'lp-chip hid' };
@@ -86,26 +88,10 @@ export default function Home() {
   useEffect(() => {
     document.title = 'Regulated assets on Midnight';
   }, []);
-  const stagenet = currentNetworkName() === 'stagenet';
 
   return (
     <div className="lp-page">
-      <nav className="lp-nav">
-        <span className="lp-brand">
-          <LogoMark className="lp-logo" />
-          Regulated assets on Midnight
-        </span>
-        <span className="lp-links">
-          <Link to="/why">Why Midnight</Link>
-          <Link to="/compare">Compare</Link>
-          <Link to="/solutions">Use Cases</Link>
-          <Link to="/learn">Try</Link>
-          <Link to="/studio">Dashboard</Link>
-        </span>
-        <span className={`lp-netpill${stagenet ? '' : ' local'}`}>
-          {stagenet ? 'STAGENET' : 'LOCAL'}
-        </span>
-      </nav>
+      <LpNav />
 
       <header className="lp-hero">
         <div className="lp-glow" />
@@ -117,7 +103,7 @@ export default function Home() {
           </p>
           <div className="lp-ctas">
             <Link to="/compare" className="lp-btn primary">Compare asset models</Link>
-            <Link to="/learn" className="lp-btn outline">Try it</Link>
+            <Link to="/try" className="lp-btn outline">Try it</Link>
           </div>
         </div>
       </header>
@@ -179,13 +165,7 @@ export default function Home() {
         </div>
       </section>
 
-      <footer className="lp-footer">
-        <p>
-          Every example runs on the real Midnight node, wallet, proving and indexer stack.
-          Proving runs on your own machine by default — witness-bearing inputs stay within that
-          configured local boundary.
-        </p>
-      </footer>
+      <LpFooter />
     </div>
   );
 }

@@ -31,6 +31,7 @@ import Compare from './pages/Compare.tsx';
 import Home from './pages/Home.tsx';
 import ModelStatusPage from './pages/ModelStatusPage.tsx';
 import Solutions from './pages/Solutions.tsx';
+import Try from './pages/Try.tsx';
 import Studio from './studio/Studio.tsx';
 import SolutionDeposits from './pages/SolutionDeposits.tsx';
 import SolutionRwa from './pages/SolutionRwa.tsx';
@@ -101,6 +102,7 @@ export default function App() {
         '/models/native-shielded': <ModelStatusPage id="native-shielded" />,
         '/models/shielded-contract-token': <ModelStatusPage id="shielded-contract-token" />,
         '/solutions': <Solutions />,
+        '/try': <Try />,
         '/solutions/tokenised-deposits': <SolutionDeposits />,
         '/solutions/rwa': <SolutionRwa />,
         '/standards': <Standards />,

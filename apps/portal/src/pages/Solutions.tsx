@@ -1,55 +1,113 @@
 /**
- * Solutions — the product view: what an institution is actually trying to
- * ship, mapped onto the asset models with demonstrated/designed/gap honesty.
+ * Use Cases — implemented from the "Use Cases" design artboard, with two
+ * corrections against the repository:
+ *
+ *  - Tokenised deposits: redemption is HOLDER-initiated in the demonstrated
+ *    CFT (the artboard said "the issuer keeps mint and redemption").
+ *  - Real-world assets: allowlists / transfer restrictions / disclosure policy
+ *    are design requirements, not shipped capability — the artboard presented
+ *    them as living in the asset today. The base token primitive is what has
+ *    a working example.
+ *
+ * The artboard's ROADMAP label becomes DESIGN OPTION (audit vocabulary: no
+ * roadmap claim without an owner and acceptance criteria).
  */
 
 import { useEffect } from 'react';
 
-import { Link, SiteNav } from '@mra/lab-shell';
+import { Link } from '@mra/lab-shell';
+
+import { LpFooter, LpNav } from './lp.tsx';
+
+const OPTIONS = [
+  {
+    name: 'Private digital cash',
+    body: 'A bearer-style instrument with cash-like privacy at the ledger level.',
+    icon: 'cash',
+  },
+  {
+    name: 'DvP settlement',
+    body: 'Atomic delivery-versus-payment: the asset and the payment move together, or not at all.',
+    icon: 'dvp',
+  },
+  {
+    name: 'Interbank settlement',
+    body: 'Settlement between institutions, with balances visible only to the parties involved.',
+    icon: 'banks',
+  },
+] as const;
 
 export default function Solutions() {
   useEffect(() => {
-    document.title = 'Solutions — Midnight regulated assets';
+    document.title = 'Use cases — Midnight regulated assets';
   }, []);
 
   return (
-    <div className="portal-page">
-      <SiteNav />
-      <div className="portal-inner">
-        <header className="portal-hero left">
-          <span className="overline">Solutions</span>
-          <h1>From asset model to financial product</h1>
-          <p className="home-sub">
-            Products are compositions of the same building blocks; the issuer decides the
-            composition. Each solution page separates what is demonstrated today, what is
-            designed, and what remains a gap.
-          </p>
-        </header>
+    <div className="lp-page">
+      <LpNav active="/solutions" />
+      <header className="lp-head uc-hero">
+        <div className="lp-glow uc-glow" />
+        <div className="lp-overline">USE CASES</div>
+        <h1>Built for regulated money</h1>
+        <p>
+          Every use case composes the same building blocks — privacy, issuer control and
+          disclosure, tuned per instrument.
+        </p>
+      </header>
 
-        <div className="model-cards">
-          <Link to="/solutions/tokenised-deposits" className="model-card">
-            <div className="model-card-head">
-              <strong>Tokenised deposits</strong>
-            </div>
-            <span className="card-desc">
-              Commercial bank money on public rails: controlled issuance and redemption, customer
-              privacy, documented custody and disclosure requirements, public settlement.
+      <section className="lp-wide uc-two">
+        <Link to="/solutions/tokenised-deposits" className="uc-card">
+          <span className="uc-icon stack">
+            <i /><i /><i />
+          </span>
+          <h2>Tokenised deposits</h2>
+          <p>
+            Commercial-bank money onchain — the bank remains the debtor. Balances and amounts
+            stay encrypted, supply stays public for reconciliation, and the composition pairs
+            owner-gated mint with holder-initiated redemption.
+          </p>
+          <span className="uc-tags">
+            <span>Encrypted balances</span>
+            <span>Public supply</span>
+            <span>Owner mint · holder redemption</span>
+          </span>
+          <span className="uc-cta">Explore →</span>
+        </Link>
+        <Link to="/solutions/rwa" className="uc-card">
+          <span className="uc-icon pair">
+            <i className="sq" /><i className="ci" />
+          </span>
+          <h2>Real-world assets</h2>
+          <p>
+            Regulated assets with compliance as part of the token — the target composition is a
+            money-market fund share. Allowlists, transfer restrictions and disclosure policy are
+            design requirements, not yet implemented; the base token primitive has a working
+            example.
+          </p>
+          <span className="uc-tags">
+            <span>Allowlists — design</span>
+            <span>Transfer restrictions — design</span>
+            <span>Disclosure policy — design</span>
+          </span>
+          <span className="uc-cta">Explore →</span>
+        </Link>
+      </section>
+
+      <section className="lp-wide uc-three">
+        {OPTIONS.map((o) => (
+          <div key={o.name} className="uc-mini">
+            <span className={`uc-icon ${o.icon}`}>
+              {o.icon === 'cash' && (<><i className="ci solid" /><i className="ci ring" /></>)}
+              {o.icon === 'dvp' && (<><i className="sq solid" /><i className="bar" /><i className="sq ring" /></>)}
+              {o.icon === 'banks' && (<><i className="dotb" /><i className="dotb" /><i className="dotb" /><i className="dotb" /></>)}
             </span>
-            <span className="landing-cta">Read the solution →</span>
-          </Link>
-          <Link to="/solutions/rwa" className="model-card">
-            <div className="model-card-head">
-              <strong>RWA tokens</strong>
-            </div>
-            <span className="card-desc">
-              A money-market fund share with compliance built into the asset: allowlists,
-              transfer restrictions, eligibility, disclosure policy — each marked by real
-              implementation status.
-            </span>
-            <span className="landing-cta">Read the solution →</span>
-          </Link>
-        </div>
-      </div>
+            <h3>{o.name}</h3>
+            <p>{o.body}</p>
+            <span className="uc-flag">DESIGN OPTION</span>
+          </div>
+        ))}
+      </section>
+      <LpFooter />
     </div>
   );
 }
