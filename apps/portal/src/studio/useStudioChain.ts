@@ -161,6 +161,17 @@ export interface StudioChain {
   readonly accountIdHex: (who: PersonaId) => string | null;
   /** Issuer-sponsored customer fees for this deployment. */
   readonly sponsored: boolean;
+  /**
+   * Attach to an already-deployed token: rebuild the persona wallets (localnet
+   * genesis seeds) and point the session at its contract. Not offered for the
+   * CFT — its spend proofs need the wallet-side plaintext balance cache, which
+   * does not survive session loss.
+   */
+  readonly attach: (token: {
+    readonly address: string;
+    readonly kind: TokenKind;
+    readonly tokenType?: string;
+  }) => Promise<boolean>;
   readonly runDeployment: (
     kind: TokenKind,
     naming: { name: string; symbol: string },
@@ -413,6 +424,46 @@ export function useStudioChain(): StudioChain {
       }
     },
     [log, refreshView, step, subStep],
+  );
+
+  const attach = useCallback(
+    async (token: { address: string; kind: TokenKind; tokenType?: string }): Promise<boolean> => {
+      if (token.kind === 'confidential') return false;
+      setBusy(true);
+      setOpErr(null);
+      const off = onTxStage((m) => setOpStage(m));
+      try {
+        setKind(token.kind);
+        sessionsRef.current = { kind: token.kind, cft: {}, pub: {}, utxo: {}, tokenType: token.tokenType ?? null };
+        setUtxoBalances({});
+        setActivity([]);
+        setIssuedTotal(0n);
+        setRedeemedTotal(0n);
+        setLastOp(null);
+        for (const persona of ['acme', 'alice', 'bob'] as const) {
+          setOpStage(`connecting ${PERSONA_LABEL[persona]}'s wallet…`);
+          const progress = (m: string) => setOpStage(`${PERSONA_LABEL[persona]}: ${m}`);
+          if (token.kind === 'public') {
+            sessionsRef.current.pub[persona] = await connectPublicPersona(persona, undefined, progress);
+          } else {
+            sessionsRef.current.utxo[persona] = await connectUtxoPersona(token.kind, persona, undefined, progress);
+          }
+        }
+        setAddress(token.address);
+        setSponsored(false);
+        await refreshView(token.address, token.kind);
+        log(`Connected to ${token.address.slice(0, 10)}…`, 'session wallets rebuilt from seeds — operating this contract', token.address.slice(0, 10));
+        return true;
+      } catch (error) {
+        setOpErr(`Connect failed: ${String((error as Error)?.message ?? error).slice(0, 200)}`);
+        return false;
+      } finally {
+        off();
+        setOpStage(null);
+        setBusy(false);
+      }
+    },
+    [log, refreshView],
   );
 
   const run = useCallback(
@@ -675,6 +726,7 @@ export function useStudioChain(): StudioChain {
       return session?.wallet ?? null;
     },
     accountIdHex,
+    attach,
     runDeployment,
     issue,
     transfer,

@@ -178,11 +178,38 @@ export function TokenPage({ chain, address }: { readonly chain: StudioChain; rea
           <p className="st-muted-sm mono">{KIND_LABEL[kind]} · {address}</p>
         </div>
 
-        {!live && (
+        {!live && token && kind !== 'confidential' && currentNetwork().networkId === 'undeployed' && chainView !== 'unreachable' && (
+          <div className="st-card st-cta">
+            <div>
+              <div className="st-strong">Connect &amp; operate</div>
+              <div className="st-body-sm">
+                Rebuilds the demo persona wallets from their seeds and attaches to this contract —
+                mint, transfer and return then run for real. Attaching moves the live session to
+                this token.
+              </div>
+            </div>
+            <button
+              className="st-btn accent sm"
+              disabled={busy}
+              onClick={() => void chain.attach({ address, kind: token.kind, tokenType: token.tokenType })}
+            >
+              {busy ? 'Connecting…' : 'Connect & operate →'}
+            </button>
+          </div>
+        )}
+        {!live && busy && chain.opStage && <div className="st-workbox">{chain.opStage}</div>}
+        {!live && chain.opErr && <div className="st-errbox">{chain.opErr}</div>}
+        {!live && kind === 'confidential' && (
           <div className="st-note">
-            This token was deployed in an earlier session. Its state below is read live from the
-            indexer, but operating it (mint, transfer, redemption) requires the session wallets
-            that deployed it — deploy a token in this session to operate one end to end.
+            Confidential tokens cannot be operated after their session ends: spend proofs need the
+            wallet-side plaintext balances, which live only in the deploying session. State below
+            is read live from the indexer.
+          </div>
+        )}
+        {!live && token && kind !== 'confidential' && currentNetwork().networkId === 'stagenet' && (
+          <div className="st-note">
+            Reconnecting on Stagenet needs the funded seeds this token was deployed with — seeds
+            never persist. State below is read live from the indexer.
           </div>
         )}
         {chainView === 'unreachable' && !live && (
