@@ -13,20 +13,19 @@ import { getProvingObserver, probeAll, type InfraStatus } from '@mra/lab-shell';
 
 import Chip from './Chip.tsx';
 import { assuranceRows, CONTROL_DEFS, tokenDef, type StudioConfig } from './config.ts';
-import { PERSONA_LABEL, type StudioChain } from './useStudioChain.ts';
+import { PERSONA_LABEL, type StudioChain, type TokenKind } from './useStudioChain.ts';
 
 type Tab =
-  | 'overview' | 'issue' | 'participants' | 'policy' | 'custody'
+  | 'overview' | 'issue' | 'participants' | 'custody'
   | 'visibility' | 'activity' | 'compose' | 'assurance' | 'tech';
 
 const NAV: readonly [Tab, string][] = [
   ['overview', 'Overview'],
   ['issue', 'Issue & redeem'],
   ['participants', 'Participants'],
-  ['policy', 'Policy & controls'],
   ['custody', 'Custody & approvals'],
   ['visibility', 'Visibility'],
-  ['activity', 'This session'],
+  ['activity', 'Activity (this session)'],
   ['compose', 'Composability'],
   ['assurance', 'Assurance'],
   ['tech', 'Technical details'],
@@ -40,16 +39,54 @@ const parseUnits = (raw: string): bigint => {
   return Number.isFinite(n) && n > 0 ? BigInt(Math.round(n * 100)) : 0n;
 };
 
+
+// ---- Privacy profile chart (visibility tab) -----------------------------------------
+// Exposure level per fact, 0 = everyone … 3 = no one. One row per fact; the
+// dot's position IS the privacy level. Levels and sentences mirror the ledger
+// behaviour of the deployed model — nothing aspirational.
+const EXPOSURE_LEVELS = ['Everyone', 'Transaction parties', 'Holder only', 'No one'] as const;
+interface ExposureRow {
+  readonly fact: string;
+  readonly level: 0 | 1 | 2 | 3;
+  /** Public on purpose — supply-style facts kept visible so issuance is attestable. */
+  readonly onPurpose?: boolean;
+  readonly detail: string;
+}
+function exposureProfile(kind: TokenKind): readonly ExposureRow[] {
+  switch (kind) {
+    case 'utxo':
+    case 'public':
+      return [
+        { fact: 'Balances', level: 0, detail: 'Anyone can read every balance from public state.' },
+        { fact: 'Transfer amounts', level: 0, detail: 'Every amount is public the moment it confirms.' },
+        { fact: 'Counterparties', level: 0, detail: 'Sender and recipient are visible on every transfer.' },
+        { fact: 'Supply', level: 0, onPurpose: true, detail: 'Total supply is public contract state.' },
+      ];
+    case 'zswap':
+      return [
+        { fact: 'Balances', level: 2, detail: 'Each holder decrypts only their own coins; the chain stores commitments.' },
+        { fact: 'Transfer amounts', level: 1, detail: 'Sender and recipient know the amount; the public ledger hides it.' },
+        { fact: 'Counterparties', level: 1, detail: 'Only the transacting parties know each other; the ledger links nothing.' },
+        { fact: 'Supply', level: 0, onPurpose: true, detail: 'Cumulative issuance is public contract state, so issuance stays attestable.' },
+      ];
+    default:
+      return [
+        { fact: 'Balances', level: 2, detail: 'Balances are ciphertexts; each holder proves and reads only their own.' },
+        { fact: 'Transfer amounts', level: 1, detail: 'Transfer values are hidden on-chain; the parties know them, and supply deltas expose mint/redeem amounts.' },
+        { fact: 'Counterparties', level: 0, detail: 'Stable account identifiers are public on every transfer in this model.' },
+        { fact: 'Supply', level: 0, onPurpose: true, detail: 'Total supply and each issue/redeem delta are public, so backing can be reconciled.' },
+      ];
+  }
+}
+
 export default function StudioDashboard({
   config,
   chain,
   custodyName,
-  onToggleCtl,
 }: {
   readonly config: StudioConfig;
   readonly chain: StudioChain;
   readonly custodyName: string;
-  readonly onToggleCtl: (id: keyof StudioConfig['ctl'], value: boolean) => void;
 }) {
   const kind = chain.kind;
   const confidential = kind === 'confidential';
@@ -438,61 +475,7 @@ export default function StudioDashboard({
             </div>
           )}
 
-          {tab === 'policy' && utxoKind && (
-            <div className="st-step">
-              <div className="st-note">
-                Live today: owner-gated minting under the issuer key. That is the whole policy
-                surface for this token type.
-              </div>
-              <div className="st-card st-stack">
-                <div className="st-strong">No post-mint controls exist on this token</div>
-                <div className="st-body-sm">
-                  {kind === 'utxo'
-                    ? 'The coins are ledger-native UTXOs. Once minted they move wallet-to-wallet like NIGHT — no contract sits in the transfer path, so pause, freeze or transfer restrictions cannot be enforced on the token itself.'
-                    : 'The coins live in the shielded pool. Once minted they move as shielded UTXOs — no contract sits in the transfer path, so pause, freeze or transfer restrictions cannot be enforced on the token itself.'}
-                </div>
-                <div className="st-muted-sm">
-                  If your product needs issuer controls after issuance, choose a contract-based token —
-                  the unshielded contract token or the confidential token — where every movement passes
-                  through contract logic.
-                </div>
-              </div>
-              <div className="st-card st-stack">
-                <div className="st-inline spread"><span className="st-strong-sm">Owner-gated mint</span><span className="st-flag ok">Runs today</span></div>
-                <div className="st-muted-sm">Only the contract owner can mint; total issuance is public contract state, so supply stays attestable.</div>
-              </div>
-            </div>
-          )}
 
-          {tab === 'policy' && !utxoKind && (
-            <div className="st-step">
-              <div className="st-note">
-                Mint and redeem run under the issuer key on this contract. Greyed controls are
-                under development on Midnight — they are not part of the deployed contract.
-              </div>
-              {CONTROL_DEFS.map((c) => {
-                const on = c.available && config.ctl[c.id];
-                return (
-                  <div key={c.id} className={`st-card st-ctl-row${c.available ? '' : ' locked'}`}>
-                    <button
-                      className={`st-switch${on ? ' on' : ''}`}
-                      role="switch"
-                      aria-checked={on}
-                      disabled={!c.available}
-                      onClick={() => onToggleCtl(c.id, !on)}
-                    >
-                      <span />
-                    </button>
-                    <div className="st-grow">
-                      <div className="st-strong">{c.label}</div>
-                      <div className="st-muted-sm">{c.desc}</div>
-                    </div>
-                    {c.available ? <span className="st-flag ok">Live</span> : <span className="st-muted-xs">Under development</span>}
-                  </div>
-                );
-              })}
-            </div>
-          )}
 
           {tab === 'custody' && (
             <div className="st-step">
@@ -524,6 +507,41 @@ export default function StudioDashboard({
 
           {tab === 'visibility' && (
             <div className="st-step">
+              <div className="st-head-block tight">
+                <h2>Privacy profile</h2>
+                <p className="st-body-sm">
+                  Each fact sits where the ledger puts it — further right, fewer eyes.
+                </p>
+              </div>
+              <div className="st-expochart">
+                <div className="st-expo-axis">
+                  <span className="st-expo-gutter" />
+                  {EXPOSURE_LEVELS.map((l) => <span key={l}>{l}</span>)}
+                </div>
+                {exposureProfile(chain.kind).map((r) => (
+                  <div key={r.fact} className="st-expo-row" title={r.detail}>
+                    <span className="st-expo-fact">{r.fact}</span>
+                    <span className="st-expo-track">
+                      <span className="st-expo-line" />
+                      {EXPOSURE_LEVELS.map((l, i) => <i key={l} className="st-expo-tick" style={{ left: `${(i * 100) / 3}%` }} />)}
+                      <span
+                        className={`st-expo-dot lv${r.level}${r.onPurpose ? ' purpose' : ''}`}
+                        style={{ left: `${(r.level * 100) / 3}%` }}
+                      />
+                    </span>
+                    <span className="st-expo-val">
+                      {EXPOSURE_LEVELS[r.level]}
+                      {r.onPurpose && <em> · on purpose</em>}
+                    </span>
+                  </div>
+                ))}
+                <div className="st-legend st-expo-legend">
+                  <span><i className="st-expo-dot lv0 inline" />public</span>
+                  <span><i className="st-expo-dot lv1 inline" />parties only</span>
+                  <span><i className="st-expo-dot lv2 inline" />holder only</span>
+                  <span className="st-tickmuted">hover a row for exactly who sees what</span>
+                </div>
+              </div>
               <div className="st-head-block tight">
                 <h2>Who can see what?</h2>
                 <p className="st-body-sm">

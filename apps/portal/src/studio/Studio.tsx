@@ -1009,7 +1009,6 @@ export default function Studio() {
         config={config}
         chain={chain}
         custodyName={custodyLabel(config.custody)}
-        onToggleCtl={(id, value) => set('ctl', { ...config.ctl, [id]: value })}
       />
     </div>
   );

@@ -1763,3 +1763,30 @@ a.model-card:hover { border-color: var(--blue-text); box-shadow: 0 0 28px rgba(7
 }
 .lp-copy { background: none; border: none; color: #7a7aff; cursor: pointer; font-family: inherit; font-size: 12.5px; }
 @media (max-width: 700px) { .lp-netmenu { width: min(400px, calc(100vw - 24px)); } }
+
+/* Privacy profile chart — one dot per fact on a public → private track */
+.st-expochart { border: 1px solid var(--border-subtle); border-radius: 14px; background: var(--surface-card); padding: 18px 22px 12px; display: grid; gap: 2px; }
+.st-expo-axis { display: grid; grid-template-columns: 150px 1fr 1fr 1fr; font-size: 11px; letter-spacing: 0.04em; color: var(--text-muted); padding-bottom: 10px; }
+.st-expo-axis span { text-align: left; }
+.st-expo-axis span:not(.st-expo-gutter) { transform: translateX(-6px); }
+.st-expo-row { display: grid; grid-template-columns: 150px 1fr 170px; align-items: center; gap: 14px; padding: 9px 0; border-top: 1px solid var(--border-subtle); }
+.st-expo-row:hover { background: rgba(255, 255, 255, 0.02); }
+.theme-light .st-expo-row:hover { background: rgba(10, 10, 10, 0.03); }
+.st-expo-fact { font-size: 13.5px; color: var(--text-secondary); }
+.st-expo-track { position: relative; height: 16px; margin-right: 8px; }
+.st-expo-line { position: absolute; left: 0; right: 0; top: 50%; height: 2px; transform: translateY(-50%); background: var(--border-subtle); border-radius: 1px; }
+.st-expo-tick { position: absolute; top: 50%; width: 2px; height: 8px; transform: translate(-1px, -50%); background: var(--border-strong); opacity: 0.5; }
+.st-expo-dot {
+  position: absolute; top: 50%; width: 13px; height: 13px; border-radius: 50%;
+  transform: translate(-7px, -50%); box-shadow: 0 0 0 2px var(--surface-card);
+}
+.st-expo-dot.lv0 { background: rgba(255, 255, 255, 0.85); }
+.theme-light .st-expo-dot.lv0 { background: rgba(10, 10, 10, 0.55); }
+.st-expo-dot.lv1 { background: #b8f0d0; }
+.st-expo-dot.lv2, .st-expo-dot.lv3 { background: #2fbf71; }
+.st-expo-dot.purpose { outline: 2px solid rgba(71, 71, 255, 0.7); outline-offset: 1px; }
+.st-expo-dot.inline { position: static; display: inline-block; transform: none; width: 10px; height: 10px; box-shadow: none; }
+.st-expo-val { font-size: 12.5px; color: var(--text-primary); }
+.st-expo-val em { font-style: normal; color: var(--text-link); }
+.st-expo-legend { border: none; padding: 10px 0 2px; }
+@media (max-width: 760px) { .st-expo-axis { display: none; } .st-expo-row { grid-template-columns: 110px 1fr 130px; } }
