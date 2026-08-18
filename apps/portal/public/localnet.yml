@@ -25,8 +25,6 @@ services:
       start_period: 5s
 
   indexer:
-    # The published image carries the full build suffix — the short release
-    # name "4.4.0-rc.1" has no tag on Docker Hub.
     image: "midnightntwrk/indexer-standalone:4.4.0-rc.1"
     ports: ['8088:8088']
     depends_on:
