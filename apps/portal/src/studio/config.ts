@@ -59,7 +59,7 @@ export const TOKEN_DEFS: readonly TokenDef[] = [
     visibility: 'Fully public: every coin, amount and counterparty is visible to everyone.',
     deployable: true,
     statusLine: 'Working example — owner-gated mint, then wallet-level transfers.',
-    defaults: { name: 'Unshielded UTXO token', symbol: 'UUT' },
+    defaults: { name: 'ACME Cash', symbol: 'aCSH' },
   },
   {
     id: 'contract-unshielded',
@@ -71,7 +71,7 @@ export const TOKEN_DEFS: readonly TokenDef[] = [
     visibility: 'Fully public: anyone can enumerate every holder, balance and transfer.',
     deployable: true,
     statusLine: 'Working example — full lifecycle: mint, transfer, redeem.',
-    defaults: { name: 'Unshielded contract token', symbol: 'UCT' },
+    defaults: { name: 'ACME Dollar', symbol: 'aUSD' },
   },
   {
     id: 'zswap-shielded',
@@ -83,7 +83,7 @@ export const TOKEN_DEFS: readonly TokenDef[] = [
     visibility: 'Shielded: balances, amounts and counterparties are hidden; the public sees commitments.',
     deployable: true,
     statusLine: 'Working example — owner-gated mint into the shielded pool; issuance stays public.',
-    defaults: { name: 'ZSwap shielded token', symbol: 'ZST' },
+    defaults: { name: 'ACME Private Cash', symbol: 'aPRV' },
   },
   {
     id: 'contract-confidential',
@@ -95,7 +95,7 @@ export const TOKEN_DEFS: readonly TokenDef[] = [
     visibility: 'Confidential values: balances encrypted, amounts hidden; identifiers, graph and supply public.',
     deployable: true,
     statusLine: 'Working example — full lifecycle: mint, transfer, redeem.',
-    defaults: { name: 'Confidential deposit token', symbol: 'CDT' },
+    defaults: { name: 'ACME Deposit', symbol: 'aDEP' },
   },
   {
     id: 'contract-note',
@@ -107,7 +107,7 @@ export const TOKEN_DEFS: readonly TokenDef[] = [
     visibility: 'Shielded throughout.',
     deployable: false,
     statusLine: 'Under development.',
-    defaults: { name: 'Note-based shielded token', symbol: 'NST' },
+    defaults: { name: 'ACME Notes', symbol: 'aNTE' },
   },
 ];
 
@@ -133,8 +133,8 @@ export const DEFAULT_CONFIG: StudioConfig = {
   network: 'stagenet',
   ctl: { mint: true, redeem: true, pause: false, freeze: false, allowlist: false, restrict: false, recovery: false, clawback: false, supplyCap: false, roles: false },
   custody: 'demo',
-  assetName: 'Confidential deposit token',
-  symbol: 'CDT',
+  assetName: 'ACME Deposit',
+  symbol: 'aDEP',
 };
 
 export const STAGE_LABELS = [

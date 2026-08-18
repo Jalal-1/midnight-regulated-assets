@@ -67,6 +67,10 @@ const kindOf = (config: StudioConfig): TokenKind =>
         ? 'zswap'
         : 'confidential';
 
+/** True while the asset name/symbol are still SOME type's defaults (untouched). */
+const isDefaultNaming = (name: string, symbol: string) =>
+  TOKEN_DEFS.some((d) => d.defaults.name === name) && TOKEN_DEFS.some((d) => d.defaults.symbol === symbol);
+
 export default function Studio() {
   const restored = useRef(loadConfig());
   const [screen, setScreen] = useState<Screen>('wizard');
@@ -450,7 +454,15 @@ export default function Studio() {
                     <button
                       key={t.id}
                       className={`st-pick token slimrow${config.token === t.id ? ' selected' : ''}`}
-                      onClick={() => set('token', t.id)}
+                      onClick={() =>
+                        setConfig((prev) => ({
+                          ...prev,
+                          token: t.id,
+                          ...(isDefaultNaming(prev.assetName, prev.symbol)
+                            ? { assetName: t.defaults.name, symbol: t.defaults.symbol }
+                            : {}),
+                        }))
+                      }
                     >
                       <span className="st-radio" />
                       <span className="st-grow st-left">
