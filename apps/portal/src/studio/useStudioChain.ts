@@ -26,6 +26,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { currentNetwork } from '@mra/lab-shell';
+
+import { addToken } from './tokenRegistry.ts';
 import { formatDust, formatNight, onTxStage, prepareHostedWallet, withSponsoredProviders } from '@mra/wallet';
 
 import {
@@ -387,6 +389,15 @@ export function useStudioChain(): StudioChain {
           }
         }
         await refreshView(deployed, deployKind);
+        addToken({
+          address: deployed,
+          kind: deployKind,
+          name: naming.name,
+          symbol: naming.symbol,
+          network: currentNetwork().networkId,
+          tokenType: sessionsRef.current.tokenType ?? undefined,
+          deployedAt: new Date().toISOString(),
+        });
         setBusy(false);
         return true;
       } catch (error) {

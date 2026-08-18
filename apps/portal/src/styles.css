@@ -1790,3 +1790,18 @@ a.model-card:hover { border-color: var(--blue-text); box-shadow: 0 0 28px rgba(7
 .st-expo-val em { font-style: normal; color: var(--text-link); }
 .st-expo-legend { border: none; padding: 10px 0 2px; }
 @media (max-width: 760px) { .st-expo-axis { display: none; } .st-expo-row { grid-template-columns: 110px 1fr 130px; } }
+
+/* Token management dashboard */
+.tk-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+.tk-card {
+  display: grid; gap: 8px; text-align: left; background: var(--surface-card);
+  border: 1px solid var(--border-subtle); border-radius: 14px; padding: 18px 20px;
+  cursor: pointer; color: var(--text-primary); font-family: var(--font-sans);
+}
+.tk-card:hover { border-color: var(--border-strong); }
+.tk-card strong { font-size: 15.5px; }
+.tk-card.tk-new { border-style: dashed; align-content: center; text-align: center; }
+.tk-meta { font-size: 12px; color: var(--text-muted); }
+.tk-page { display: grid; gap: 14px; }
+.tk-sym { font-size: 16px; color: var(--text-muted); font-weight: 500; }
+@media (max-width: 1000px) { .tk-grid { grid-template-columns: 1fr; } }

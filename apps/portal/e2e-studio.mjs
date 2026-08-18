@@ -38,10 +38,9 @@ for (const K of KINDS) {
     await page.getByRole('button', { name: 'Deploy test asset →' }).click();
 
     await page.getByRole('heading', { name: 'Asset deployed' }).waitFor({ timeout: 300_000 });
-    await page.getByRole('button', { name: 'Go to the asset dashboard →' }).click();
+    await page.getByRole('button', { name: 'Open the token dashboard →' }).click();
 
-    // Issue & redeem tab — the three op cards, in DOM order: issue, transfer, return
-    await page.locator('.st-rail-item', { hasText: 'Issue & redeem' }).click();
+    // Ops live directly on the token page: issue, transfer, return cards in DOM order
     const ok = page.locator('.st-okbox');
     const cards = page.locator('.st-three > .st-card');
 
@@ -70,8 +69,7 @@ for (const K of KINDS) {
       await page.waitForTimeout(5_000);
     }
 
-    // Overview: total issued stays 1,000.00 (mint-only supply), returned 500
-    await page.locator('.st-rail-item', { hasText: 'Overview' }).click();
+    // Tiles sit on the token page itself: total issued stays 1,000.00, returned 500
     const tiles = (await page.locator('.st-tiles').innerText()).replace(/\s+/g, ' ');
     if (!/Total issued · public 1,000\.00/.test(tiles)) fail(`supply tile wrong: ${tiles}`);
     if (!/Returned this session 500\.00/.test(tiles)) fail(`returned tile wrong: ${tiles}`);

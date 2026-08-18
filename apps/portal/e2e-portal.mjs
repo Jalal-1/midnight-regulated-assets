@@ -22,6 +22,7 @@ const ROUTES = [
   ['/models/shielded-contract-token', 'Shielded (note-based) contract token'],
   ['/solutions', 'Built for regulated money'],
   ['/try', 'Deploy a token'],
+  ['/tokens', 'Your tokens'],
   ['/solutions/tokenised-deposits', 'Commercial-bank money'],
   ['/solutions/rwa', 'money-market fund share'],
   ['/standards', 'built on'],

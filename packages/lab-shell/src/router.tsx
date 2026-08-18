@@ -56,7 +56,11 @@ export function Router({
     addEventListener('popstate', onPop);
     return () => removeEventListener('popstate', onPop);
   }, []);
-  // Unknown routes render the '*' entry (a real 404) when provided, never a silent fallback.
-  const page = routes[path] ?? routes['*'] ?? routes['/'];
+  // Exact match first; then the longest '/prefix/*' entry (dynamic segments,
+  // e.g. '/tokens/*'); then the '*' entry (a real 404) — never a silent fallback.
+  const prefix = Object.keys(routes)
+    .filter((k) => k.endsWith('/*') && (path + '/').startsWith(k.slice(0, -1)))
+    .sort((a, b) => b.length - a.length)[0];
+  const page = routes[path] ?? (prefix ? routes[prefix] : undefined) ?? routes['*'] ?? routes['/'];
   return <PathContext.Provider value={path}>{page}</PathContext.Provider>;
 }

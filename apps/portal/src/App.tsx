@@ -89,6 +89,8 @@ export default function App() {
       routes={{
         '/': <Home />,
         '/studio': <Studio />,
+        '/tokens': <Studio />,
+        '/tokens/*': <Studio />,
         '/portal': <HardRedirect to="/" />,
         '/why': <Why />,
         '/compare': <Compare />,

@@ -11,7 +11,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 
-import { currentNetwork, currentNetworkName, LogoMark, switchNetwork } from '@mra/lab-shell';
+import { currentNetwork, currentNetworkName, LogoMark, navigate, switchNetwork, usePath } from '@mra/lab-shell';
 
 import FaucetSetup from '../labs/FaucetSetup.tsx';
 import LocalStackHelp, { LOCAL_STACK_COMMANDS } from './LocalStackHelp.tsx';
@@ -34,7 +34,7 @@ import {
   tokenDef,
   type StudioConfig,
 } from './config.ts';
-import StudioDashboard from './StudioDashboard.tsx';
+import { TokenList, TokenPage } from './TokenPages.tsx';
 import { useChainTicker } from './useChainTicker.ts';
 import { PERSONA_LABEL, useStudioChain, type PersonaId, type TokenKind } from './useStudioChain.ts';
 
@@ -81,6 +81,8 @@ export default function Studio() {
   const chain = useStudioChain();
 
   const activeNetwork = currentNetworkName();
+  const path = usePath();
+  const onTokens = path === '/tokens' || path.startsWith('/tokens/');
 
   // Close the network menu on any outside click.
   useEffect(() => {
@@ -153,6 +155,7 @@ export default function Studio() {
     setStage(1);
     setMaxStage(1);
     setScreen('wizard');
+    navigate('/studio');
     window.scrollTo(0, 0);
   };
 
@@ -166,7 +169,7 @@ export default function Studio() {
     const wanted = name === 'stagenet' ? 'stagenet' : ('local' as const);
     set('network', wanted);
     if ((activeNetwork === 'stagenet') === (name === 'stagenet')) return; // already active
-    const inSession = screen === 'deploy' || screen === 'success' || screen === 'dashboard';
+    const inSession = screen === 'deploy' || screen === 'success' || (onTokens && chain.address !== null);
     if (
       inSession &&
       !confirm('Switching networks reloads the page and ends the current asset session. Seeds are never stored.')
@@ -198,9 +201,9 @@ export default function Studio() {
         <span className="st-appname">Asset dashboard</span>
       </div>
       <div className="st-topbar-right">
-        {screen === 'dashboard' && (
+        {onTokens && (
           <button className="st-btn ghost sm" onClick={restart}>
-            New asset
+            Deploy new token
           </button>
         )}
         <span className="st-netwrap" onClick={(e) => e.stopPropagation()}>
@@ -322,6 +325,22 @@ export default function Studio() {
       </div>
     </div>
   );
+
+  // ---- Token dashboard routes ---------------------------------------------------------
+  // Same component instance across /studio and /tokens*, so the live chain
+  // session survives navigation.
+  if (onTokens && screen !== 'deploy' && screen !== 'success') {
+    return (
+      <div className="st-page">
+        {header}
+        {path === '/tokens' ? (
+          <TokenList chain={chain} />
+        ) : (
+          <TokenPage chain={chain} address={path.slice('/tokens/'.length)} />
+        )}
+      </div>
+    );
+  }
 
   // ---- Wizard + compare ---------------------------------------------------------------
 
@@ -990,8 +1009,16 @@ export default function Studio() {
                 ))}
             </div>
             <div>
-              <button className="st-btn accent" onClick={() => setScreen('dashboard')}>
-                Go to the asset dashboard →
+              <button
+                className="st-btn accent"
+                onClick={() => {
+                  setScreen('wizard');
+                  setStage(1);
+                  setMaxStage(1);
+                  if (chain.address) navigate(`/tokens/${chain.address}`);
+                }}
+              >
+                Open the token dashboard →
               </button>
             </div>
           </div>
@@ -1000,16 +1027,10 @@ export default function Studio() {
     );
   }
 
-  // ---- Dashboard ----------------------------------------------------------------------------
-
   return (
     <div className="st-page">
       {header}
-      <StudioDashboard
-        config={config}
-        chain={chain}
-        custodyName={custodyLabel(config.custody)}
-      />
+      <TokenList chain={chain} />
     </div>
   );
 }

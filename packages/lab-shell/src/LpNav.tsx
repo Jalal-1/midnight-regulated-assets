@@ -48,7 +48,7 @@ export function LpNav({ active }: { readonly active?: string }) {
     ['Compare', '/compare'],
     ['Use Cases', '/solutions'],
     ['Try', '/try'],
-    ['Dashboard', '/studio'],
+    ['Dashboard', '/tokens'],
   ] as const;
   return (
     <nav className="lp-nav">
