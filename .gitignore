@@ -44,3 +44,6 @@ midnight-level-db/
 
 # Local handoff notes — never committed
 /HANDOFF.md
+
+# Downloaded local-stack file (users curl this next to wherever they run compose)
+midnight-localnet.yml

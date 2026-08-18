@@ -76,9 +76,7 @@ declare const __COMMIT__: string;
 function EvidenceBanner() {
   return (
     <div className="evidence-banner">
-      Experimental prototype · commit {__COMMIT__} · lifecycles verified on localnet · Stagenet:
-      connectivity only · no applicable audit — OpenZeppelin Compact modules are experimental
-      alpha
+      Under construction · Experimental prototype — NOT ready for production
     </div>
   );
 }
