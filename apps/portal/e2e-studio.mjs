@@ -29,7 +29,6 @@ for (const K of KINDS) {
     await page.evaluate(() => sessionStorage.clear());
     await page.reload({ waitUntil: 'domcontentloaded' });
 
-    await page.getByRole('button', { name: 'Design your asset →' }).click();
     await page.locator('.st-pick.token', { hasText: K.card }).first().click();
     for (let i = 0; i < 4; i++) await page.getByRole('button', { name: 'Continue →' }).click();
     // Step 5: pick localnet

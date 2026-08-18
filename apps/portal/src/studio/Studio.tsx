@@ -38,7 +38,7 @@ import StudioDashboard from './StudioDashboard.tsx';
 import { useChainTicker } from './useChainTicker.ts';
 import { PERSONA_LABEL, useStudioChain, type PersonaId, type TokenKind } from './useStudioChain.ts';
 
-type Screen = 'landing' | 'wizard' | 'compare' | 'deploy' | 'success' | 'dashboard';
+type Screen = 'wizard' | 'compare' | 'deploy' | 'success' | 'dashboard';
 
 const CMP_NAME: Record<string, string> = {
   'utxo-unshielded': 'Unshielded UTXO',
@@ -69,7 +69,7 @@ const kindOf = (config: StudioConfig): TokenKind =>
 
 export default function Studio() {
   const restored = useRef(loadConfig());
-  const [screen, setScreen] = useState<Screen>(restored.current ? 'wizard' : 'landing');
+  const [screen, setScreen] = useState<Screen>('wizard');
   const [stage, setStage] = useState(restored.current?.stage ?? 1);
   const [maxStage, setMaxStage] = useState(restored.current?.stage ?? 1);
   const [config, setConfig] = useState<StudioConfig>(restored.current?.config ?? DEFAULT_CONFIG);
@@ -152,7 +152,7 @@ export default function Studio() {
     setConfig(DEFAULT_CONFIG);
     setStage(1);
     setMaxStage(1);
-    setScreen('landing');
+    setScreen('wizard');
     window.scrollTo(0, 0);
   };
 
@@ -322,41 +322,6 @@ export default function Studio() {
       </div>
     </div>
   );
-
-  // ---- Landing --------------------------------------------------------------------
-
-  if (screen === 'landing') {
-    return (
-      <div className="st-page">
-        {header}
-        <div className="st-landing">
-          <div className="home-glow" />
-          <div className="st-landing-inner">
-            <LogoMark className="st-landing-logo" />
-            <h1>Issue regulated assets on Midnight</h1>
-            <p className="st-landing-lede">
-              Pick a token type, review its privacy profile and issuer controls, name it, and
-              deploy to a test network. Proofs are generated on your own machine.
-            </p>
-            <div className="st-landing-points">
-              <div><strong>Unshielded tokens</strong> for settlement assets and registry-style instruments where public auditability is the requirement.</div>
-              <div><strong>Shielded tokens</strong> for private bearer instruments and confidential regulated products that keep issuer controls and attestable supply.</div>
-              <div><strong>Issuer operations</strong> — mint, transfer, redeem, custody, approvals and fee sponsorship are configured per asset.</div>
-            </div>
-            <div className="cta-row">
-              <button className="st-btn accent lg" onClick={() => { setScreen('wizard'); go(1); }}>
-                Design your asset →
-              </button>
-              <button className="st-btn ghost lg" onClick={() => setScreen('compare')}>
-                Compare token types
-              </button>
-            </div>
-            <p className="st-muted-xs">Test networks · test assets · proofs stay on your machine</p>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   // ---- Wizard + compare ---------------------------------------------------------------
 

@@ -9,7 +9,7 @@ import { firefox } from 'playwright';
 const BASE = process.env.UI_URL ?? 'http://localhost:5173';
 const ROUTES = [
   ['/', 'Regulated assets'],
-  ['/studio', 'Issue regulated assets on Midnight'],
+  ['/studio', 'Choose your token type'],
 
   ['/why', 'Privacy you can configure'],
   ['/compare', 'Five ways to represent'],
