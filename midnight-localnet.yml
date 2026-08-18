@@ -11,10 +11,6 @@
 #
 # Versions match the dashboard's pinned Stagenet-compatible stack (Ledger RC3).
 
-# Pinned project name: re-running from any directory reuses this stack
-# instead of creating a second one that fights for the same ports.
-name: midnight-localnet
-
 services:
   node:
     image: "midnightntwrk/midnight-node:2.0.0-rc.4"

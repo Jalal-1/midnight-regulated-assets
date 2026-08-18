@@ -31,7 +31,7 @@ const NETWORKS = [
 
 export default function Try() {
   const [model, setModel] = useState<TokenType>('contract-confidential');
-  const [network, setNetwork] = useState<'local' | 'stagenet'>('local');
+  const [network, setNetwork] = useState<'local' | 'stagenet'>('stagenet');
 
   useEffect(() => {
     document.title = 'Try — deploy a token on Midnight';

@@ -7,10 +7,8 @@
  * inside a running page would leave half the stack on the old chain. A reload
  * makes the switch atomic.
  *
- * The default is environment-aware: a page served from localhost defaults to
- * localnet (the developer loop); a hosted page defaults to Stagenet — the only
- * network a cold visitor can reach. The proof server stays LOCAL either way
- * (witness data never leaves the viewer's machine).
+ * Stagenet is the default everywhere; an explicit choice (localStorage) wins.
+ * The proof server stays LOCAL either way.
  */
 
 import { getNetwork, networks, type NetworkConfig, type NetworkName } from '@mra/network';
@@ -32,7 +30,7 @@ export function currentNetworkName(): NetworkName {
   } catch {
     /* private browsing */
   }
-  return isHostedPage() ? 'stagenet' : 'localnet';
+  return 'stagenet';
 }
 
 export function currentNetwork(): NetworkConfig {

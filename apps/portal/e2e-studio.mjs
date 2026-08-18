@@ -23,6 +23,9 @@ for (const K of KINDS) {
   const fail = (m) => problems.push(`[${K.card}] ${m}`);
   try {
     await page.goto(`${BASE}/studio`, { waitUntil: 'domcontentloaded' });
+    // Stagenet is the app default; this e2e drives the local stack.
+    await page.evaluate(() => localStorage.setItem('mra.network.v1', 'localnet'));
+    await page.reload({ waitUntil: 'domcontentloaded' });
     await page.evaluate(() => sessionStorage.clear());
     await page.reload({ waitUntil: 'domcontentloaded' });
 

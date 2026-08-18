@@ -4,10 +4,39 @@
  * proving-boundary line. One source so the pages cannot drift.
  */
 
-import { currentNetworkName, Link, LogoMark } from '@mra/lab-shell';
+import { useEffect, useState } from 'react';
+
+import { currentNetworkName, Link, LogoMark, switchNetwork } from '@mra/lab-shell';
+
+import { LOCAL_STACK_COMMANDS } from '../studio/LocalStackHelp.tsx';
 
 export function LpNav({ active }: { readonly active?: string }) {
   const stagenet = currentNetworkName() === 'stagenet';
+  const [open, setOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    const close = () => setOpen(false);
+    document.addEventListener('click', close);
+    return () => document.removeEventListener('click', close);
+  }, [open]);
+
+  const pick = (name: 'stagenet' | 'localnet') => {
+    setOpen(false);
+    if ((name === 'stagenet') === stagenet) return; // already active
+    switchNetwork(name); // reloads — these pages hold no session state
+  };
+
+  const copyCmd = () => {
+    try {
+      void navigator.clipboard.writeText(LOCAL_STACK_COMMANDS[0]!);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1600);
+    } catch {
+      /* clipboard unavailable */
+    }
+  };
   const links = [
     ['Why Midnight', '/why'],
     ['Compare', '/compare'],
@@ -28,8 +57,35 @@ export function LpNav({ active }: { readonly active?: string }) {
           </Link>
         ))}
       </span>
-      <span className={`lp-netpill${stagenet ? '' : ' local'}`}>
-        {stagenet ? 'STAGENET' : 'LOCAL'}
+      <span className="lp-netwrap" onClick={(e) => e.stopPropagation()}>
+        <button
+          className={`lp-netpill lp-netbtn${stagenet ? '' : ' local'}`}
+          onClick={() => setOpen((o) => !o)}
+          title="Switch network"
+        >
+          {stagenet ? 'STAGENET' : 'LOCAL'} ▾
+        </button>
+        {open && (
+          <div className="lp-netmenu">
+            <button className="lp-netopt" onClick={() => pick('stagenet')}>
+              <strong>Stagenet</strong>
+              {stagenet && <span className="lp-active">active</span>}
+              <span>Public test network — wallets need faucet-funded seeds</span>
+            </button>
+            <button className="lp-netopt" onClick={() => pick('localnet')}>
+              <strong>Local development</strong>
+              {!stagenet && <span className="lp-active">active</span>}
+              <span>The Midnight stack on your machine — pre-funded wallets</span>
+            </button>
+            <div className="lp-netcmd">
+              <span>Local development needs the stack running (requires Docker):</span>
+              <span className="lp-cmdrow">
+                <code>{LOCAL_STACK_COMMANDS[0]}</code>
+                <button className="lp-copy" onClick={copyCmd}>{copied ? 'copied' : 'copy'}</button>
+              </span>
+            </div>
+          </div>
+        )}
       </span>
     </nav>
   );
