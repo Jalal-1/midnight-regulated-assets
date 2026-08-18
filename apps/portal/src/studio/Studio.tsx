@@ -730,7 +730,7 @@ export default function Studio() {
               {stage === 5 && (
                 <div className="st-step">
                   <div className="st-head-block">
-                    <span className="st-overline">Step 5 of 6 · Network &amp; assurance</span>
+                    <span className="st-overline">Step 5 of 6 · Network &amp; fees</span>
                     <h1>Select a network</h1>
                     <p>The assurance summary states exactly what is verified where, and where the trust boundaries sit.</p>
                   </div>
@@ -743,6 +743,9 @@ export default function Studio() {
                         <span className="st-radio" />
                         <span className="st-pick-title">Stagenet</span>
                       </span>
+                      {activeNetwork === 'stagenet' && (
+                        <span className="st-connected">✓ You are currently connected to this network</span>
+                      )}
                       <span className="st-body-sm">Midnight&apos;s public test network. Test assets only.</span>
                       <span className="st-verify">
                         <span className="ok">Wallet connectivity verified · first-time funding and DUST setup automated</span>
@@ -757,6 +760,9 @@ export default function Studio() {
                         <span className="st-radio" />
                         <span className="st-pick-title">Local development</span>
                       </span>
+                      {activeNetwork !== 'stagenet' && (
+                        <span className="st-connected">✓ You are currently connected to this network</span>
+                      )}
                       <span className="st-body-sm">The full Midnight stack on your machine. Pre-funded wallets, instant start, fresh chain per session.</span>
                       <span className="st-verify">
                         <span className="ok">Full lifecycle verified: deploy, issue, transfer, redeem</span>

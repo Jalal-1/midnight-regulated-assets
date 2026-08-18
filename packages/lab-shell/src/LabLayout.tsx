@@ -12,7 +12,7 @@ import type { ReactNode } from 'react';
 
 import type { AssetModel } from '@mra/asset-models';
 
-import SiteNav from './SiteNav.tsx';
+import { LpNav } from './LpNav.tsx';
 import StatusBadge from './StatusBadge.tsx';
 
 export function LabSection({
@@ -46,7 +46,7 @@ export default function LabLayout({
 }) {
   return (
     <div className="lab-page">
-      <SiteNav chainId={chainId ?? null} />
+      <LpNav />
       <div className="lab-inner">
         <header className="lab-head">
           <span className="overline">Learn &amp; Try · guided walkthrough</span>

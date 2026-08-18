@@ -5,7 +5,9 @@
 
 import { useEffect } from 'react';
 
-import { Link, SiteNav } from '@mra/lab-shell';
+import { Link } from '@mra/lab-shell';
+
+import { LpNav } from './lp.tsx';
 
 export default function BuildPage() {
   useEffect(() => {
@@ -14,7 +16,7 @@ export default function BuildPage() {
 
   return (
     <div className="portal-page">
-      <SiteNav />
+      <LpNav />
       <div className="portal-inner prose">
         <header className="portal-hero left">
           <span className="overline">Build</span>

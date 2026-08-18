@@ -1350,6 +1350,13 @@ a.model-card:hover { border-color: var(--blue-text); box-shadow: 0 0 28px rgba(7
 .st-pick.selected .st-radio { background: var(--blue); border-color: var(--blue); }
 .st-pick.netcard { align-content: start; padding: 16px 18px; gap: 8px; }
 .st-verify { display: grid; gap: 2px; font-size: 12px; line-height: 1.5; border-top: 1px solid var(--border-subtle); padding-top: 8px; }
+.st-connected {
+  display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 500;
+  color: var(--ok-text); background: rgba(47, 191, 113, 0.1);
+  border: 1px solid rgba(47, 191, 113, 0.3); border-radius: 8px; padding: 5px 10px;
+  justify-self: start;
+}
+.theme-light .st-connected { color: var(--ok); background: rgba(29, 138, 80, 0.08); }
 .st-verify .ok { color: #5fd79a; }
 .st-verify .warn { color: #efbe6e; }
 .st-verify .muted { color: var(--text-muted); }
@@ -1589,7 +1596,8 @@ a.model-card:hover { border-color: var(--blue-text); box-shadow: 0 0 28px rgba(7
 /* ===== Landing page (from the Landing Page design artboard) ==================== */
 .lp-page { min-height: 100vh; background: #0a0a0a; color: #fff; }
 .theme-light .lp-page { background: #0a0a0a; color: #fff; } /* the landing commits to dark */
-.lp-nav { display: flex; align-items: center; gap: 32px; padding: 18px 40px; border-bottom: 1px solid rgba(255,255,255,0.08); }
+.lp-nav { display: flex; align-items: center; gap: 32px; padding: 18px 40px; border-bottom: 1px solid rgba(255,255,255,0.08); background: #0a0a0a; color: #fff; }
+.lp-nav .lp-brand { color: #fff; }
 .lp-brand { display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: 15.5px; }
 .lp-logo { width: 26px; height: 26px; color: #fff; flex: none; }
 .lp-links { display: flex; gap: 26px; font-size: 14px; margin-left: auto; }

@@ -45,6 +45,7 @@ for (const viewport of [{ width: 1440, height: 900 }, { width: 375, height: 812 
     await page.goto(`${BASE}${route}`, { waitUntil: 'domcontentloaded' });
     await page.waitForTimeout(500);
     const text = await page.locator('h1').first().innerText().catch(() => '');
+    if (await page.locator('.site-nav').count()) problems.push('[' + route + '] old SiteNav rendered');
     if (!text.toLowerCase().includes(expect.toLowerCase().slice(0, 24))) {
       problems.push(`[${viewport.width}] ${route}: expected h1 ~"${expect}", got "${text.slice(0, 60)}"`);
     }

@@ -5,7 +5,9 @@
 
 import { useEffect } from 'react';
 
-import { Link, SiteNav } from '@mra/lab-shell';
+import { Link } from '@mra/lab-shell';
+
+import { LpNav } from './lp.tsx';
 
 export default function Why() {
   useEffect(() => {
@@ -14,7 +16,7 @@ export default function Why() {
 
   return (
     <div className="portal-page">
-      <SiteNav />
+      <LpNav active="/why" />
       <div className="portal-inner prose">
         <header className="portal-hero left">
           <span className="overline">Why Midnight</span>

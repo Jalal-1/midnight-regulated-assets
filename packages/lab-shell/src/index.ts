@@ -20,6 +20,7 @@ export {
 export type { Health, InfraStatus, LogLine as InfraLogLine, ProvingMeter } from './infra.ts';
 export { default as Infrastructure } from './Infrastructure.tsx';
 export { default as SiteNav } from './SiteNav.tsx';
+export { LpNav, LpFooter, LOCAL_STACK_COMMANDS } from './LpNav.tsx';
 export { default as LabLayout, LabSection } from './LabLayout.tsx';
 export { default as VisibilityMatrix } from './VisibilityMatrix.tsx';
 export { default as StatusBadge } from './StatusBadge.tsx';

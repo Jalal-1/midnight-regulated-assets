@@ -15,11 +15,9 @@
 
 import { useState } from 'react';
 
-import { isHostedPage, switchNetwork } from '@mra/lab-shell';
+import { isHostedPage, LOCAL_STACK_COMMANDS, switchNetwork } from '@mra/lab-shell';
 
-export const LOCAL_STACK_COMMANDS = [
-  `curl -fsSL ${typeof location !== 'undefined' ? location.origin : ''}/localnet.yml -o midnight-localnet.yml && docker compose -f midnight-localnet.yml up -d`,
-];
+export { LOCAL_STACK_COMMANDS };
 const COMMANDS = LOCAL_STACK_COMMANDS;
 
 export default function LocalStackHelp({ title }: { readonly title: string }) {

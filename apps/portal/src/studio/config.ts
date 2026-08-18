@@ -142,7 +142,7 @@ export const STAGE_LABELS = [
   'Privacy overview',
   'Issuer controls',
   'Custody & approvals',
-  'Network & assurance',
+  'Network & fees',
   'Review & deploy',
 ] as const;
 

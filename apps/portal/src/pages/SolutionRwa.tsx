@@ -6,7 +6,9 @@
 
 import { useEffect } from 'react';
 
-import { Link, SiteNav, StatusBadge } from '@mra/lab-shell';
+import { Link, StatusBadge } from '@mra/lab-shell';
+
+import { LpNav } from './lp.tsx';
 
 const CAPABILITIES = [
   {
@@ -53,7 +55,7 @@ export default function SolutionRwa() {
 
   return (
     <div className="portal-page">
-      <SiteNav />
+      <LpNav active="/solutions" />
       <div className="portal-inner prose">
         <header className="portal-hero left">
           <span className="overline">Solutions · RWA tokens</span>

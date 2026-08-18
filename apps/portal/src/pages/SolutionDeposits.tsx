@@ -7,7 +7,9 @@
 import { useEffect } from 'react';
 
 import { getModel } from '@mra/asset-models';
-import { Link, SiteNav, StatusBadge, VisibilityMatrix } from '@mra/lab-shell';
+import { Link, StatusBadge, VisibilityMatrix } from '@mra/lab-shell';
+
+import { LpNav } from './lp.tsx';
 
 export default function SolutionDeposits() {
   useEffect(() => {
@@ -19,7 +21,7 @@ export default function SolutionDeposits() {
 
   return (
     <div className="portal-page">
-      <SiteNav />
+      <LpNav active="/solutions" />
       <div className="portal-inner prose">
         <header className="portal-hero left">
           <span className="overline">Solutions · Tokenised deposits</span>

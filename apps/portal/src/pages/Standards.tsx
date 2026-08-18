@@ -8,7 +8,9 @@
 import { useEffect } from 'react';
 
 import { ASSET_MODELS } from '@mra/asset-models';
-import { SiteNav, StatusBadge } from '@mra/lab-shell';
+import { StatusBadge } from '@mra/lab-shell';
+
+import { LpNav } from './lp.tsx';
 
 export default function Standards() {
   useEffect(() => {
@@ -17,7 +19,7 @@ export default function Standards() {
 
   return (
     <div className="portal-page">
-      <SiteNav />
+      <LpNav />
       <div className="portal-inner prose">
         <header className="portal-hero left">
           <span className="overline">Standards &amp; assurance</span>

@@ -7,7 +7,9 @@
 import { useEffect } from 'react';
 
 import { labModels, statusPageModels } from '@mra/asset-models';
-import { Link, LogoMark, SiteNav, StatusBadge } from '@mra/lab-shell';
+import { Link, LogoMark, StatusBadge } from '@mra/lab-shell';
+
+import { LpNav } from '../pages/lp.tsx';
 
 import { TOPICS } from './topics.ts';
 
@@ -18,7 +20,7 @@ export default function Learn() {
 
   return (
     <div className="portal-page">
-      <SiteNav />
+      <LpNav active="/try" />
       <div className="home-glow" />
       <div className="portal-inner">
         <header className="portal-hero left">

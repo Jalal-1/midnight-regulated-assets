@@ -7,7 +7,9 @@
 import { useEffect } from 'react';
 
 import { getModel } from '@mra/asset-models';
-import { Link, SiteNav, StatusBadge, VisibilityMatrix } from '@mra/lab-shell';
+import { Link, StatusBadge, VisibilityMatrix } from '@mra/lab-shell';
+
+import { LpNav } from './lp.tsx';
 
 export default function ModelStatusPage({ id }: { readonly id: string }) {
   const model = getModel(id);
@@ -19,7 +21,7 @@ export default function ModelStatusPage({ id }: { readonly id: string }) {
   if (!model) {
     return (
       <div className="portal-page">
-        <SiteNav />
+        <LpNav active="/compare" />
         <div className="portal-inner prose">
           <h1>Unknown model</h1>
           <p>
@@ -32,7 +34,7 @@ export default function ModelStatusPage({ id }: { readonly id: string }) {
 
   return (
     <div className="portal-page">
-      <SiteNav />
+      <LpNav active="/compare" />
       <div className="portal-inner prose">
         <header className="portal-hero left">
           <span className="overline">Learn &amp; Try · status page</span>
